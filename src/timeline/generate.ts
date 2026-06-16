@@ -20,9 +20,8 @@ import type {
   MatchScenario,
   MatchTimeline,
   Side,
-  Vec2,
 } from "../types.js";
-import { buildFiller } from "./filler.js";
+import { buildBuildup, buildAttackClusters, outfield } from "./clusters.js";
 import { placeGoalMinutes } from "./minutes.js";
 
 const ATTACKER = /ST|CF|W|F|AM/;
@@ -41,13 +40,34 @@ export function generateTimeline(input: GenerateTimelineInput): MatchTimeline {
 
   const events: MatchEvent[] = [{ t: 0, type: "kickoff", team: "home" }];
 
-  // Known goals — emitted as `goal` events so the timeline reconciles exactly.
-  events.push(...buildGoals("home", homeGoals, lineups.home, rng));
-  events.push(...buildGoals("away", awayGoals, lineups.away, rng));
+  const homeGoalEvents = buildGoals("home", homeGoals, lineups.home, rng);
+  const awayGoalEvents = buildGoals("away", awayGoals, lineups.away, rng);
+  events.push(...homeGoalEvents, ...awayGoalEvents);
 
-  // Cosmetic filler whose density tracks each side's λ. Never affects score.
-  events.push(...buildFiller("home", result.lambda[0], lineups.home, rng));
-  events.push(...buildFiller("away", result.lambda[1], lineups.away, rng));
+  const reservedMinutes = new Set(
+    [...homeGoalEvents, ...awayGoalEvents]
+      .filter((e) => e.type === "goal")
+      .map((e) => e.t),
+  );
+
+  events.push(
+    ...buildAttackClusters(
+      "home",
+      result.lambda[0],
+      lineups.home,
+      rng,
+      reservedMinutes,
+    ),
+  );
+  events.push(
+    ...buildAttackClusters(
+      "away",
+      result.lambda[1],
+      lineups.away,
+      rng,
+      reservedMinutes,
+    ),
+  );
 
   // Stable chronological order; kickoff (t=0) stays first.
   events.sort((a, b) => a.t - b.t);
@@ -87,27 +107,41 @@ function buildGoals(
   rng: Rng,
 ): MatchEvent[] {
   const minutes = placeGoalMinutes(count, rng);
-  return minutes.map((t) => ({
-    t,
-    type: "goal" as const,
-    team: side,
-    scorerId: pickScorer(lineup, rng).playerId,
-    from: goalSpot(rng, side),
-  }));
+  const players = outfield(lineup);
+  const events: MatchEvent[] = [];
+
+  for (const t of minutes) {
+    const scorer = pickScorer(lineup, rng);
+    const { possession, lastBall, lastReceiverId } = buildBuildup(
+      side,
+      t,
+      players,
+      rng,
+    );
+    events.push(possession);
+    const goal: MatchEvent = {
+      t,
+      type: "goal",
+      team: side,
+      scorerId: scorer.playerId,
+      from: lastBall,
+    };
+    if (lastReceiverId !== scorer.playerId) {
+      events.push({ ...goal, assistId: lastReceiverId });
+    } else {
+      events.push(goal);
+    }
+  }
+
+  return events;
 }
 
 /** Prefer attackers as scorers, but anyone outfield can score. */
 function pickScorer(lineup: LineupSlot[], rng: Rng): LineupSlot {
-  const outfield = lineup.filter((s) => s.position.toUpperCase() !== "GK");
-  const attackers = outfield.filter((s) => ATTACKER.test(s.position.toUpperCase()));
-  const pool = attackers.length > 0 && rng() < 0.7 ? attackers : outfield;
+  const out = outfield(lineup);
+  const attackers = out.filter((s) => ATTACKER.test(s.position.toUpperCase()));
+  const pool = attackers.length > 0 && rng() < 0.7 ? attackers : out;
   return pick(rng, pool.length > 0 ? pool : lineup);
-}
-
-function goalSpot(rng: Rng, side: Side): Vec2 {
-  const depth = 0.75 + rng() * 0.2; // close to the opponent goal
-  const x = side === "home" ? depth : 1 - depth;
-  return { x, y: 0.3 + rng() * 0.4 };
 }
 
 /** Normal-speed playback length: ~90 min → ~75 s, plus shootout time. */

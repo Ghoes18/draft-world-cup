@@ -100,3 +100,8 @@ export const PENALTY_GOAL_CHANCE = 0.08;
 /** Passes per possession chain (inclusive range). */
 export const PASSES_MIN = 2;
 export const PASSES_MAX = 6;
+/**
+ * Match-minutes before a terminal event (shot, goal, corner) that the linked
+ * possession buildup starts. Keeps attacks visually continuous in the director.
+ */
+export const BUILDUP_LEAD_MIN = 1.0;

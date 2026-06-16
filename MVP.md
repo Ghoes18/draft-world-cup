@@ -147,7 +147,7 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 
 ## 6. Build order (milestones)
 
-1. **M1 — Server-authoritative engine + timeline generator** (pure functions; verify via Fast text output). *Foundation for online + daily.*
+1. ~~**M1 — Server-authoritative engine + timeline generator** (pure functions; verify via Fast text output). *Foundation for online + daily.*~~ ✅
 2. **M2 — 2D top-down renderer** playing the timeline (Normal/Fast/Ultra), with skip + speed controls.
 3. **M3 — Chemistry + Tactics** wired into the engine and surfaced in Build (live chemistry meter, tactic picker).
 4. **M4 — Match statistics** screen (derived from timeline).
