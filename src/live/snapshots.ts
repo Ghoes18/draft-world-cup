@@ -5,6 +5,7 @@ const EVENT_BANNERS: Partial<Record<string, string>> = {
   foul: "FOUL",
   freekick: "FREE KICK",
   penalty: "PENALTY",
+  corner: "CORNER",
   shootout: "SHOOTOUT",
   stoppage: "STOPPAGE TIME",
   goal: "GOAL!",
@@ -31,11 +32,13 @@ export function snapshotToFrame(snapshot: LiveSnapshot): FrameState {
         ? "goal"
         : lastType === "penalty"
           ? "penalty"
-          : lastType === "freekick"
-            ? "freekick"
-            : lastType === "shootout"
-              ? "shootout"
-              : "possession",
+          : lastType === "corner"
+            ? "corner"
+            : lastType === "freekick"
+              ? "freekick"
+              : lastType === "shootout"
+                ? "shootout"
+                : "possession",
     ...(carrier ? { carrierId: carrier.id } : {}),
   };
   if (snapshot.lastEvent?.type === "fulltime") {

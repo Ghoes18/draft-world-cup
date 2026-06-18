@@ -121,6 +121,14 @@ function isWideCarrier(player: LivePlayer): boolean {
   return player.pos.y < CROSS_TOUCHLINE_Y || player.pos.y > 1 - CROSS_TOUCHLINE_Y;
 }
 
+/** Carrier parked in the corner-flag zone — should deliver a cross, not dribble. */
+function inCornerZone(player: LivePlayer): boolean {
+  return (
+    forwardProgress(player.pos, player.side) > 0.9 &&
+    (player.pos.y < 0.06 || player.pos.y > 0.94)
+  );
+}
+
 function isInAttackingBox(player: LivePlayer): boolean {
   if (player.side === "home") {
     return (
@@ -161,6 +169,8 @@ function chooseCrossAction(
   if (forwardProgress(player.pos, player.side) < CROSS_MIN_FORWARD) return null;
   const target = findCrossTarget(state, player);
   if (!target) return null;
+  // A corner taker at the flag whips it in without hesitation.
+  if (inCornerZone(player)) return { kind: "cross", targetZone: { ...target.pos } };
   const bias = tacticBias(tactic);
   if (rng() > 0.38 * bias.passForward + 0.12) return null;
   return { kind: "cross", targetZone: { ...target.pos } };
@@ -182,7 +192,7 @@ function chooseAttackAction(
   const nearest = nearestDefender(player.pos, defs);
   const pressure = nearest ? clamp(1 - dist(player.pos, nearest.pos) / 0.2, 0, 1) : 0;
 
-  if (toGoal < SHOOT_RANGE && rng() < 0.28 * bias.shoot + (SHOOT_RANGE - toGoal) * 0.65) {
+  if (toGoal < SHOOT_RANGE && rng() < 0.62 * bias.shoot + (SHOOT_RANGE - toGoal) * 1.1) {
     return { kind: "shoot" };
   }
 
@@ -339,8 +349,12 @@ export function decideTickPlan(
   }
 
   if (c && c.side === state.possession && state.ball.mode === "carried") {
+    // Re-evaluate options every third tick — a short dwell reads as the carrier
+    // driving forward, but without the old %4 "march straight at goal" monotony
+    // (and shot volume stays up). A carrier parked in the corner zone always
+    // evaluates so it actually whips the corner in.
     const action =
-      state.tick % 4 === 0
+      state.tick % 3 === 0 || inCornerZone(c)
         ? chooseAttackAction(state, c, tactics[c.side], rng)
         : { kind: "carry" as const, direction: normalize(attackDir(c.side)) };
     return {

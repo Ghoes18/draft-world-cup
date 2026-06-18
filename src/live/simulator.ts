@@ -6,6 +6,11 @@ import { derivePlayerAttributes, isGoalkeeperPosition } from "./attributes.js";
 import { decideTickPlan, movementTargetFromPlan } from "./decision.js";
 import {
   BALL_CARRY_OFFSET,
+  BOX_DEPTH,
+  CORNER_DELAY_TICKS,
+  CORNER_FLAG_INSET,
+  CORNER_FROM_CLEARANCE_CHANCE,
+  CORNER_FROM_SAVE_CHANCE,
   LIVE_MATCH_MINUTES,
   LIVE_TOTAL_TICKS,
   LOOSE_BALL_FRICTION,
@@ -42,7 +47,6 @@ import {
   penaltySpot,
   rollOutcome,
   saveChance,
-  shotGoalChance,
   shotOffTargetChance,
   tackleSuccessChance,
 } from "./outcomes.js";
@@ -175,6 +179,8 @@ export function createLiveMatchState(config: LiveMatchConfig): LiveMatchState {
     throughBall: false,
     targetZone: null,
     restartDelay: 0,
+    lastTouchId: kickoffPlayer.id,
+    lastTouchSide: kickoffSide,
   };
 
   const state: LiveMatchState = {
@@ -254,6 +260,110 @@ function scheduleSetPiece(
   });
 }
 
+/** Corner-flag spot for the attacking side, on the near touchline to `exitY`. */
+function cornerFlagSpot(attackingSide: Side, exitY: number): Vec2 {
+  // The attacking side takes the corner at the defending team's goal line.
+  const goalX = opponentGoalX(attackingSide); // 1 for home, 0 for away
+  const x = goalX === 1 ? 1 - CORNER_FLAG_INSET : CORNER_FLAG_INSET;
+  const y = exitY < 0.5 ? CORNER_FLAG_INSET : 1 - CORNER_FLAG_INSET;
+  return { x, y };
+}
+
+/** Center of the attacking penalty box (corner delivery target). */
+function attackingBoxZone(attackingSide: Side, exitY: number): Vec2 {
+  const goalX = opponentGoalX(attackingSide);
+  const x = goalX === 1 ? 1 - BOX_DEPTH * 0.6 : BOX_DEPTH * 0.6;
+  // Bias the delivery slightly toward the side the ball went out on.
+  const y = clamp(0.5 + (exitY < 0.5 ? -0.05 : 0.05), 0.4, 0.6);
+  return { x, y };
+}
+
+/** Force a set-piece shape: taker at the flag, two attackers + two markers in the box. */
+function loadCornerBox(
+  state: LiveMatchState,
+  attackingSide: Side,
+  taker: LivePlayer,
+  flag: Vec2,
+  zone: Vec2,
+): void {
+  taker.pos = clampVec(flag);
+  taker.vel = { x: 0, y: 0 };
+
+  const offsets: Vec2[] = [
+    { x: 0, y: -0.06 },
+    { x: -0.05, y: 0.05 },
+    { x: 0.04, y: 0.02 },
+  ];
+
+  const attackers = state.players
+    .filter((p) => p.side === attackingSide && !p.isGoalkeeper && p.id !== taker.id)
+    .sort((a, b) => forwardProgress(b, attackingSide) - forwardProgress(a, attackingSide))
+    .slice(0, 3);
+  attackers.forEach((p, i) => {
+    const o = offsets[i] ?? { x: 0, y: 0 };
+    p.pos = clampVec({ x: zone.x + o.x, y: zone.y + o.y });
+    p.vel = { x: 0, y: 0 };
+  });
+
+  const defSide = oppSide(attackingSide);
+  const defenders = state.players
+    .filter((p) => p.side === defSide && !p.isGoalkeeper)
+    .sort((a, b) => forwardProgress(a, attackingSide) - forwardProgress(b, attackingSide))
+    .slice(0, 3);
+  defenders.forEach((p, i) => {
+    const o = offsets[i] ?? { x: 0, y: 0 };
+    p.pos = clampVec({ x: zone.x + o.x * 0.6, y: zone.y + o.y * 0.6 + 0.015 });
+    p.vel = { x: 0, y: 0 };
+  });
+}
+
+function forwardProgress(player: LivePlayer, side: Side): number {
+  return side === "home" ? player.pos.x : 1 - player.pos.x;
+}
+
+/** Award a corner to `attackingSide` and set up the box. */
+function scheduleCorner(state: LiveMatchState, attackingSide: Side, exitY: number): void {
+  const flag = cornerFlagSpot(attackingSide, exitY);
+  const zone = attackingBoxZone(attackingSide, exitY);
+  // Prefer a wide attacker near the flag as the taker.
+  const taker =
+    state.players
+      .filter((p) => p.side === attackingSide && !p.isGoalkeeper)
+      .sort((a, b) => dist(a.anchor, flag) - dist(b.anchor, flag))[0] ??
+    pickSetPieceTaker(state, attackingSide);
+
+  loadCornerBox(state, attackingSide, taker, flag, zone);
+
+  state.setPiece = {
+    kind: "corner",
+    side: attackingSide,
+    spot: clampVec(flag),
+    takerId: taker.id,
+    delayTicks: CORNER_DELAY_TICKS,
+  };
+  state.ball.pos = clampVec(flag);
+  state.ball.mode = "dead";
+  state.ball.ownerId = null;
+  state.ball.targetId = null;
+  state.ball.throughBall = false;
+  state.ball.targetZone = null;
+  state.ball.vel = { x: 0, y: 0 };
+  state.ball.restartDelay = CORNER_DELAY_TICKS;
+  state.possession = attackingSide;
+  logEvent(state, {
+    type: "corner",
+    side: attackingSide,
+    playerId: taker.id,
+    detail: exitY < 0.5 ? "left" : "right",
+  });
+}
+
+/** Record the last player to deliberately play the ball (corner vs goal kick). */
+function recordTouch(state: LiveMatchState, player: LivePlayer): void {
+  state.ball.lastTouchId = player.id;
+  state.ball.lastTouchSide = player.side;
+}
+
 function attachBallToCarrier(state: LiveMatchState, carrier: LivePlayer): void {
   const dir = carrier.side === "home" ? 1 : -1;
   state.ball.pos = clampVec({
@@ -269,6 +379,7 @@ function attachBallToCarrier(state: LiveMatchState, carrier: LivePlayer): void {
   state.ball.restartDelay = 0;
   state.possession = carrier.side;
   state.setPiece = null;
+  recordTouch(state, carrier);
 }
 
 function awardFoul(
@@ -328,10 +439,9 @@ function recoverDeadBall(state: LiveMatchState, rng: Rng): void {
     const gk = findGoalkeeper(state, side);
     attachBallToCarrier(state, gk);
     logEvent(state, {
-      type: "turnover",
+      type: "goalkick",
       side,
       playerId: gk.id,
-      detail: "goal kick",
     });
     return;
   }
@@ -473,6 +583,7 @@ function startPass(
   const speed = Math.min(MAX_BALL_PASS_STEP, d / 7);
   state.ball.vel = { x: (dx / d) * speed, y: (dy / d) * speed };
   state.ball.pos = { ...passer.pos };
+  recordTouch(state, passer);
 }
 
 function startCross(
@@ -491,6 +602,7 @@ function startCross(
   const speed = Math.min(MAX_BALL_CROSS_STEP, d / 9);
   state.ball.vel = { x: (dx / d) * speed, y: (dy / d) * speed };
   state.ball.pos = { ...crosser.pos };
+  recordTouch(state, crosser);
 }
 
 function resolvePassArrival(state: LiveMatchState, rng: Rng): void {
@@ -617,10 +729,21 @@ function resolveCrossArrival(state: LiveMatchState, rng: Rng): void {
 
   if (rollOutcome(rng, aerial)) {
     attachBallToCarrier(state, primaryTarget);
+    // A won header in the box is usually an attempt on goal, not just control.
+    if (isInPenaltyBox(primaryTarget.pos, atkSide) && rollOutcome(rng, 0.75)) {
+      state.ball.mode = "shot";
+      resolveShot(state, primaryTarget, rng);
+    }
     return;
   }
 
   if (nearestDef && rollOutcome(rng, 0.55)) {
+    if (rollOutcome(rng, CORNER_FROM_CLEARANCE_CHANCE)) {
+      // Defender heads the cross behind for a corner.
+      recordTouch(state, nearestDef);
+      scheduleCorner(state, atkSide, zone.y);
+      return;
+    }
     attachBallToCarrier(state, nearestDef);
     logEvent(state, {
       type: "turnover",
@@ -705,6 +828,19 @@ function resolveShot(state: LiveMatchState, shooter: LivePlayer, rng: Rng): void
   }
 
   if (rollOutcome(rng, saveChance(ctx))) {
+    if (rollOutcome(rng, CORNER_FROM_SAVE_CHANCE)) {
+      // Keeper parries it behind for a corner.
+      recordTouch(state, gk);
+      logEvent(state, {
+        type: "save",
+        side: gkSide,
+        playerId: gk.id,
+        targetId: shooter.id,
+        detail: "parried",
+      });
+      scheduleCorner(state, shooter.side, shooter.pos.y);
+      return;
+    }
     attachBallToCarrier(state, gk);
     logEvent(state, {
       type: "save",
@@ -715,28 +851,18 @@ function resolveShot(state: LiveMatchState, shooter: LivePlayer, rng: Rng): void
     return;
   }
 
-  if (rollOutcome(rng, shotGoalChance(ctx))) {
-    if (shooter.side === "home") state.homeScore++;
-    else state.awayScore++;
-    addStoppage(state, STOPPAGE_TICKS_PER_GOAL);
-    logEvent(state, {
-      type: "goal",
-      side: shooter.side,
-      playerId: shooter.id,
-    });
-    const restartSide = gkSide;
-    const restartPlayer = findKickoffPlayer(state, restartSide);
-    attachBallToCarrier(state, restartPlayer);
-    return;
-  }
-
-  attachBallToCarrier(state, gk);
+  // On target and the keeper is beaten → goal. (No extra gate: a shot that is
+  // on target and unsaved is a goal — the old third roll just ate scoring.)
+  if (shooter.side === "home") state.homeScore++;
+  else state.awayScore++;
+  addStoppage(state, STOPPAGE_TICKS_PER_GOAL);
   logEvent(state, {
-    type: "save",
-    side: gkSide,
-    playerId: gk.id,
-    detail: "held",
+    type: "goal",
+    side: shooter.side,
+    playerId: shooter.id,
   });
+  const restartPlayer = findKickoffPlayer(state, gkSide);
+  attachBallToCarrier(state, restartPlayer);
 }
 
 function applyAction(
@@ -819,6 +945,7 @@ function applyAction(
       const speed = MAX_BALL_PASS_STEP * 1.35;
       state.ball.vel = { x: (dx / d) * speed, y: (dy / d) * speed };
       state.ball.ownerId = c.id;
+      recordTouch(state, c);
       resolveShot(state, c, rng);
       return c.id;
     }
@@ -894,18 +1021,35 @@ function advanceBall(state: LiveMatchState, rng: Rng): void {
     }
   }
 
-  if (ball.pos.x < 0 || ball.pos.x > 1 || ball.pos.y < 0 || ball.pos.y > 1) {
-    const side =
-      ball.pos.x < 0
-        ? "home"
-        : ball.pos.x > 1
-          ? "away"
-          : state.possession;
+  // Byline exit → corner (defender's last touch) or goal kick (attacker's last touch).
+  if (ball.pos.x < 0 || ball.pos.x > 1) {
+    const lineSide: Side = ball.pos.x < 0 ? "home" : "away"; // whose goal line it crossed
+    const attackingSide = oppSide(lineSide);
+    const exitY = clamp(ball.pos.y, 0, 1);
+    if (state.ball.lastTouchSide === lineSide) {
+      // A defender put it behind for a corner.
+      scheduleCorner(state, attackingSide, exitY);
+    } else {
+      // Attacker (or unknown) sent it out → goal kick to the defending side.
+      ball.pos = clampVec({
+        x: clamp(ball.pos.x, 0.05, 0.95),
+        y: clamp(ball.pos.y, 0.1, 0.9),
+      });
+      scheduleDeadBall(state, lineSide);
+    }
+    return;
+  }
+
+  // Touchline exit → throw-in to whoever did not touch it last.
+  if (ball.pos.y < 0 || ball.pos.y > 1) {
+    const restart = state.ball.lastTouchSide
+      ? oppSide(state.ball.lastTouchSide)
+      : state.possession;
     ball.pos = clampVec({
       x: clamp(ball.pos.x, 0.05, 0.95),
-      y: clamp(ball.pos.y, 0.1, 0.9),
+      y: clamp(ball.pos.y, 0.05, 0.95),
     });
-    scheduleDeadBall(state, side);
+    scheduleDeadBall(state, restart);
   }
 }
 

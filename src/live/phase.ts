@@ -352,6 +352,18 @@ function buildRestartIntents(state: LiveMatchState): Map<string, PlayerIntent> {
   return intents;
 }
 
+/**
+ * Corners pre-load the box at setup; hold those positions through the delay so
+ * the delivery has live targets instead of everyone drifting back to anchors.
+ */
+function buildCornerIntents(state: LiveMatchState): Map<string, PlayerIntent> {
+  const intents = new Map<string, PlayerIntent>();
+  for (const p of state.players) {
+    intents.set(p.id, { kind: "holdShape", target: { ...p.pos } });
+  }
+  return intents;
+}
+
 /** Build per-player intents for the current tick. */
 export function buildPlayerIntents(
   state: LiveMatchState,
@@ -363,6 +375,9 @@ export function buildPlayerIntents(
   const c = carrier(state);
 
   if (phase === "restart") {
+    if (state.setPiece?.kind === "corner") {
+      return buildCornerIntents(state);
+    }
     return buildRestartIntents(state);
   }
 

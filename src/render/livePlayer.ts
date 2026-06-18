@@ -2,10 +2,13 @@
  * LiveMatchPlayer — plays precomputed live snapshots on canvas.
  *
  * Separate from timeline MatchPlayer so solo deterministic replay stays intact.
+ * Renders a continuously interpolated playhead between snapshots so the ball
+ * and players move smoothly rather than jumping snapshot-to-snapshot.
  */
 
 import { CanvasRenderer } from "./canvasRenderer.js";
 import { snapshotToFrame } from "../live/snapshots.js";
+import { interpolateFrame } from "./liveInterpolate.js";
 import type { LiveSnapshot } from "../live/types.js";
 import type { FrameState } from "./types.js";
 
@@ -14,11 +17,14 @@ export interface LiveMatchPlayerOptions {
   onFrame?: (frame: FrameState) => void;
   onEnd?: () => void;
   onFps?: (fps: number) => void;
-  /** Ms per snapshot step at 1× (default compresses 90 min into ~75 s). */
+  /** Ms each snapshot occupies at 1×. Overrides the duration-derived default. */
   msPerSnapshot?: number;
+  /** Target total playback duration at 1× when msPerSnapshot is omitted. */
+  targetDurationMs?: number;
 }
 
-const DEFAULT_MS_PER_SNAPSHOT = 85;
+/** ~75 s at 1× sits inside the 60–90 s normal-tier window from the spec. */
+const DEFAULT_TARGET_DURATION_MS = 75_000;
 
 export class LiveMatchPlayer {
   private readonly snapshots: LiveSnapshot[];
@@ -28,7 +34,8 @@ export class LiveMatchPlayer {
   private readonly onFps?: (fps: number) => void;
   private readonly msPerSnapshot: number;
 
-  private index = 0;
+  /** Fractional snapshot index — interpolated between floor and ceil. */
+  private playhead = 0;
   private playing = false;
   private rafId: number | null = null;
   private lastTick = 0;
@@ -39,7 +46,10 @@ export class LiveMatchPlayer {
   constructor(snapshots: LiveSnapshot[], options: LiveMatchPlayerOptions) {
     this.snapshots = snapshots;
     this.renderer = new CanvasRenderer(options.canvas);
-    this.msPerSnapshot = options.msPerSnapshot ?? DEFAULT_MS_PER_SNAPSHOT;
+    const segments = Math.max(1, snapshots.length - 1);
+    this.msPerSnapshot =
+      options.msPerSnapshot ??
+      Math.max(40, (options.targetDurationMs ?? DEFAULT_TARGET_DURATION_MS) / segments);
     if (options.onFrame !== undefined) this.onFrame = options.onFrame;
     if (options.onEnd !== undefined) this.onEnd = options.onEnd;
     if (options.onFps !== undefined) this.onFps = options.onFps;
@@ -47,7 +57,7 @@ export class LiveMatchPlayer {
   }
 
   getSnapshotIndex(): number {
-    return this.index;
+    return Math.floor(this.playhead);
   }
 
   getSnapshotCount(): number {
@@ -60,6 +70,7 @@ export class LiveMatchPlayer {
 
   play(): void {
     if (this.playing) return;
+    if (this.playhead >= this.snapshots.length - 1) this.playhead = 0;
     this.playing = true;
     this.lastTick = performance.now();
     this.loop(this.lastTick);
@@ -74,7 +85,7 @@ export class LiveMatchPlayer {
   }
 
   skipToEnd(): void {
-    this.index = this.snapshots.length - 1;
+    this.playhead = this.snapshots.length - 1;
     this.renderCurrent();
     this.pause();
     this.onEnd?.();
@@ -87,18 +98,20 @@ export class LiveMatchPlayer {
   private loop(now: number): void {
     if (!this.playing) return;
     const elapsed = now - this.lastTick;
-    const step = this.msPerSnapshot / this.rate;
-    if (elapsed >= step) {
-      this.lastTick = now - (elapsed % step);
-      if (this.index < this.snapshots.length - 1) {
-        this.index++;
-        this.renderCurrent();
-      } else {
-        this.pause();
-        this.onEnd?.();
-        return;
-      }
+    this.lastTick = now;
+    this.playhead += (elapsed / this.msPerSnapshot) * this.rate;
+
+    const end = this.snapshots.length - 1;
+    if (this.playhead >= end) {
+      this.playhead = end;
+      this.renderCurrent();
+      this.trackFps(now);
+      this.pause();
+      this.onEnd?.();
+      return;
     }
+
+    this.renderCurrent();
     this.trackFps(now);
     this.rafId = requestAnimationFrame((t) => this.loop(t));
   }
@@ -113,12 +126,20 @@ export class LiveMatchPlayer {
   }
 
   private renderCurrent(): void {
-    const snap = this.snapshots[this.index];
-    if (!snap) return;
-    const frame = snapshotToFrame(snap);
+    const frame = this.currentFrame();
+    if (!frame) return;
     const rect = this.renderer.canvas.getBoundingClientRect();
     this.renderer.resize(rect.width, rect.height);
     this.renderer.draw(frame);
     this.onFrame?.(frame);
+  }
+
+  private currentFrame(): FrameState | null {
+    const i = Math.floor(this.playhead);
+    const a = this.snapshots[i];
+    if (!a) return null;
+    const b = this.snapshots[i + 1];
+    if (!b) return snapshotToFrame(a);
+    return interpolateFrame(a, b, this.playhead - i);
   }
 }

@@ -38,7 +38,7 @@ export interface LiveBall {
   pos: Vec2;
   vel: Vec2;
   mode: BallMode;
-  /** Player carrying or last touched. */
+  /** Player carrying the ball right now (null while in flight / dead). */
   ownerId: string | null;
   /** Intended receiver during a pass. */
   targetId: string | null;
@@ -48,10 +48,14 @@ export interface LiveBall {
   targetZone: Vec2 | null;
   /** Ticks remaining before a dead ball is restarted. */
   restartDelay: number;
+  /** Last player to deliberately play the ball — drives corner vs goal-kick. */
+  lastTouchId: string | null;
+  /** Side of the last player to touch the ball. */
+  lastTouchSide: Side | null;
 }
 
 /** Active set piece waiting to be taken. */
-export type SetPieceKind = "freekick" | "penalty";
+export type SetPieceKind = "freekick" | "penalty" | "corner";
 
 export interface SetPieceState {
   kind: SetPieceKind;
@@ -99,6 +103,8 @@ export interface LiveMatchEvent {
     | "foul"
     | "freekick"
     | "penalty"
+    | "corner"
+    | "goalkick"
     | "shot"
     | "goal"
     | "save"
