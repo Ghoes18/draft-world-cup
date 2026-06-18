@@ -30,7 +30,9 @@ describe("live loose ball", () => {
     state.ball.vel = { x: 0.02, y: 0 };
     state.possession = "home";
 
-    const rng = rngFromSeed("loose-pass:force");
+    // Seed chosen so an incomplete pass lands inside the window; the invariant
+    // under test is "incomplete pass → loose ball, never an instant dead restart".
+    const rng = rngFromSeed("loose-pass:force2");
     let sawLoose = false;
     for (let i = 0; i < 80; i++) {
       tickLiveMatch(state, { home: "balanced", away: "balanced" }, rng);

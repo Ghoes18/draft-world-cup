@@ -146,7 +146,11 @@ export interface ShotContext {
   oppTeamOverall: number;
 }
 
-/** Goal probability for an on-target attempt (before placement noise). */
+/**
+ * Shot quality (chance score) for an attempt — a standalone xG-style metric.
+ * Note: `resolveShot` no longer uses this as a resolution gate (it resolves via
+ * off-target → save → goal); kept for shot-quality readouts and stats (MVP M4).
+ */
 export function shotGoalChance(ctx: ShotContext): number {
   const shoot =
     ctx.shooter.attrs.shooting * 0.65 +
@@ -159,7 +163,12 @@ export function shotGoalChance(ctx: ShotContext): number {
   return clamp(sigmoid(x * 3.2), 0.04, 0.78);
 }
 
-/** Given a shot on target, keeper save probability. */
+/**
+ * Given a shot on target, keeper save probability. Targets a realistic ~70%
+ * save rate for evenly matched sides: close, central shots are harder to stop,
+ * long-range efforts easier. (The old version had this distance term inverted
+ * and an inflated baseline, pushing saves above 90%.)
+ */
 export function saveChance(ctx: ShotContext): number {
   const gk =
     ctx.keeper.attrs.goalkeeping * 0.7 +
@@ -167,10 +176,12 @@ export function saveChance(ctx: ShotContext): number {
   const shoot =
     ctx.shooter.attrs.shooting * 0.6 +
     ctx.shooter.attrs.intelligence * 0.4;
-  const distFactor = clamp(0.35 - ctx.distanceToGoal * 0.5, 0, 0.35);
+  // Farther shots are easier to save; point-blank shots harder.
+  const distFactor = clamp((ctx.distanceToGoal - 0.15) * 0.6, -0.12, 0.25);
+  const anglePenalty = ctx.angleQuality * 0.12; // good angle → harder to save
   const teamNudge = teamQualityNudge(ctx.oppTeamOverall, ctx.teamOverall);
-  const x = (gk - shoot) / 38 + distFactor + teamNudge + 0.18;
-  return clamp(sigmoid(x * 3.5), 0.12, 0.9);
+  const x = (gk - shoot) / 40 + distFactor - anglePenalty + teamNudge + 0.18;
+  return clamp(sigmoid(x * 3), 0.1, 0.85);
 }
 
 /** Chance the shot is off target (not handled by keeper). */

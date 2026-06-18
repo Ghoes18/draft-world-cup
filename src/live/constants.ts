@@ -28,7 +28,7 @@ export const TACKLE_RANGE = 0.04;
 export const PASS_MAX_RANGE = 0.45;
 
 /** Shooting range from opponent goal line (x for home attack = 1). */
-export const SHOOT_RANGE = 0.32;
+export const SHOOT_RANGE = 0.4;
 
 /** Goal mouth y-range (normalized). */
 export const GOAL_Y_MIN = 0.42;
@@ -45,6 +45,18 @@ export const RESTART_DELAY_TICKS = 4;
 
 /** Ticks before a set piece is taken. */
 export const SET_PIECE_DELAY_TICKS = 6;
+
+/** Ticks before a corner is taken (longer — boxes need to load). */
+export const CORNER_DELAY_TICKS = 8;
+
+/** Corner flag inset from the goal line / touchline (normalized). */
+export const CORNER_FLAG_INSET = 0.015;
+
+/** Chance a keeper parries a save behind for a corner instead of holding. */
+export const CORNER_FROM_SAVE_CHANCE = 0.22;
+
+/** Chance a defender's cross clearance goes out for a corner. */
+export const CORNER_FROM_CLEARANCE_CHANCE = 0.28;
 
 /** Loose ball velocity decay per tick. */
 export const LOOSE_BALL_FRICTION = 0.88;
