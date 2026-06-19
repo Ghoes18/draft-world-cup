@@ -25,3 +25,6 @@ pnpm-debug.log*
 # Test / coverage
 coverage/
 .vitest/
+
+# Cursor
+.cursor/
