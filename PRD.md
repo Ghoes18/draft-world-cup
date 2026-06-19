@@ -4,9 +4,9 @@
 
 This document specifies three upgrades:
 
-1. **A tiered match presentation** — the same match result can be shown as an **animated top-down match** (Normal), as **minute-by-minute text** (Fast), or as an **instant result** (Ultra Fast).
-2. **A top-down rendering system with two finishes** — a lightweight **2D** view and a **3D grass** view, *both top-down*, sharing one coordinate system. 3D is a visual skin of the 2D layout, not a separate mode.
-3. **A true online mode** — players on different devices, connected in real time, with **server-authoritative simulation** (mandatory, because the current engine is client-side and seed-deterministic and would be trivial to manipulate), plus matchmaking, ranking and rematches.
+1. **A tiered text presentation** — the same match result can be shown as **minute-by-minute text** (Fast) or as an **instant result** (Ultra Fast).
+2. **A true online mode** — players on different devices, connected in real time, with **server-authoritative simulation** (mandatory, because the current engine is client-side and seed-deterministic and would be trivial to manipulate), plus matchmaking, ranking and rematches.
+3. **Social features** — shareable highlights, match statistics, chemistry, tactics, and daily challenge (see MVP).
 
 The architectural spine that makes all of this tractable: **decouple the result from its presentation**. The engine decides the numbers first; everything visible is a *replay of a pre-decided result* — **not** a live physics or player-AI simulation that decides goals during play.
 
@@ -15,8 +15,8 @@ The architectural spine that makes all of this tractable: **decouple the result 
 Core simulation code lives in this monorepo/package (**`draft-world-cup`** / `7a0-engine`):
 
 - **M1 complete:** Poisson engine, timeline generator, Fast-text consumer, CLI (`pnpm sim`), vitest suite.
-- **M2 in progress:** 2D render library (`src/render/`) — integrates into the live Next.js app; no standalone browser demo in this repo.
-- **Explicitly rejected:** FIFA-style live match simulation; client-authoritative competitive outcomes.
+- **Presentation:** text-only (Fast ticker + Ultra Fast instant), like the original 7a0.
+- **Explicitly rejected:** FIFA-style live match simulation; client-authoritative competitive outcomes; animated 2D/3D match views.
 
 See **[README.md](./README.md)** for layout and commands; **[MVP.md](./MVP.md)** for build order.
 
@@ -84,7 +84,7 @@ There is a "**Join with code**" option that shares the scenario (seed), but the 
 
 **Problem.** The social experience is limited to sharing a result or playing on the same screen. There is no live head-to-head tension and no competitive progression to drive return visits. The "Simulate" step is also a single fidelity (instant text), leaving the drama of a match on the table.
 
-**Opportunity.** "Build your dream team" is inherently competitive and shareable. A tiered, *watchable* match plus a real-time online mode with ranking and rematches can lift **retention (D7/D30)**, **sessions per user** and **virality**, while reusing most of the existing engine.
+**Opportunity.** "Build your dream team" is inherently competitive and shareable. A readable text simulation plus a real-time online mode with ranking and rematches can lift **retention (D7/D30)**, **sessions per user** and **virality**, while reusing most of the existing engine.
 
 ---
 
@@ -92,8 +92,7 @@ There is a "**Join with code**" option that shares the scenario (seed), but the 
 
 ### 4.1 Goals
 
-- Make matches **watchable** at three speeds without changing outcomes.
-- Ship a **top-down 2D and 3D** presentation that runs on weak hardware.
+- Make matches **readable** at two speeds without changing outcomes.
 - Enable **real-time 1v1 online** between devices with **competitive integrity**.
 - Add **progression** (ELO/ranking, online history).
 
@@ -107,9 +106,7 @@ There is a "**Join with code**" option that shares the scenario (seed), but the 
 | Sync latency (p95)          | action → opponent update                         | < 400 ms       |
 | Matchmaking time (p50)      | enter room / find opponent                       | < 20 s         |
 | Rematch rate                | % of matches followed by "play again"            | ≥ 30%          |
-| Normal-mode adoption        | % of solo sims watched in Normal (animated)      | ≥ 40%          |
-| 3D usage on capable devices | % capable devices that keep 3D on                | ≥ 50%          |
-| Frame rate (2D, low-end)    | sustained FPS on weak PCs                        | ≥ 50 fps       |
+| Fast-mode adoption          | % of solo sims read as text ticker               | ≥ 40%          |
 
 
 ---
@@ -119,7 +116,7 @@ There is a "**Join with code**" option that shares the scenario (seed), but the 
 - **The Competitor** — wants ELO, rankings, rematches; values fairness and stats.
 - **The Social Player** — wants to play friends via invite/code; values speed and easy rematch.
 - **The Nostalgic/Casual** — loves the historical theme; needs simple onboarding and short matches.
-- **The Low-end User** — older/weaker PC; needs the 2D and text tiers to be first-class, not afterthoughts.
+- **The Low-end User** — older/weaker PC or mobile; needs the text tiers to be first-class, not afterthoughts.
 
 ---
 
@@ -127,9 +124,8 @@ There is a "**Join with code**" option that shares the scenario (seed), but the 
 
 ### 6.1 In scope (v1)
 
-- Three **speed tiers**: Normal (animated), Fast (text play-by-play), Ultra Fast (instant).
-- Two **render finishes**: top-down **2D** and top-down **3D (grass)**, with auto-detect + manual toggle.
-- **Event timeline** generator feeding all tiers.
+- Two **speed tiers**: Fast (text play-by-play), Ultra Fast (instant).
+- **Event timeline** generator feeding both tiers.
 - **Online 1v1 Duel** (real-time, server-authoritative) with rooms/codes and rematch.
 - **ELO/ranking**, leaderboard, online match history.
 - Reconnection, timeout/AFK handling, anti-cheat.
@@ -152,16 +148,16 @@ The system is split into **three layers**:
 
 ```
 ENGINE  →  TIMELINE  →  PRESENTATION
-(numbers)  (events)     (text / 2D / 3D)
+(numbers)  (events)     (text / Ultra Fast)
 ```
 
 1. **Engine** — the existing Poisson model decides the **final result** (and, for knockouts, penalties). Pure numbers, no rendering.
 2. **Timeline** — a deterministic function turns the result + seed into an **ordered list of match events** (kickoff, possession sequences, shots, goals, corners, penalties, full-time). This is the heart of the feature.
-3. **Presentation** — one or more "players" render the timeline: as **text**, as a **2D top-down** animation, or as a **3D top-down** animation.
+3. **Presentation** — consumers render the timeline as **minute-by-minute text** (Fast) or **instant result** (Ultra Fast).
 
-This is **not FIFA** (no real-time physics/AI deciding outcomes) and **not the Football Manager engine** (which *simulates to produce* a result). In 7a0 the **result already exists**; what we build is a **scripted replay of a pre-decided result** — closer to an animated highlight recap. This distinction is what turns "months of hard AI work" into "a tractable scripted animation".
+This is **not FIFA** (no real-time physics/AI deciding outcomes) and **not the Football Manager engine** (which *simulates to produce* a result). In 7a0 the **result already exists**; what we build is a **scripted text replay of a pre-decided result**.
 
-**Benefits:** outcomes never drift (the timeline is generated *from* the score, so it always reconciles); the three speed tiers and two render finishes are just different consumers of the same data; online integrity is preserved (the server owns the engine + timeline).
+**Benefits:** outcomes never drift (the timeline is generated *from* the score, so it always reconciles); the two speed tiers are just different consumers of the same data; online integrity is preserved (the server owns the engine + timeline).
 
 ### 7.2 The match engine (reference)
 
@@ -202,7 +198,7 @@ interface MatchTimeline {
   lineups: Record<Side, LineupSlot[]>;   // 11 slots each, with shirt numbers + positions
   result: { score: [number, number]; penalties?: [number, number] };
   events: MatchEvent[];         // ordered by t (match minute, 0..90/120)
-  durationMs: number;           // playback length at Normal speed
+  durationMs: number;           // playback length at Fast ticker speed
 }
 ```
 
@@ -215,82 +211,47 @@ interface MatchTimeline {
 5. The **final event** is `fulltime` (and `shootout` if a knockout draw went to penalties), guaranteeing reconciliation with the engine result.
 6. Everything is seeded → identical across clients and reproducible for **replays/highlights**.
 
-> Start simple (goals + a few cosmetic events) and enrich the generator over time. Because it is decoupled from rendering, enriching it never touches the renderers.
+> Start simple (goals + a few cosmetic events) and enrich the generator over time. Because it is decoupled from presentation, enriching it never touches the text consumers.
 
 ### 7.4 Speed tiers
 
-All three consume the **same `MatchTimeline`**; they differ only in how/when events surface:
+Both consume the **same `MatchTimeline`**; they differ only in how/when events surface:
 
 
 | Tier           | What the player sees                                                                                                                               | How it reads the timeline                                                        |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **Normal**     | Animated top-down match (2D or 3D), with passes, shots, goals, corners, penalties; live narration overlay; clock compresses ~90 min into ~60–90 s. | Plays events in real (compressed) time; tokens + ball animate between keyframes. |
-| **Fast**       | **Minute-by-minute text** commentary (key events appear in sequence), no animation — the "live ticker".                                            | Prints each event as text as the clock passes it.                                |
+| **Fast**       | **Minute-by-minute text** commentary (key events appear in sequence) — the "live ticker". Play/pause, restart, skip-to-result.                   | Prints each event as text as the clock passes it.                                |
 | **Ultra Fast** | **Instant final result** (scoreline + badges), exactly like today's 7a0 "Simulate".                                                                | Jumps straight to `fulltime`.                                                    |
 
 
 Requirements:
 
-- **RF-S1.** A persistent **speed setting** (Normal/Fast/Ultra) the player can change and that is remembered.
-- **RF-S2.** In Normal, a **skip-to-result** control and a **playback speed** control (1×/2×/instant) are always available.
+- **RF-S1.** A persistent **speed setting** (Fast/Ultra) the player can change and that is remembered.
+- **RF-S2.** In Fast, **play/pause**, **restart**, and **skip-to-result** controls are always available.
 - **RF-S3.** Fast mode is fully usable with a screen reader (text-first → also the **accessibility** path).
 - **RF-S4.** Switching tiers mid-match is allowed and must not change the outcome.
 
 ---
 
-## 8. Rendering: top-down 2D & 3D (DETAILED)
+## 8. Text presentation (DETAILED)
 
-### 8.1 Unified, top-down coordinate system
+### 8.1 Fast text consumer
 
-**The view is always top-down**, in both 2D and 3D. All entities live in one normalised pitch space `(x, y)`, `x` = goal-to-goal length, `y` = touchline-to-touchline width, each `0..1`. The renderers only differ in the draw call:
+- Reads the canonical `MatchTimeline` and emits ordered commentary lines via `toFastText`.
+- One line per key event (kickoff, possession, shots, goals, corners, penalties, full-time).
+- Ticker UI reveals lines over time; user controls play/pause, restart, skip.
+- Same consumer powers CLI (`pnpm sim`), the Next.js demo app, and the screen-reader path.
 
-- **2D:** draw a circle at screen-space `project2D(x, y)`.
-- **3D:** place a mesh on a grass plane at world `(x, 0, y)`, with the **camera looking straight down** (orthographic, or a very slight 5–10° tilt for relief).
+### 8.2 Ultra Fast
 
-Because positions are shared, **the logic is identical** — 3D is a *finish/skin* of the same top-down layout, **not** a separate mode. There are no "3D-only" positions to maintain.
+- Shows final scoreline + badges immediately — original 7a0 behaviour.
+- No timeline playback; jumps to `fulltime`.
 
-### 8.2 Player tokens ("circlozinhos")
+### 8.3 Shareable highlights
 
-- Each token is a **small circle** in **team colour** (home/away kits), with the **shirt number centered** (numbers already exist in the current data).
-- The **ball-carrier** gets a thicker ring / subtle glow so the eye tracks possession.
-- The **ball** is a small white circle (2D) / small sphere (3D).
-- Optional name/number label on hover or on goals.
-
-### 8.3 2D renderer
-
-- **Canvas 2D** or **Pixi.js** (WebGL-accelerated 2D). A `requestAnimationFrame` loop advances the match clock and interpolates positions.
-- Ball path: **lerp** for straight passes, **quadratic/cubic Bézier** for crosses, corners and shots (arc feel).
-- Players sit at **formation anchors** + a small **ball-relative block shift** (attacking side pushes up, defending side drops) + gentle idle noise. No pathfinding, no collisions.
-- Cheapest tier after text; the **performance floor** target (≥ 50 fps on weak PCs).
-
-### 8.4 3D renderer (top-down grass)
-
-- **react-three-fiber / Three.js**. The pitch is a **textured grass plane** (with mown stripes), lines drawn as geometry or texture.
-- Tokens become **short discs/pucks** (cylinders) or billboarded circles; the ball is a **small sphere**. Each casts a **soft contact shadow** for depth while staying top-down.
-- **Camera:** orthographic top-down by default; optional micro-tilt (toggle) for relief. No free camera in v1.
-- **Lighting:** one soft directional light + ambient; **no heavy/dynamic shadows** beyond cheap contact shadows. Use **instanced meshes** for the 22 tokens.
-- Reads the **exact same timeline and `(x,y)` positions** as 2D — only the draw layer differs.
-
-### 8.5 Set-piece & goal choreographies
-
-Small, pre-authored sequences triggered by timeline events, identical in 2D/3D (only the finish differs):
-
-- **Goal:** ball crosses the line → brief **celebration** (scoring side's tokens converge near the scorer, then reset to formation) + score flash + narration.
-- **Penalty:** scripted mini-scene — taker at the spot, keeper on the line, ball goes one way; outcome from the timeline.
-- **Corner:** ball travels to the corner, a few attacking tokens move into the box for the delivery, then return to formation.
-- **Free kick / shot:** ball arcs toward goal; `saved/post/off/goal` from the timeline.
-
-### 8.6 Performance tiers, detection & control
-
-- **RF-R1. Auto-detect:** on first match, sample FPS for a few seconds and check `prefers-reduced-motion` / GPU hints; if weak, default to **2D** (or **Ultra Fast text** if even 2D struggles).
-- **RF-R2. Manual override** in Settings: **3D / 2D / Text**, independent of the speed tier where it makes sense.
-- **RF-R3. Persist** the render choice and speed tier per user/device.
-- **RF-R4. Graceful fallback:** if WebGL is unavailable or the 3D context is lost, fall back to 2D automatically with a non-blocking notice.
-- **RF-R5. Budgets:** 3D ≤ ~30k triangles, ≤ 1 directional light, instanced tokens, no post-processing in v1.
-
-### 8.7 Playback controls
-
-- **RF-R6.** Controls available in Normal: **play/pause**, **speed (1×/2×)**, **skip to result**, and (post-match) **replay** and **share highlight**.
+- Highlight links replay **goal events only** as text commentary (filtered from the same timeline).
+- Seed + lineups + tactics encoded in the URL; shortened via `/api/shorten`.
+- Open Graph share card for link previews.
 
 ---
 
@@ -298,7 +259,7 @@ Small, pre-authored sequences triggered by timeline events, identical in 2D/3D (
 
 ### 9.1 Principle — server authority (non-negotiable)
 
-Because the engine is seed-deterministic and currently client-side, **the server must own the draw, the seed, the engine run and the timeline**. The client only **animates** a result it receives. This is the foundation of competitive integrity and a prerequisite (Phase 0) for everything else online.
+Because the engine is seed-deterministic and currently client-side, **the server must own the draw, the seed, the engine run and the timeline**. The client only **presents** a result it receives. This is the foundation of competitive integrity and a prerequisite (Phase 0) for everything else online.
 
 ### 9.2 Online formats
 
@@ -317,7 +278,7 @@ LOBBY → DRAW → BUILD (timer) → READY → SIMULATE (server) → REVEAL → 
 - **BUILD:** synchronised timer; rerolls validated server-side (limits + consistent state).
 - **READY:** when all confirm or the timer expires; incomplete XIs filled by rule (see §9.8).
 - **SIMULATE:** server runs the engine, generates the **canonical timeline**, persists it.
-- **REVEAL:** all players watch the **same result**, each at **their own render fidelity** (see §9.6).
+- **REVEAL:** all players see the **same result**, each at **their own speed tier** (Fast or Ultra Fast).
 - **RESULT:** winner, side-by-side comparison, **rematch** button.
 
 ### 9.4 Lobby, codes, invites, matchmaking
@@ -332,27 +293,27 @@ LOBBY → DRAW → BUILD (timer) → READY → SIMULATE (server) → REVEAL → 
 Leverage a managed real-time + Postgres + serverless stack (aligns with a **Supabase** setup):
 
 - **Real-time layer** — per-room **channel** using **broadcast** (state sync) + **presence** (who's connected/ready). Room state is small and short-lived.
-- **Authoritative simulation** — a server function (**Edge Function** / server route) receives confirmed lineups, generates the **official seed**, runs the engine, builds the timeline, and returns the **canonical, immutable payload**. The client only animates it.
+- **Authoritative simulation** — a server function (**Edge Function** / server route) receives confirmed lineups, generates the **official seed**, runs the engine, builds the timeline, and returns the **canonical, immutable payload**. The client only presents it.
 - **Persistence (Postgres)** — rooms, participants, match state, timelines, results, ELO, history.
 - **Auth** — existing *better-auth*, required for ranked play.
 - **Reuse** — `/api/match/record` (results), `/api/metric` (telemetry), `/api/shorten` (invites).
 
 ```
 Client A ─┐                          ┌─ Realtime channel (broadcast + presence) ─┐
-          ├─ confirm lineup ─→  Edge Function (engine + timeline, server seed) ──┤→ canonical timeline → both clients animate
+          ├─ confirm lineup ─→  Edge Function (engine + timeline, server seed) ──┤→ canonical timeline → both clients present
 Client B ─┘                          └─ Postgres (rooms, matches, results, ELO) ─┘
 ```
 
 ### 9.6 Decoupled presentation online
 
-Because presentation is decoupled from result, the server sends **one canonical timeline** and **each player renders it at their own fidelity** — one in 3D, the other in text — over the **same shared result**. Fidelity choice never affects fairness or outcome.
+Because presentation is decoupled from result, the server sends **one canonical timeline** and **each player reads it at their own speed tier** (Fast or Ultra Fast) over the **same shared result**. Tier choice never affects fairness or outcome.
 
 ### 9.7 Anti-cheat controls
 
 1. **Draw + seed server-only**; never accepted from the client.
 2. **Eligibility validation**: every selected player must be valid for the drawn *(team, Cup)*.
 3. **Reroll validation**: counts and state checked server-side.
-4. **Result computed exclusively on the server**; the client receives an immutable payload to animate.
+4. **Result computed exclusively on the server**; the client receives an immutable payload to present.
 5. **Rate limiting** and **serial-abandon detection**.
 
 ### 9.8 Reconnection, timeout, AFK, abandonment
@@ -378,11 +339,11 @@ Because presentation is decoupled from result, the server sends **one canonical 
 - **RNF-2. Latency:** state sync p95 < 400 ms; result reveal perceived as simultaneous.
 - **RNF-3. Scalability:** many concurrent rooms; per-room state is small; matches are short.
 - **RNF-4. Availability:** graceful degradation — if real-time fails, finish asynchronously and still record the result.
-- **RNF-5. Performance:** 2D ≥ 50 fps on weak PCs; 3D within budgets in §8.6; text/Ultra path always available.
+- **RNF-5. Performance:** text/Ultra path always available on all devices; no GPU requirements.
 - **RNF-6. Privacy/LGPD:** minimal data (id, display name, ELO, history); updated privacy policy covering multiplayer.
 - **RNF-7. i18n:** all new UI in **PT/EN/ES**.
 - **RNF-8. Accessibility & mobile-first:** Fast/text tier screen-reader friendly; flows playable on a phone.
-- **RNF-9. Observability:** per-match metrics (duration, abandonment, latency, errors, fps tier) via `/api/metric`.
+- **RNF-9. Observability:** per-match metrics (duration, abandonment, latency, errors) via `/api/metric`.
 
 ---
 
@@ -413,7 +374,6 @@ Because presentation is decoupled from result, the server sends **one canonical 
 | Tie on win rule                  | Penalties / tie-break rule by config (Open Questions)       |
 | Empty bracket seat               | CPU takes the seat                                          |
 | Ineligible player attempted      | Server rejection + forced correction                        |
-| WebGL unavailable / context lost | Auto-fallback to 2D with non-blocking notice                |
 | Abandoned/idle room              | Auto-expire and clean up                                    |
 
 
@@ -423,15 +383,13 @@ Because presentation is decoupled from result, the server sends **one canonical 
 
 **Phase 0 — Foundations (server authority).** Move draw + engine + timeline generation server-side; persist the official seed/timeline. Prerequisite for online and for trustworthy replays.
 
-**Phase 1 — Presentation tiers + 2D.** Timeline generator (also powers Fast text). Top-down **2D** renderer with Normal/Fast/Ultra. Skip + speed controls. Persistence of preferences.
+**Phase 1 — Text presentation tiers.** Timeline generator + Fast text consumer + Ultra Fast instant. Play/pause/skip controls. Persistence of speed preference.
 
-**Phase 2 — 3D finish.** Top-down **3D grass** renderer reading the same timeline; auto-detect + manual toggle; performance budgets; graceful fallback.
+**Phase 2 — Online Duel (1v1).** Rooms/codes, synced build, server simulation, simultaneous reveal, rematch; basic ELO.
 
-**Phase 3 — Online Duel (1v1).** Rooms/codes, synced build, server simulation, simultaneous reveal, rematch; basic ELO.
+**Phase 3 — Progression & formats.** Leaderboards, online history, emotes; Online Final; Online Knockout (4–16, humans+CPU); quick matchmaking.
 
-**Phase 4 — Progression & formats.** Leaderboards, online history, emotes; Online Final; Online Knockout (4–16, humans+CPU); quick matchmaking.
-
-**Phase 5 (future).** Shareable highlight clips, leagues/seasons, spectators, scheduled tournaments.
+**Phase 4 (future).** Animated highlights (video/GIF), leagues/seasons, spectators, scheduled tournaments.
 
 ---
 
@@ -442,7 +400,6 @@ Because presentation is decoupled from result, the server sends **one canonical 
 | ---------------------------------- | ------ | ------------------------------------------------------------------- |
 | Cheating (client-side RNG)         | High   | Full server authority (Phase 0 first)                               |
 | Animation drifting from result     | Med    | Timeline generated *from* the score → always reconciles             |
-| 3D on weak hardware                | Med    | Top-down low budgets; auto-fallback to 2D/text                      |
 | Sync/latency                       | Med    | Managed realtime; small room state; reveal from precomputed payload |
 | Frequent abandonment               | Med    | CPU substitution, ELO penalty, easy rematch                         |
 | Matchmaking liquidity (few online) | Med    | Prioritise code/invite rooms; CPU fill in brackets                  |
@@ -459,7 +416,6 @@ Because presentation is decoupled from result, the server sends **one canonical 
 4. **Ranked vs friendly:** do private invites count toward ELO?
 5. **Build timer** length (e.g., 60–120 s) — calibrate via testing.
 6. **Shared vs distinct scenarios** in 1v1: shared is fairest but reduces variety; consider distinct seeds + strength handicap.
-7. **3D camera:** strict orthographic top-down only, or allow the optional micro-tilt by default?
 
 ---
 
@@ -486,6 +442,6 @@ RNG: mulberry32 with seed (deterministic / shareable)
 
 - One **engine** decides the numbers.
 - One **timeline** dramatises those numbers (and powers Fast text + replays/highlights).
-- One **top-down layout** drives two finishes (**2D** circles, **3D** grass) — 3D is a skin, not a mode.
-- The **server** owns engine + timeline, so **online** is fair by construction and each player can watch at their own fidelity over the **same** result.
+- **Text presentation** (Fast ticker + Ultra Fast instant) consumes the same timeline.
+- The **server** owns engine + timeline, so **online** is fair by construction and each player can read at their own speed tier over the **same** result.
 

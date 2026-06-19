@@ -1,10 +1,10 @@
 /**
- * Sample scenarios for the M2 roll + simulate demo.
+ * Sample scenarios for the roll + simulate demo.
  *
  * The engine package has no player/squad/team data yet (that arrives with the
- * Build screen in M3), so these are a handful of hardcoded iconic World Cup
+ * Build screen in M2), so these are a handful of hardcoded iconic World Cup
  * sides with neutral attack/defense/overall ratings just so we have *a* match
- * to render. Strengths are illustrative, not calibrated.
+ * to simulate. Strengths are illustrative, not calibrated.
  */
 
 import type { TeamStrength } from "7a0-engine";

@@ -37,7 +37,7 @@ export default function Page() {
   function onSimulate() {
     if (!fixture) return;
     const { home, away, seed } = fixture;
-    // Solo M2: client-side simulate is fine. Online/daily move this server-side (M5/M7).
+    // Solo demo: client-side simulate is fine. Online/daily move this server-side (M4/M6).
     const result = simulateMatch({
       home: home.strength,
       away: away.strength,

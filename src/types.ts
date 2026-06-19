@@ -2,8 +2,8 @@
  * Shared types for the engine → timeline → presentation pipeline.
  *
  * The MatchTimeline / MatchEvent schema follows PRD §7.3 verbatim. Coordinates
- * are normalized to the unified top-down space (x = goal-to-goal length, y =
- * touchline width, each 0..1) so 2D and 3D renderers share one layout.
+ * are normalized pitch space (x = goal-to-goal length, y = touchline width,
+ * each 0..1) for event placement and future consumers of the same timeline.
  */
 
 /** Normalized pitch coordinate, 0..1 on each axis. */
@@ -73,6 +73,6 @@ export interface MatchTimeline {
   result: { score: [number, number]; penalties?: [number, number] };
   /** Ordered by `t` (match minute). */
   events: MatchEvent[];
-  /** Playback length at Normal speed, in ms. */
+  /** Playback length at Fast ticker speed, in ms. */
   durationMs: number;
 }

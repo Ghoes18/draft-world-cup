@@ -3,7 +3,7 @@
  * ticker. This is M1's verification path and, in the product, the screen-reader
  * / accessibility tier (MVP §4.1) — it must be fully usable without a canvas.
  *
- * Possession chains are omitted by default (cosmetic detail for the 2D view);
+ * Possession chains are omitted by default (cosmetic timeline filler);
  * Fast surfaces the *key* events.
  */
 

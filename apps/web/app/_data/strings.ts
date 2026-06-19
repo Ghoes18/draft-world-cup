@@ -1,5 +1,5 @@
 /**
- * Centralised UI strings. M2 ships English only; keeping them in one map lets
+ * Centralised UI strings. Demo ships English only; keeping them in one map lets
  * later locales (PT/ES, MVP RNF-7) drop in without a framework rewrite.
  */
 export const STRINGS = {

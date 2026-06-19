@@ -81,7 +81,7 @@ export const STOPPAGE_ALLOWANCE = 4;
 /**
  * No goal-minute distribution exists in this repo, so M1 defines one: goals are
  * drawn uniformly across the playable window with a minimum spacing so they do
- * not cluster. Tune freely; the renderers never depend on these values.
+ * not cluster. Tune freely; presentation consumers never depend on these values.
  */
 export const GOAL_MIN_MINUTE = 1;
 export const GOAL_MAX_MINUTE = REGULATION_MINUTES + STOPPAGE_ALLOWANCE;
@@ -102,6 +102,6 @@ export const PASSES_MIN = 2;
 export const PASSES_MAX = 6;
 /**
  * Match-minutes before a terminal event (shot, goal, corner) that the linked
- * possession buildup starts. Keeps attacks visually continuous in the director.
+ * possession buildup starts. Keeps attacks narratively continuous in text replay.
  */
 export const BUILDUP_LEAD_MIN = 1.0;

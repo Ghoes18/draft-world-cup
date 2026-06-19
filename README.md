@@ -1,14 +1,14 @@
 # 7a0 engine + timeline
 
-Server-authoritative, pure-function **match engine** and **event-timeline generator** for **7a0** ("Sete a Zero") — the existing live web game. This repository implements the core simulation stack described in the product docs; presentation integrates into the main **Next.js** app, not as a standalone demo here.
+Server-authoritative, pure-function **match engine** and **event-timeline generator** for **7a0** ("Sete a Zero") — the existing live web game. This repository implements the core simulation stack described in the product docs; presentation integrates into the main **Next.js** app as **text-only** simulation (Fast ticker + Ultra Fast instant), not as a standalone demo here.
 
 ## Documentation map
 
 | Document | Audience | Purpose |
 | -------- | -------- | ------- |
 | **[README.md](./README.md)** (this file) | Developers | Repo layout, commands, milestone status |
-| **[MVP.md](./MVP.md)** | Product / eng | **Source of truth for what to build first** (M1–M7) |
-| **[PRD.md](./PRD.md)** | Product / eng | Long-term vision (3D, ELO, brackets) — mostly post-MVP |
+| **[MVP.md](./MVP.md)** | Product / eng | **Source of truth for what to build first** (M1–M6) |
+| **[PRD.md](./PRD.md)** | Product / eng | Long-term vision (ELO, brackets) — mostly post-MVP |
 | **[CLAUDE.md](./CLAUDE.md)** | AI agents / contributors | Architecture rules, engine constants, integration notes |
 | **[GAME-GUIDE-AND-RULES.md](./GAME-GUIDE-AND-RULES.md)** | Players | Plain-language rules; cross-check for engine behaviour and badges |
 
@@ -19,18 +19,19 @@ When **MVP.md** and **PRD.md** disagree on scope, **MVP.md wins** for current wo
 Three decoupled layers, in strict order:
 
 ```
-ENGINE (numbers)  →  TIMELINE (events)  →  PRESENTATION (text / 2D / 3D)
+ENGINE (numbers)  →  TIMELINE (events)  →  PRESENTATION (text / Ultra Fast)
 ```
 
 1. **Engine** — Poisson model decides the *final score* (and penalties for knockout draws). Pure numbers; no rendering.
 2. **Timeline** — deterministic, serialisable match events generated *from* the already-decided score + seed. The final event always reconciles to the engine score.
-3. **Presentation** — text ticker, 2D top-down animation, (later) 3D grass. All are consumers of the same timeline.
+3. **Presentation** — Fast text ticker and Ultra Fast instant result. Both are consumers of the same timeline.
 
-**This is not FIFA or Football Manager.** The result exists first; Normal/Fast modes are a **scripted replay** of that result. Cosmetic filler (passes, shots, corners) must never change the score.
+**This is not FIFA or Football Manager.** The result exists first; Fast mode is a **scripted text replay** of that result. Cosmetic filler (passes, shots, corners) must never change the score.
 
 **Explicitly out of scope in this repo:**
 
 - **Live physics / player AI** that decides goals during play
+- **Animated match views** (2D, 3D, canvas, video)
 - **Standalone browser demo** (no Vite harness; verify via CLI + tests)
 - **Client-authoritative** outcomes for online or daily challenge
 
@@ -39,11 +40,10 @@ ENGINE (numbers)  →  TIMELINE (events)  →  PRESENTATION (text / 2D / 3D)
 | Milestone | Status | In this repo |
 | --------- | ------ | ------------ |
 | **M1** Engine + timeline | ✅ Done | `src/engine.ts`, `src/timeline/`, `src/consumers/fastText.ts`, `src/cli/simulate.ts` |
-| **M2** 2D renderer | 🔶 Library only | `src/render/` (tests in `test/`); integrates into Next.js app — no local demo |
-| **M3** Chemistry + tactics | ⏳ Deferred | Engine accepts effective `attack`/`defense`; UI wiring in main app |
-| **M4–M7** Stats, online, highlights, daily | ⏳ Deferred | See [MVP.md](./MVP.md) |
+| **M2** Chemistry + tactics | ⏳ Next | Engine accepts effective `attack`/`defense`; UI wiring in main app |
+| **M3–M6** Stats, online, highlights, daily | ⏳ Deferred | See [MVP.md](./MVP.md) |
 
-Public npm-style export (`src/index.ts`) is **engine + timeline + Fast text only** — canvas/DOM code stays out so the bundle is server-safe.
+Public npm-style export (`src/index.ts`) is **engine + timeline + Fast text only** — server-safe, no canvas/DOM.
 
 ## Repository layout
 
@@ -57,16 +57,16 @@ src/
   lineup.ts          # Default XI helpers
   timeline/          # generate.ts, filler, minutes, clusters
   consumers/         # fastText.ts — Fast tier / accessibility path
-  render/            # M2 2D library (not exported from index.ts)
   cli/simulate.ts    # Terminal match runner
-test/                # vitest — engine, timeline, render director
+test/                # vitest — engine, timeline, RNG, Poisson
+apps/web/            # Next.js text match viewer (Fast + Ultra Fast)
 ```
 
 ## Commands
 
 ```bash
 pnpm install
-pnpm test            # vitest — engine, RNG, Poisson, timeline reconciliation, render
+pnpm test            # vitest — engine, RNG, Poisson, timeline reconciliation
 pnpm typecheck       # tsc --noEmit
 pnpm build           # tsc emit to dist/
 
@@ -86,7 +86,7 @@ The production app is **Next.js (App Router)**, auth via **better-auth**, i18n *
 - `/api/metric` — telemetry
 - `/api/auth` — sessions
 
-For online (M5) and daily (M7): **Supabase** Realtime + server route/Edge Function for authoritative engine + timeline (see MVP §4.3, PRD §9.5).
+For online (M4) and daily (M6): **Supabase** Realtime + server route/Edge Function for authoritative engine + timeline (see MVP §4.2, PRD §9.5).
 
 ## Calibration
 

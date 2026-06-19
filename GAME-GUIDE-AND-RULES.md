@@ -85,11 +85,11 @@ Even teams are a coin flip (0.5); a big favourite is capped at 0.9; a big underd
 
 Every match uses a **seed** (a hidden number). The same seed always produces the same draw and the same result — which is exactly what makes **shared links, the daily challenge, and replays** reproducible. In **online** and the **daily challenge**, the **server owns the seed and runs the simulation**, so results can't be tampered with.
 
-### 5.7 How the match is shown (Normal & Fast)
+### 5.7 How the match is shown (Fast & Ultra Fast)
 
 The **scoreline is decided first** by the probability engine (§5.2–5.5). If you choose **Ultra Fast**, you see that result immediately — this is how 7a0 has always worked.
 
-If you choose **Normal** or **Fast**, the game **replays** that same result: players move and the ball travels between scripted key moments, but the goals and final score were already fixed. You're watching a **highlight-style recap**, not a second simulation that could produce a different score. That's why switching speed tiers never changes what happened.
+If you choose **Fast**, the game **replays** that same result as a **minute-by-minute text ticker**: goals, shots, corners, and penalties appear in order, but the final score was already fixed. You're reading a **scripted recap**, not a second simulation that could produce a different score. That's why switching speed tiers never changes what happened.
 
 ---
 
@@ -147,25 +147,18 @@ Win the Final to be **champion**; survive every game to stay **unbeaten**.
 
 ## 9. Watching the match — speed tiers
 
-The **result is fixed before you watch** (see §5.7). **How you experience it** is your choice:
+The **result is fixed before you read it** (see §5.7). **How you experience it** is your choice:
 
-- **Normal** — a **2D top-down match** you watch live: little numbered circles pass the ball, take shots, win corners, score, and take penalties, with commentary on top. You can **skip to the result** or speed it up anytime.
-- **Fast** — a **minute-by-minute text** ticker of the key moments. (Also the best mode for screen readers.)
+- **Fast** — a **minute-by-minute text** ticker of the key moments. Play, pause, restart, or skip to the result anytime. (Also the best mode for screen readers.)
 - **Ultra Fast** — the **instant final score** and badges, like the original 7a0.
 
-All three are powered by the same underlying match, so you can switch freely without changing what happens. *(A 3D grass version of the top-down view is planned after the MVP.)*
-
-### 9.1 What you see in the 2D view
-
-- **Numbered circles** = players, in each team's colours; the **ball-carrier** is highlighted.
-- The **ball** moves between players (passes), arcs on crosses and shots, and the team **shifts up or back** with play.
-- **Goals, penalties and corners** play as short, clear animations.
+Both are powered by the same underlying match, so you can switch freely without changing what happened.
 
 ---
 
 ## 10. Match statistics
 
-After a match (and live in Normal) you get a breakdown for both teams:
+After a match you get a breakdown for both teams:
 
 - **Possession %**, **shots**, **shots on target**, **corners**, **penalties**, **passes**, and an approximate **xG** (expected goals). These let you see *how* the scoreline happened — and compare with your opponent online.
 
@@ -188,7 +181,7 @@ Special feats unlock **badges**, for example:
 **Online Duel (1v1):** you and another player connect from **different devices** and go head-to-head.
 
 - Both receive a scenario; each **builds an XI** within a **timer**, picks a **tactic**, and confirms.
-- The **server simulates** the match (server-authoritative — nobody can rig it) and both players watch the **same result** at the same time, each in their own view (2D or text).
+- The **server simulates** the match (server-authoritative — nobody can rig it) and both players see the **same result** at the same time, each in Fast or Ultra Fast.
 - **Winner** is shown with a **side-by-side stats comparison**; one tap to **rematch** (new draw).
 - If someone **leaves or goes idle**, the opponent is awarded the win; a brief **reconnect** window covers accidental drops.
 - **Win rule (default):** the two elevens **face each other** in one match; a tie goes to **penalties**.
@@ -208,7 +201,7 @@ Special feats unlock **badges**, for example:
 
 ## 14. Sharing & highlights
 
-- Any match can produce a **shareable highlight link** that **replays the goals** in the 2D view for whoever opens it (no login needed to watch).
+- Any match can produce a **shareable highlight link** that **replays the goals** as text commentary for whoever opens it (no login needed to read).
 - Links come with a **share card** (scoreline, team/Cup, badges) that previews nicely when posted.
 - Because matches are seed-based, a shared link reproduces the **exact** match.
 
@@ -231,7 +224,7 @@ Special feats unlock **badges**, for example:
 
 1. **Roll** → get a team + Cup.
 2. **Build** your XI from real players; place them well for **chemistry**; pick a **tactic**.
-3. **Simulate** — watch in **2D**, read in **Fast**, or get the **instant** result.
+3. **Simulate** — read in **Fast**, or get the **instant** result in **Ultra Fast**.
 4. Chase **7–0**, go **unbeaten**, be **champion**, collect **badges**.
 5. **Challenge a friend online**, take on the **daily challenge**, and **share your highlights**.
 

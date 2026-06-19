@@ -144,7 +144,7 @@ function pickScorer(lineup: LineupSlot[], rng: Rng): LineupSlot {
   return pick(rng, pool.length > 0 ? pool : lineup);
 }
 
-/** Normal-speed playback length: ~90 min → ~75 s, plus shootout time. */
+/** Fast-tier playback length: ~90 min → ~75 s, plus shootout time. */
 function computeDuration(lastMinute: number, hasShootout: boolean): number {
   const base = Math.round(
     (lastMinute / (REGULATION_MINUTES + STOPPAGE_ALLOWANCE)) * 75_000,
