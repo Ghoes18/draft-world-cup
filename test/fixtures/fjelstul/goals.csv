@@ -1,0 +1,2 @@
+key_id,goal_id,tournament_id,tournament_name,match_id,match_name,match_date,stage_name,group_name,team_id,team_name,team_code,home_team,away_team,player_id,family_name,given_name,shirt_number,player_team_id,player_team_name,player_team_code,minute_label,minute_regulation,minute_stoppage,match_period,own_goal,penalty
+1,G-1,WC-1970,1970 FIFA Men's World Cup,M-1,A vs B,1970-06-01,group stage,Group 1,T-07,Brazil,BRA,1,0,P-00001,Pelé,Edson,10,T-07,Brazil,BRA,10',10,0,first half,0,0

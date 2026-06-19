@@ -41,9 +41,10 @@ ENGINE (numbers)  →  TIMELINE (events)  →  PRESENTATION (text / Ultra Fast)
 | --------- | ------ | ------------ |
 | **M1** Engine + timeline | ✅ Done | `src/engine.ts`, `src/timeline/`, `src/consumers/fastText.ts`, `src/cli/simulate.ts` |
 | **M2** Chemistry + tactics | ✅ Done | `src/chemistry.ts`, `src/strength.ts`; CLI `--tactic`/`--chem`; Build panel in `apps/web` |
-| **M3–M6** Stats, online, highlights, daily | ⏳ Deferred | See [MVP.md](./MVP.md) |
+| **M3** Match statistics | ✅ Done | `src/consumers/stats.ts` (`computeMatchStats`); stats block in `pnpm sim`; StatsPanel in `apps/web` |
+| **M4–M6** Online, highlights, daily | ⏳ Deferred | See [MVP.md](./MVP.md) |
 
-Public npm-style export (`src/index.ts`) is **engine + timeline + Fast text only** — server-safe, no canvas/DOM.
+Public npm-style export (`src/index.ts`) is **engine + timeline + Fast text + stats only** — server-safe, no canvas/DOM.
 
 ## Repository layout
 
@@ -54,9 +55,17 @@ src/
   rng.ts             # mulberry32
   constants.ts       # Engine + timeline tuning knobs
   types.ts           # MatchTimeline schema (PRD §7.3)
-  lineup.ts          # Default XI helpers
+  catalog.ts         # Squad catalog + PlayerCard.force
+  catalog/liveImport.ts  # 7a0 squad JSON decode + normalize
+  catalog/fjelstulImport.ts  # Fjelstul CSV → full World Cup catalog
+  cli/build-catalog.ts   # Download Fjelstul + build data/catalog.json
+  lineupStrength.ts  # lineupToTeamStrength — derive attack/def/def/overall from XI
+  positions.ts       # 7a0 position weights
+  roll.ts            # Scenario roll + build + slot rerolls
+  demoCatalog.ts     # Demo squads with autoral forces
+  cli/import-squads.ts   # Batch import squad JSON → catalog
   timeline/          # generate.ts, filler, minutes, clusters
-  consumers/         # fastText.ts — Fast tier / accessibility path
+  consumers/         # fastText.ts — Fast tier / accessibility path; stats.ts — match statistics
   cli/simulate.ts    # Terminal match runner
 test/                # vitest — engine, timeline, RNG, Poisson
 apps/web/            # Next.js text match viewer (Fast + Ultra Fast)
@@ -74,7 +83,16 @@ pnpm build           # tsc emit to dist/
 pnpm sim --home 91 --away 76 --seed demo123
 pnpm sim --home 84 --phase final --seed cup-run-7   # campaign phase + knockout
 pnpm sim --home 88 --away 76 --tactic offensive --chem 80 --seed demo  # M2 build
+
+# Import squad JSON (live format or autoral) into a normalized catalog:
+pnpm import:squads --dir ./squads --out ./data/catalog.json
+
+# Build full men's World Cup catalog (1930–2022) from Fjelstul open data:
+pnpm build:catalog
+# Options: --from 1950 --to 2022 --cache ./data/fjelstul --out ./data/catalog.json
 ```
+
+Forces from `build:catalog` are **autoral** (derived from appearances + goals in the Fjelstul database). They are not live 7a0 ratings. Replace with licensed `{ sel, copa, squad, f }` JSON via `import:squads` when available. See [data/fjelstul/ATTRIBUTION.md](./data/fjelstul/ATTRIBUTION.md).
 
 `--phase` accepts `group1|group2|group3|r16|qf|sf|final` and sets opponent overall (68/72/76/79/83/87/91) and the knockout flag.
 

@@ -1,102 +1,176 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  simulateMatch,
-  generateTimeline,
-  defaultLineup,
+  autoFillLineup,
+  buildChemistryPercent,
+  buildStateToLineup,
+  buildStateToTeamStrength,
+  demoCatalog,
+  drawOpponentScenario,
+  drawScenario,
   effectiveStrength,
+  generateTimeline,
+  getScenario,
+  initBuildState,
+  isLineupComplete,
+  simulateMatch,
+  type BuildState,
   type MatchTimeline,
   type Tactic,
 } from "7a0-engine";
 import { MatchView } from "./_components/MatchView";
 import { BuildPanel } from "./_components/BuildPanel";
-import { SAMPLE_SCENARIOS, type SampleScenario } from "./_data/scenarios";
+import { StatsPanel } from "./_components/StatsPanel";
 import { STRINGS as S } from "./_data/strings";
 
-interface Fixture {
-  home: SampleScenario;
-  away: SampleScenario;
-  seed: string;
-}
-
-function rollFixture(): Fixture {
-  const i = Math.floor(Math.random() * SAMPLE_SCENARIOS.length);
-  let j = Math.floor(Math.random() * SAMPLE_SCENARIOS.length);
-  if (j === i) j = (j + 1) % SAMPLE_SCENARIOS.length;
-  const seed = Math.random().toString(36).slice(2, 10);
-  return { home: SAMPLE_SCENARIOS[i]!, away: SAMPLE_SCENARIOS[j]!, seed };
+function newSeed(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID().slice(0, 12);
+  }
+  return `demo-${Date.now()}`;
 }
 
 export default function Page() {
-  const [fixture, setFixture] = useState<Fixture | null>(null);
+  const [seed, setSeed] = useState<string | null>(null);
+  const [buildState, setBuildState] = useState<BuildState | null>(null);
+  const [opponentScenarioId, setOpponentScenarioId] = useState<string | null>(
+    null,
+  );
   const [timeline, setTimeline] = useState<MatchTimeline | null>(null);
   const [tactic, setTactic] = useState<Tactic>("balanced");
-  const [chem, setChem] = useState(50);
+
+  const playerScenario = useMemo(() => {
+    if (!seed) return null;
+    return drawScenario(demoCatalog, seed);
+  }, [seed]);
+
+  const opponentScenario = useMemo(() => {
+    if (!seed || !playerScenario) return null;
+    if (opponentScenarioId) {
+      return getScenario(demoCatalog, opponentScenarioId);
+    }
+    return drawOpponentScenario(demoCatalog, seed, playerScenario.id);
+  }, [seed, playerScenario, opponentScenarioId]);
+
+  const awayStrength = useMemo(() => {
+    if (!seed || !opponentScenario) return null;
+    const awayBuild = autoFillLineup(
+      demoCatalog,
+      initBuildState(demoCatalog, opponentScenario.id, `${seed}:away`, "away"),
+    );
+    return buildStateToTeamStrength(demoCatalog, awayBuild);
+  }, [seed, opponentScenario]);
 
   function onRoll() {
-    setFixture(rollFixture());
+    const nextSeed = newSeed();
+    const scenario = drawScenario(demoCatalog, nextSeed);
+    const opponent = drawOpponentScenario(demoCatalog, nextSeed, scenario.id);
+    setSeed(nextSeed);
+    setBuildState(initBuildState(demoCatalog, scenario.id, nextSeed, "home"));
+    setOpponentScenarioId(opponent.id);
     setTimeline(null);
     setTactic("balanced");
-    setChem(50);
   }
 
   function onSimulate() {
-    if (!fixture) return;
-    const { home, away, seed } = fixture;
-    // Home gets the chosen chemistry + tactics; away stays neutral in this demo.
-    // Solo demo: client-side simulate is fine. Online/daily move this server-side (M4/M6).
+    if (!seed || !buildState || !playerScenario || !opponentScenario) return;
+
+    const filled = isLineupComplete(buildState)
+      ? buildState
+      : autoFillLineup(demoCatalog, buildState);
+    if (!isLineupComplete(filled)) return;
+
+    setBuildState(filled);
+
+    const chem = Math.round(buildChemistryPercent(demoCatalog, filled));
+    const homeLineup = buildStateToLineup(demoCatalog, filled);
+    const homeBase = buildStateToTeamStrength(demoCatalog, filled);
+
+    const awayBuild = autoFillLineup(
+      demoCatalog,
+      initBuildState(demoCatalog, opponentScenario.id, `${seed}:away`, "away"),
+    );
+    const awayBase = buildStateToTeamStrength(demoCatalog, awayBuild);
+    const awayLineup = buildStateToLineup(demoCatalog, awayBuild);
+
     const result = simulateMatch({
-      home: effectiveStrength(home.strength, { chemistryPct: chem, tactic }),
-      away: away.strength,
+      home: effectiveStrength(homeBase, { chemistryPct: chem, tactic }),
+      away: effectiveStrength(awayBase, { chemistryPct: 50, tactic: "balanced" }),
       seed,
       knockout: false,
     });
+
     const next = generateTimeline({
       result,
       seed,
-      scenario: { team: home.team, cup: home.cup },
-      lineups: { home: defaultLineup("home"), away: defaultLineup("away") },
+      scenario: { team: playerScenario.team, cup: playerScenario.cup },
+      lineups: { home: homeLineup, away: awayLineup },
     });
     setTimeline(next);
   }
+
+  const canSimulate = buildState !== null;
 
   return (
     <main style={{ maxWidth: 920, margin: "0 auto", padding: "2rem 1.25rem" }}>
       <h1 style={{ marginBottom: "0.25rem" }}>{S.title}</h1>
       <p style={{ color: "var(--muted)", marginTop: 0 }}>{S.subtitle}</p>
 
-      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", margin: "1.25rem 0" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "0.75rem",
+          alignItems: "center",
+          flexWrap: "wrap",
+          margin: "1.25rem 0",
+        }}
+      >
         <button onClick={onRoll}>{S.roll}</button>
-        {fixture && (
+        {playerScenario && opponentScenario && (
           <>
             <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              <strong>{fixture.home.team}</strong> {fixture.home.cup} {S.vs}{" "}
-              <strong>{fixture.away.team}</strong> {fixture.away.cup}
+              <strong>{playerScenario.team}</strong> {playerScenario.cup}{" "}
+              {S.vs} <strong>{opponentScenario.team}</strong>{" "}
+              {opponentScenario.cup}
             </span>
-            <button onClick={onSimulate}>{S.simulate}</button>
+            <button onClick={onSimulate} disabled={!canSimulate}>
+              {S.simulate}
+            </button>
           </>
         )}
       </div>
 
-      {fixture && (
+      {buildState && playerScenario && opponentScenario && awayStrength && (
         <BuildPanel
-          homeBase={fixture.home.strength}
-          awayBase={fixture.away.strength}
+          catalog={demoCatalog}
+          scenarioLabel={`${playerScenario.team} · ${playerScenario.cup}`}
+          awayStrength={awayStrength}
+          buildState={buildState}
+          onBuildState={setBuildState}
           tactic={tactic}
-          chem={chem}
           onTactic={setTactic}
-          onChem={setChem}
         />
       )}
 
-      {timeline && fixture ? (
-        // key on seed so a fresh simulate resets the ticker.
-        <MatchView
-          key={timeline.seed}
-          timeline={timeline}
-          labels={{ home: fixture.home.team, away: fixture.away.team }}
-        />
+      {timeline && playerScenario && opponentScenario ? (
+        <>
+          <MatchView
+            key={timeline.seed}
+            timeline={timeline}
+            labels={{
+              home: playerScenario.team,
+              away: opponentScenario.team,
+            }}
+          />
+          <StatsPanel
+            timeline={timeline}
+            labels={{
+              home: playerScenario.team,
+              away: opponentScenario.team,
+            }}
+          />
+        </>
       ) : (
         <p style={{ color: "var(--muted)" }}>{S.noMatch}</p>
       )}

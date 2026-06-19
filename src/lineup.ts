@@ -30,6 +30,11 @@ const FORMATION_433: AnchorSpec[] = [
   { position: "LW", anchor: { x: 0.72, y: 0.8 } },
 ];
 
+/** Formation anchor specs for Build / default lineups (4-3-3). */
+export function formationAnchors(): readonly AnchorSpec[] {
+  return FORMATION_433;
+}
+
 /** Build a neutral 4-3-3 XI for a side, with shirt numbers 1..11. */
 export function defaultLineup(side: Side): LineupSlot[] {
   return FORMATION_433.map((spec, i) => {

@@ -11,9 +11,9 @@ The name is the dream scoreline: **seven to nil**.
 
 ## 2. The core loop — Roll · Build · Simulate
 
-**1) Roll the dice.** The game randomly draws a **national team** and a **World Cup edition**. Example: *Brazil · 1970*.
+**1) Scenario roll.** The game randomly draws a **national team** and a **World Cup edition** — one *(team, Cup)* pairing for the whole match. Example: *Brazil · 1970*. This is **not** repeated per player.
 
-**2) Build your XI.** Fill **11 positions** with players who **really represented that team in that Cup**. You can **reroll** the options offered for a position (and there's an **emergency reroll** for tight spots). You can also pick your **tactic** and watch your **chemistry** rise as you place players well.
+**2) Build your XI.** Fill **11 position slots** with players who **really represented that drawn team in that Cup**. For each slot the game offers a small set of **eligible candidates** (a **slot roll**); you pick one, or **reroll** to refresh that slot's options (plus a limited **emergency reroll** for tight spots). You can also pick your **tactic** and watch your **chemistry** rise as you place players well.
 
 **3) Simulate.** Your team plays a **tournament campaign**. You watch (or read) the matches and find out if you go all the way — and whether you ever hit that **7–0**.
 
@@ -35,7 +35,8 @@ Your goals, in rising order of glory:
 
 - The XI has **11 position slots** (a goalkeeper, defenders, midfielders, forwards).
 - **Eligibility rule:** you may only field players who actually played for the drawn **(team, Cup)**. The game only offers eligible players.
-- **Rerolls:** you can refresh the candidate players offered for a slot. Rerolls are **limited**, and online they're **validated by the server** so everyone plays fair.
+- **Scenario roll:** once per match — the *(team, Cup)* you build from.
+- **Slot roll / reroll:** per position, the game draws a fresh batch of eligible candidates from that scenario's squad. Normal rerolls are **limited per slot**; **emergency rerolls** are a separate, smaller pool. Online, all rolls are **validated by the server** so everyone plays fair.
 - **Placement matters:** putting a player in his **natural position** maximises his value and your **chemistry** (§6).
 - **Complete the XI** before simulating. (Online, if you run out of time, empty slots are auto-filled.)
 
@@ -47,7 +48,7 @@ Your goals, in rising order of glory:
 
 ### 5.1 Team strength
 
-Every team has an **overall** rating (and a **band**, its strength range). Your overall is adjusted by your **chemistry** (§6) and **tactic** (§7).
+Each player has one **force** rating. Your team's **attack**, **defense**, and **overall** are calculated from the **11 players you field**, using position weights (forwards weigh more on attack, defenders on defense). That derived strength is then adjusted by your **chemistry** (§6) and **tactic** (§7). The full squad is available when you build; only your chosen XI counts for the match.
 
 ### 5.2 Expected goals (λ)
 
@@ -215,6 +216,10 @@ Special feats unlock **badges**, for example:
 - **Poisson** — the probability model that turns expected goals into an actual scoreline.
 - **Chemistry** — how well your XI is put together; nudges your strength.
 - **Tactic** — Offensive / Balanced / Defensive; trades scoring for solidity.
+- **Scenario roll** — the one-time draw of *(national team, World Cup edition)* that defines your squad pool.
+- **Slot roll** — the per-position draw of eligible player candidates from that scenario's squad.
+- **Reroll** — refresh the candidate batch for one slot (limited per slot).
+- **Emergency reroll** — a separate, limited reroll for a tight spot.
 - **Seed** — the hidden number that makes a match reproducible and shareable.
 - **Server-authoritative** — the server decides the result, so online/daily play can't be cheated.
 

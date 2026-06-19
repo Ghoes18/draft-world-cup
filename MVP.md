@@ -76,7 +76,8 @@ Public export (`src/index.ts`) = engine + timeline + Fast text only (server-safe
 
   ```
 - **Rooms:** create → short **code** + **invite link**; join by code/link; lobby shows **presence** (connected / building / ready / disconnected).
-- **Build:** synchronised timer; **rerolls validated server-side**; incomplete XI at timer end → neutral auto-fill (MVP rule).
+- **DRAW (scenario roll):** server picks one *(team, Cup)* + seed; both players build from eligible squads for that scenario (online duel) or each receives their own scenario (solo).
+- **Build:** synchronised timer; **slot rolls and rerolls validated server-side**; incomplete XI at timer end → neutral auto-fill (MVP rule).
 - **Reveal:** both players see the **same** canonical result; each may read it in Fast or Ultra Fast.
 - **Result:** winner + side-by-side comparison + **rematch** (new draw, same players).
 - **Win rule (MVP default):** the two XIs **face each other head-to-head** in a single match (recommended as the most intuitive "duel"); tie → penalties.
@@ -105,6 +106,21 @@ A lineup quality signal that **nudges team strength** (feeds `attack`/`defense` 
 - **Chemistry bonus to overall** = `round((chem% − 50) / 100 × 6)` → roughly **−3 … +3** points, applied to attack and defense.
 - Shown in Build as a live meter, so players are rewarded for thoughtful XI placement.
 - *(All 11 already come from the same team/Cup by eligibility, so MVP chemistry is mainly about correct placement; era/synergy bonuses can be added later.)*
+
+### 4.5.1 Roll mechanics (scenario vs slot)
+
+- **Scenario roll** — once per match: draw *(national team, Cup)*. Defines the squad pool for Build.
+- **Slot roll** — per XI position: draw a batch of eligible candidates from that scenario's squad.
+- **Reroll** — refresh one slot's candidate batch (limited per slot; server-validated online).
+- **Emergency reroll** — separate, smaller limit for one tight spot.
+- All rolls are **seed-deterministic** (`mulberry32`); the server owns the seed for online/daily.
+
+### 4.5.2 Player force and derived team strength
+
+- Each player in a squad has one **`force`** (0–255), stored in the catalog (autoral or imported).
+- **Attack / defense / overall** are **not** stored per scenario — they are derived from the **11 chosen players** via position-weighted averages (live 7a0 model), then chemistry and tactics apply via `effectiveStrength`.
+- Full squad (~23 players) is eligible for roll/build; only the selected XI feeds the engine.
+- Import: `pnpm import:squads --dir ./squads --out ./data/catalog.json` (live `{ sel, copa, squad, f }` or autoral export). Server stores forces in clear text.
 
 ### 4.6 Tactical choice
 

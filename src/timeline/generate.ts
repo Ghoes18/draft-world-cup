@@ -9,6 +9,7 @@
  */
 
 import {
+  PENALTY_GOAL_CHANCE,
   REGULATION_MINUTES,
   STOPPAGE_ALLOWANCE,
 } from "../constants.js";
@@ -119,6 +120,12 @@ function buildGoals(
       rng,
     );
     events.push(possession);
+    // Occasionally dramatise a goal as a penalty (cosmetic context for the
+    // ticker + stats). The `goal` event is always kept, so the goal-count
+    // reconciliation guarantee is untouched.
+    if (rng() < PENALTY_GOAL_CHANCE) {
+      events.push({ t, type: "penalty", team: side, outcome: "goal" });
+    }
     const goal: MatchEvent = {
       t,
       type: "goal",

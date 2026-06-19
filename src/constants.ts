@@ -124,8 +124,46 @@ export const PENALTY_GOAL_CHANCE = 0.08;
 /** Passes per possession chain (inclusive range). */
 export const PASSES_MIN = 2;
 export const PASSES_MAX = 6;
+
+// ---------------------------------------------------------------------------
+// Roll / Build — candidate batches (TUNABLE — MVP §4.5.1)
+// ---------------------------------------------------------------------------
+
+/** Candidates offered per slot on each slot roll. */
+export const CANDIDATES_PER_SLOT = 3;
+/** Normal rerolls allowed per slot. */
+export const REROLLS_PER_SLOT = 3;
+/** Emergency rerolls for the whole Build (one tight spot). */
+export const EMERGENCY_REROLLS_TOTAL = 1;
+
+// ---------------------------------------------------------------------------
+// Player force → engine rating scale (TUNABLE — MVP §9)
+// ---------------------------------------------------------------------------
+
+/** Multiply raw force (0–255) to engine rating scale (~0–100). */
+export const FORCE_TO_RATING = 100 / 255;
+
+/** Salt used by live 7a0 to obfuscate squad JSON `f` fields. */
+export const FORCE_OBFUSCATION_SALT = "7a0::alm::v1";
 /**
  * Match-minutes before a terminal event (shot, goal, corner) that the linked
  * possession buildup starts. Keeps attacks narratively continuous in text replay.
  */
 export const BUILDUP_LEAD_MIN = 1.0;
+
+// ---------------------------------------------------------------------------
+// Stats — per-shot xG weights (TUNABLE — MVP §4.4 / §9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Approximate xG is derived purely from the timeline's shot events: each shot
+ * contributes a weight by outcome and they sum to a side's expected goals (an
+ * estimate of the engine λ that produced the shots). Tunable; presentation is
+ * unaffected. A penalty that scored is represented by its `goal` event, so only
+ * non-goal penalty attempts use XG_PENALTY (no double count — see stats.ts).
+ */
+export const XG_GOAL = 0.45;
+export const XG_ON_TARGET = 0.25; // saved
+export const XG_POST = 0.12;
+export const XG_OFF = 0.05;
+export const XG_PENALTY = 0.79;

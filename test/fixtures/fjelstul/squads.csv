@@ -1,0 +1,4 @@
+key_id,tournament_id,tournament_name,team_id,team_name,team_code,player_id,family_name,given_name,shirt_number,position_name,position_code
+1,WC-1970,1970 FIFA Men's World Cup,T-07,Brazil,BRA,P-00001,Pelé,Edson,10,forward,FW
+2,WC-1970,1970 FIFA Men's World Cup,T-07,Brazil,BRA,P-00002,Félix,Ágostinho,1,goal keeper,GK
+3,WC-1970,1970 FIFA Men's World Cup,T-07,Brazil,BRA,P-00003,Reserva,João,20,midfielder,MF

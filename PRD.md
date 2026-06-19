@@ -32,8 +32,8 @@ World Cup history, **1950–2026**: ~**52 national teams**, **250 squads**, **5,
 
 ### 2.2 Core loop — "Roll · Build · Simulate"
 
-1. **Roll the dice** — a **national team** and a **Cup** (edition) are drawn.
-2. **Build** — the player fills an **11-position starting XI** with real players who actually represented that team in that Cup. There are *roll/reroll* mechanics per position (including an "emergency reroll").
+1. **Scenario roll** — a **national team** and a **Cup** (edition) are drawn once as the *(team, Cup)* pairing for the match.
+2. **Build** — the player fills an **11-position starting XI** with real players who actually represented that drawn team in that Cup. Each slot receives a **slot roll** (a batch of eligible candidates); the player may **reroll** that batch per position (including a limited **emergency reroll**).
 3. **Simulate** — a **tournament campaign** runs; the goal is to win **7–0**, stay **unbeaten**, become **champion** and unlock **badges**.
 
 ### 2.3 Campaign structure (solo)

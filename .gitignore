@@ -26,5 +26,11 @@ pnpm-debug.log*
 coverage/
 .vitest/
 
+# Downloaded Fjelstul CSV cache (see data/fjelstul/ATTRIBUTION.md)
+data/fjelstul/*.csv
+
+# Generated full catalog (run pnpm build:catalog)
+data/catalog.json
+
 # Cursor
 .cursor/

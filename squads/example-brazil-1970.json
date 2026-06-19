@@ -1,0 +1,24 @@
+{
+  "scenarios": [
+    {
+      "id": "brazil-1970",
+      "team": "Brazil",
+      "cup": 1970,
+      "players": [
+        { "id": "br70-felix", "name": "Félix", "naturalPosition": "GK", "shirtNumber": 1, "force": 210 },
+        { "id": "br70-carlos-alberto", "name": "Carlos Alberto", "naturalPosition": "RB", "shirtNumber": 4, "force": 238 },
+        { "id": "br70-pelé", "name": "Pelé", "naturalPosition": "ST", "shirtNumber": 9, "force": 245 },
+        { "id": "br70-jairzinho", "name": "Jairzinho", "naturalPosition": "RW", "shirtNumber": 7, "force": 240 },
+        { "id": "br70-gerson", "name": "Gerson", "naturalPosition": "CM", "shirtNumber": 8, "force": 232 },
+        { "id": "br70-rivellino", "name": "Rivelino", "naturalPosition": "LCM", "shirtNumber": 10, "force": 235 },
+        { "id": "br70-tostao", "name": "Tostão", "naturalPosition": "LW", "shirtNumber": 11, "force": 236 },
+        { "id": "br70-clodoaldo", "name": "Clodoaldo", "naturalPosition": "RCM", "shirtNumber": 5, "force": 228 },
+        { "id": "br70-brito", "name": "Brito", "naturalPosition": "RCB", "shirtNumber": 2, "force": 220 },
+        { "id": "br70-piazza", "name": "Piazza", "naturalPosition": "LCB", "shirtNumber": 3, "force": 225 },
+        { "id": "br70-everaldo", "name": "Everaldo", "naturalPosition": "LB", "shirtNumber": 6, "force": 222 },
+        { "id": "br70-leao", "name": "Leão", "naturalPosition": "GK", "shirtNumber": 12, "force": 198 },
+        { "id": "br70-edú", "name": "Edu", "naturalPosition": "CM", "shirtNumber": 14, "force": 212 }
+      ]
+    }
+  ]
+}

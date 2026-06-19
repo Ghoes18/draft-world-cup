@@ -18,6 +18,7 @@ import { effectiveStrength } from "../strength.js";
 import { defaultLineup } from "../lineup.js";
 import { generateTimeline } from "../timeline/generate.js";
 import { toFastText } from "../consumers/fastText.js";
+import { computeMatchStats, type TeamStats } from "../consumers/stats.js";
 import type { CampaignPhase, Tactic } from "../constants.js";
 
 interface Args {
@@ -134,6 +135,37 @@ function main(): void {
   const w =
     result.winner === "draw" ? "Draw" : `${labels[result.winner]} win`;
   console.log(`\nResult: ${result.score[0]}–${result.score[1]}  (${w})\n`);
+
+  printStats(computeMatchStats(timeline), labels);
+}
+
+/** Side-by-side match statistics derived from the timeline (M3). */
+function printStats(
+  stats: { home: TeamStats; away: TeamStats },
+  labels: { home: string; away: string },
+): void {
+  const rows: [string, string, string][] = [
+    ["Possession", `${stats.home.possession}%`, `${stats.away.possession}%`],
+    ["Shots", `${stats.home.shots}`, `${stats.away.shots}`],
+    ["On target", `${stats.home.shotsOnTarget}`, `${stats.away.shotsOnTarget}`],
+    ["Corners", `${stats.home.corners}`, `${stats.away.corners}`],
+    ["Penalties", `${stats.home.penalties}`, `${stats.away.penalties}`],
+    ["Passes", `${stats.home.passes}`, `${stats.away.passes}`],
+    ["xG", stats.home.xg.toFixed(1), stats.away.xg.toFixed(1)],
+  ];
+
+  console.log("Statistics");
+  console.log(`  ${pad(labels.home, 8, "end")}          ${labels.away}`);
+  for (const [label, h, a] of rows) {
+    console.log(
+      `  ${pad(h, 6, "start")}  ${pad(label, 12, "end")}  ${pad(a, 6, "end")}`,
+    );
+  }
+  console.log("");
+}
+
+function pad(s: string, width: number, side: "start" | "end"): string {
+  return side === "start" ? s.padStart(width) : s.padEnd(width);
 }
 
 main();

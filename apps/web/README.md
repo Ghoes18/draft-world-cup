@@ -6,9 +6,9 @@ text, like the original 7a0:
 - **Ticker** — minute-by-minute text reveal (also the screen-reader path).
 - **Instant result** — the full result printed at once (original 7a0 behaviour).
 
-Both modes read the engine's `toFastText` consumer. The app also has a simple
-roll + simulate flow with sample teams (`app/_data/scenarios.ts`). Real player
-data, chemistry, and tactics arrive with M2.
+Both modes read the engine's `toFastText` consumer. The app also has a
+**scenario roll → build XI → simulate** flow using `demoCatalog` from
+`7a0-engine` (3 iconic squads until the live-game dataset is plugged in).
 
 ## Run
 
