@@ -8,7 +8,17 @@ This document specifies three upgrades:
 2. **A top-down rendering system with two finishes** — a lightweight **2D** view and a **3D grass** view, *both top-down*, sharing one coordinate system. 3D is a visual skin of the 2D layout, not a separate mode.
 3. **A true online mode** — players on different devices, connected in real time, with **server-authoritative simulation** (mandatory, because the current engine is client-side and seed-deterministic and would be trivial to manipulate), plus matchmaking, ranking and rematches.
 
-The architectural spine that makes all of this tractable: **decouple the result from its presentation**. The engine decides the numbers first; everything visible is a *replay of a pre-decided result*.
+The architectural spine that makes all of this tractable: **decouple the result from its presentation**. The engine decides the numbers first; everything visible is a *replay of a pre-decided result* — **not** a live physics or player-AI simulation that decides goals during play.
+
+### 1.1 Implementation repository
+
+Core simulation code lives in this monorepo/package (**`draft-world-cup`** / `7a0-engine`):
+
+- **M1 complete:** Poisson engine, timeline generator, Fast-text consumer, CLI (`pnpm sim`), vitest suite.
+- **M2 in progress:** 2D render library (`src/render/`) — integrates into the live Next.js app; no standalone browser demo in this repo.
+- **Explicitly rejected:** FIFA-style live match simulation; client-authoritative competitive outcomes.
+
+See **[README.md](./README.md)** for layout and commands; **[MVP.md](./MVP.md)** for build order.
 
 ---
 

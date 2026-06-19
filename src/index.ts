@@ -16,4 +16,3 @@ export { generateTimeline } from "./timeline/generate.js";
 export type { GenerateTimelineInput } from "./timeline/generate.js";
 export { toFastText } from "./consumers/fastText.js";
 export type { FastTextOptions } from "./consumers/fastText.js";
-export * from "./live/index.js";

@@ -33,14 +33,28 @@ The same three-layer spine as the PRD:
 
 ```
 ENGINE (numbers)  →  TIMELINE (events)  →  PRESENTATION (text / 2D)
-
 ```
 
 - **Engine** decides the result (Poisson; unchanged) — **on the server** for online and daily challenge (server authority is mandatory there).
 - **Timeline** is a deterministic, serialisable list of match events generated *from* the result + seed. It powers Fast text, the 2D animation, the statistics, and the shareable highlight.
-- **Presentation** in MVP = **2D top-down renderer** (Canvas/Pixi) + **text** tiers.
+- **Presentation** in MVP = **2D top-down renderer** (Canvas/Pixi) + **text** tiers, integrated into the **existing Next.js app** — not a separate demo site in this repo.
+
+**Not in scope:** live physics or player AI that decides goals during play. The result is fixed before any animation runs (same as today's Ultra Fast 7a0, extended with optional replay tiers).
 
 Reuse existing routes: `/api/match/record` (results), `/api/shorten` (highlight/daily links), `/api/metric` (telemetry), `/api/auth` (online).
+
+### 3.1 Implementation in this repository (`draft-world-cup`)
+
+| Layer | Status | Code |
+| ----- | ------ | ---- |
+| Engine | ✅ M1 | `src/engine.ts`, `src/poisson.ts`, `src/rng.ts`, `src/constants.ts` |
+| Timeline | ✅ M1 | `src/timeline/`, `src/types.ts` |
+| Fast text | ✅ M1 | `src/consumers/fastText.ts`, `src/cli/simulate.ts` (`pnpm sim`) |
+| 2D render | 🔶 M2 library | `src/render/` — wire into Next.js; verified by unit tests, **no local browser demo** |
+| Chemistry / tactics UI | ⏳ M3 | Engine API ready; Build screen in main app |
+| Stats, online, highlights, daily | ⏳ M4–M7 | Specs below; not started in this package |
+
+Public export (`src/index.ts`) = engine + timeline + Fast text only (server-safe bundle).
 
 ---
 
@@ -147,8 +161,8 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 
 ## 6. Build order (milestones)
 
-1. ~~**M1 — Server-authoritative engine + timeline generator** (pure functions; verify via Fast text output). *Foundation for online + daily.*~~ ✅
-2. **M2 — 2D top-down renderer** playing the timeline (Normal/Fast/Ultra), with skip + speed controls.
+1. ~~**M1 — Server-authoritative engine + timeline generator** (pure functions; verify via `pnpm sim` / Fast text). *Foundation for online + daily.*~~ ✅
+2. **M2 — 2D top-down renderer** playing the timeline (Normal/Fast/Ultra), with skip + speed controls — **integrate into Next.js** (`src/render/` library exists in this repo).
 3. **M3 — Chemistry + Tactics** wired into the engine and surfaced in Build (live chemistry meter, tactic picker).
 4. **M4 — Match statistics** screen (derived from timeline).
 5. **M5 — Online 1v1 Duel** (rooms by code, synced build, server sim, reveal, rematch, basic reconnect/AFK).

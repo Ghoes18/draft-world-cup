@@ -85,6 +85,12 @@ Even teams are a coin flip (0.5); a big favourite is capped at 0.9; a big underd
 
 Every match uses a **seed** (a hidden number). The same seed always produces the same draw and the same result — which is exactly what makes **shared links, the daily challenge, and replays** reproducible. In **online** and the **daily challenge**, the **server owns the seed and runs the simulation**, so results can't be tampered with.
 
+### 5.7 How the match is shown (Normal & Fast)
+
+The **scoreline is decided first** by the probability engine (§5.2–5.5). If you choose **Ultra Fast**, you see that result immediately — this is how 7a0 has always worked.
+
+If you choose **Normal** or **Fast**, the game **replays** that same result: players move and the ball travels between scripted key moments, but the goals and final score were already fixed. You're watching a **highlight-style recap**, not a second simulation that could produce a different score. That's why switching speed tiers never changes what happened.
+
 ---
 
 ## 6. Squad chemistry (rules)
@@ -141,7 +147,7 @@ Win the Final to be **champion**; survive every game to stay **unbeaten**.
 
 ## 9. Watching the match — speed tiers
 
-The result is the same; **how you experience it** is your choice:
+The **result is fixed before you watch** (see §5.7). **How you experience it** is your choice:
 
 - **Normal** — a **2D top-down match** you watch live: little numbered circles pass the ball, take shots, win corners, score, and take penalties, with commentary on top. You can **skip to the result** or speed it up anytime.
 - **Fast** — a **minute-by-minute text** ticker of the key moments. (Also the best mode for screen readers.)
