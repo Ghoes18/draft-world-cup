@@ -20,8 +20,13 @@ export interface LineupSlot {
   playerId: string;
   /** Shirt number shown on the token. */
   number: number;
-  /** Position code (e.g. "GK", "CB", "CM", "ST"). */
+  /** Position code where the player is fielded (e.g. "GK", "CB", "CM", "ST"). */
   position: string;
+  /**
+   * Player's natural position, used to score squad chemistry (`src/chemistry.ts`).
+   * Omitted means "fielded in position" — treated as a perfect fit.
+   */
+  naturalPosition?: string;
   /** Formation anchor in normalized pitch space (home-attacking-right frame). */
   anchor: Vec2;
 }

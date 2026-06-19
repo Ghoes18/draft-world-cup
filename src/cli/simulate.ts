@@ -5,6 +5,7 @@
  *
  *   pnpm sim --home 91 --away 76 --seed demo123
  *   pnpm sim --home 88 --phase final --seed cup-run
+ *   pnpm sim --home 88 --away 76 --tactic offensive --chem 80 --seed demo
  */
 
 import {
@@ -13,10 +14,11 @@ import {
   simulateMatch,
   type TeamStrength,
 } from "../engine.js";
+import { effectiveStrength } from "../strength.js";
 import { defaultLineup } from "../lineup.js";
 import { generateTimeline } from "../timeline/generate.js";
 import { toFastText } from "../consumers/fastText.js";
-import type { CampaignPhase } from "../constants.js";
+import type { CampaignPhase, Tactic } from "../constants.js";
 
 interface Args {
   home: number;
@@ -24,10 +26,21 @@ interface Args {
   seed: string;
   knockout: boolean;
   phase?: CampaignPhase;
+  tactic: Tactic;
+  chem: number;
 }
 
+const TACTICS: readonly Tactic[] = ["offensive", "balanced", "defensive"];
+
 function parseArgs(argv: string[]): Args {
-  const args: Args = { home: 85, away: 76, seed: "demo", knockout: false };
+  const args: Args = {
+    home: 85,
+    away: 76,
+    seed: "demo",
+    knockout: false,
+    tactic: "balanced",
+    chem: 50,
+  };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     switch (arg) {
@@ -46,6 +59,18 @@ function parseArgs(argv: string[]): Args {
       case "--knockout":
         args.knockout = true;
         break;
+      case "--tactic": {
+        const t = String(argv[++i]) as Tactic;
+        if (!TACTICS.includes(t)) {
+          console.error(`Unknown tactic: ${t} (use ${TACTICS.join("|")})`);
+          process.exit(1);
+        }
+        args.tactic = t;
+        break;
+      }
+      case "--chem":
+        args.chem = Number(argv[++i]);
+        break;
       default:
         if (arg?.startsWith("--")) {
           console.error(`Unknown flag: ${arg}`);
@@ -60,15 +85,19 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-function strength(overall: number): TeamStrength {
-  // CLI has no chemistry/tactics (M3); use the overall flat for attack/defense.
+function baseStrength(overall: number): TeamStrength {
+  // No squad data in the CLI; use the overall flat for attack/defense.
   return { attack: overall, defense: overall, overall };
 }
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
-  const home = strength(args.home);
-  const away = strength(args.away);
+  // Home gets chemistry + tactics; away stays neutral (its own flags TBD).
+  const home = effectiveStrength(baseStrength(args.home), {
+    chemistryPct: args.chem,
+    tactic: args.tactic,
+  });
+  const away = baseStrength(args.away);
 
   const result = simulateMatch({
     home,
@@ -90,6 +119,9 @@ function main(): void {
 
   console.log(
     `\n7a0 — seed "${args.seed}"  (HOME ${args.home} vs AWAY ${args.away}${phaseLabel}${ko})`,
+  );
+  console.log(
+    `HOME build: tactic ${args.tactic}, chemistry ${args.chem}%  →  eff ATK ${home.attack} DEF ${home.defense} OVR ${home.overall}`,
   );
   console.log(
     `λ: HOME ${result.lambda[0].toFixed(2)}  AWAY ${result.lambda[1].toFixed(2)}   events: ${timeline.events.length}   duration: ${(timeline.durationMs / 1000).toFixed(1)}s\n`,

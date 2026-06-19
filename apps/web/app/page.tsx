@@ -5,9 +5,12 @@ import {
   simulateMatch,
   generateTimeline,
   defaultLineup,
+  effectiveStrength,
   type MatchTimeline,
+  type Tactic,
 } from "7a0-engine";
 import { MatchView } from "./_components/MatchView";
+import { BuildPanel } from "./_components/BuildPanel";
 import { SAMPLE_SCENARIOS, type SampleScenario } from "./_data/scenarios";
 import { STRINGS as S } from "./_data/strings";
 
@@ -28,18 +31,23 @@ function rollFixture(): Fixture {
 export default function Page() {
   const [fixture, setFixture] = useState<Fixture | null>(null);
   const [timeline, setTimeline] = useState<MatchTimeline | null>(null);
+  const [tactic, setTactic] = useState<Tactic>("balanced");
+  const [chem, setChem] = useState(50);
 
   function onRoll() {
     setFixture(rollFixture());
     setTimeline(null);
+    setTactic("balanced");
+    setChem(50);
   }
 
   function onSimulate() {
     if (!fixture) return;
     const { home, away, seed } = fixture;
+    // Home gets the chosen chemistry + tactics; away stays neutral in this demo.
     // Solo demo: client-side simulate is fine. Online/daily move this server-side (M4/M6).
     const result = simulateMatch({
-      home: home.strength,
+      home: effectiveStrength(home.strength, { chemistryPct: chem, tactic }),
       away: away.strength,
       seed,
       knockout: false,
@@ -70,6 +78,17 @@ export default function Page() {
           </>
         )}
       </div>
+
+      {fixture && (
+        <BuildPanel
+          homeBase={fixture.home.strength}
+          awayBase={fixture.away.strength}
+          tactic={tactic}
+          chem={chem}
+          onTactic={setTactic}
+          onChem={setChem}
+        />
+      )}
 
       {timeline && fixture ? (
         // key on seed so a fresh simulate resets the ticker.

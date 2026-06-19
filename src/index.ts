@@ -11,6 +11,8 @@ export * from "./constants.js";
 export * from "./rng.js";
 export { poissonKnuth } from "./poisson.js";
 export * from "./engine.js";
+export * from "./chemistry.js";
+export * from "./strength.js";
 export * from "./lineup.js";
 export { generateTimeline } from "./timeline/generate.js";
 export type { GenerateTimelineInput } from "./timeline/generate.js";

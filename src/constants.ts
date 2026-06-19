@@ -66,6 +66,30 @@ export const KNOCKOUT_PHASES: ReadonlySet<CampaignPhase> = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
+// Chemistry + tactics — effective-rating modifiers (TUNABLE — MVP §9.4)
+// ---------------------------------------------------------------------------
+
+/** A single pre-match tactical choice (MVP §4.6). */
+export type Tactic = "offensive" | "balanced" | "defensive";
+
+/**
+ * Chemistry bonus span: `round((chem% − 50) / 100 × CHEMISTRY_RANGE)` → ±3.
+ * Applied to attack, defense and overall (see `src/strength.ts`).
+ */
+export const CHEMISTRY_RANGE = 6;
+
+/** Tactic δ: rating points traded between attack and your defense. */
+export const TACTIC_DELTA = 4;
+
+/**
+ * Position-fit tiers for chemistry (GAME-GUIDE §6): full credit for the exact
+ * role, partial for an adjacent role, little for an unrelated one.
+ */
+export const FIT_EXACT = 1.0;
+export const FIT_ADJACENT = 0.5;
+export const FIT_UNRELATED = 0.15;
+
+// ---------------------------------------------------------------------------
 // Match shape
 // ---------------------------------------------------------------------------
 

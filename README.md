@@ -40,7 +40,7 @@ ENGINE (numbers)  →  TIMELINE (events)  →  PRESENTATION (text / Ultra Fast)
 | Milestone | Status | In this repo |
 | --------- | ------ | ------------ |
 | **M1** Engine + timeline | ✅ Done | `src/engine.ts`, `src/timeline/`, `src/consumers/fastText.ts`, `src/cli/simulate.ts` |
-| **M2** Chemistry + tactics | ⏳ Next | Engine accepts effective `attack`/`defense`; UI wiring in main app |
+| **M2** Chemistry + tactics | ✅ Done | `src/chemistry.ts`, `src/strength.ts`; CLI `--tactic`/`--chem`; Build panel in `apps/web` |
 | **M3–M6** Stats, online, highlights, daily | ⏳ Deferred | See [MVP.md](./MVP.md) |
 
 Public npm-style export (`src/index.ts`) is **engine + timeline + Fast text only** — server-safe, no canvas/DOM.
@@ -73,9 +73,12 @@ pnpm build           # tsc emit to dist/
 # Run a match as Fast text in the terminal:
 pnpm sim --home 91 --away 76 --seed demo123
 pnpm sim --home 84 --phase final --seed cup-run-7   # campaign phase + knockout
+pnpm sim --home 88 --away 76 --tactic offensive --chem 80 --seed demo  # M2 build
 ```
 
 `--phase` accepts `group1|group2|group3|r16|qf|sf|final` and sets opponent overall (68/72/76/79/83/87/91) and the knockout flag.
+
+`--tactic` (`offensive|balanced|defensive`) and `--chem` (0–100, chemistry %) apply the M2 chemistry + tactics modifiers to the **home** side via `effectiveStrength`; the printed effective ratings and λ shift accordingly.
 
 ## Integration with the live game
 

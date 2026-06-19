@@ -31,7 +31,7 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
-/** Effective ratings after chemistry + tactics have been applied (M3 owns those). */
+/** Effective ratings after chemistry + tactics (see `effectiveStrength`, src/strength.ts). */
 export interface TeamStrength {
   attack: number;
   defense: number;
