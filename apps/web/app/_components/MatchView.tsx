@@ -113,41 +113,45 @@ export function MatchView({
 
   const atEnd = revealed >= lines.length;
   const shown = lines.slice(0, revealed);
+  const live = mode === "fast" && running && !atEnd;
 
   return (
-    <div>
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
-        {(["fast", "ultra"] as const).map((m) => (
-          <button key={m} aria-pressed={mode === m} onClick={() => changeMode(m)}>
-            {S.mode[m]}
-          </button>
+    <section className="panel">
+      <div className="feed__bar">
+        <div>
+          <div className="eyebrow">{S.matchKicker}</div>
+          <h2 className="panel__title">{S.matchTitle}</h2>
+        </div>
+        <div className="row" style={{ gap: "0.5rem" }}>
+          <span className="status">
+            <span
+              className="status__dot"
+              data-live={live ? "true" : "false"}
+              aria-hidden
+            />
+            {live ? S.live : S.full}
+          </span>
+          {(["fast", "ultra"] as const).map((m) => (
+            <button key={m} aria-pressed={mode === m} onClick={() => changeMode(m)}>
+              {S.mode[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="feed__screen" aria-live="polite" aria-label="Match commentary">
+        {shown.map((line, i) => (
+          <div
+            key={i}
+            className={`feed__line${line.includes("GOAL!") ? " feed__line--goal" : ""}`}
+          >
+            {line}
+          </div>
         ))}
       </div>
 
-      <pre
-        aria-live="polite"
-        aria-label="Match commentary"
-        style={{
-          background: "#0b0e12",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          margin: 0,
-          padding: "1rem 1.25rem",
-          minHeight: 240,
-          maxWidth: 720,
-          maxHeight: 480,
-          overflow: "auto",
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          fontSize: "0.9rem",
-          lineHeight: 1.7,
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {shown.join("\n")}
-      </pre>
-
       {mode === "fast" && (
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
+        <div className="feed__controls">
           <button onClick={togglePlay}>{running ? S.pause : S.play}</button>
           <button onClick={restart}>{S.restart}</button>
           <button onClick={skip} disabled={atEnd}>
@@ -155,6 +159,6 @@ export function MatchView({
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 }

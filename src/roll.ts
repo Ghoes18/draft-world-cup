@@ -1,21 +1,17 @@
 /**
- * Deterministic roll + build layer.
+ * Deterministic roll + draft/build layer.
  *
- * Scenario roll: one *(team, Cup)* per match.
- * Slot roll: per-position candidate batches from that scenario's squad.
- * All randomness derives from the server-owned seed string (mulberry32).
+ * Live 7a0 draft flow: each turn rolls one *(team, Cup)* scenario; the player
+ * picks one squad member into a compatible XI slot. After 11 picks the draft is
+ * complete. Three global rerolls can refresh the current scenario (full draw or
+ * year-only). All randomness derives from the server-owned seed (mulberry32).
  */
 
 import {
-  canonicalRole,
   chemistryPercent,
   positionFit,
 } from "./chemistry.js";
-import {
-  CANDIDATES_PER_SLOT,
-  EMERGENCY_REROLLS_TOTAL,
-  REROLLS_PER_SLOT,
-} from "./constants.js";
+import { FIT_ADJACENT, GLOBAL_REROLLS_PER_BUILD } from "./constants.js";
 import {
   getPlayer,
   getScenario,
@@ -24,8 +20,8 @@ import {
   type SquadCatalog,
   type SquadScenario,
 } from "./catalog.js";
-import { formationAnchors } from "./lineup.js";
-import { pick, randInt, rngFromSeed } from "./rng.js";
+import { formationAnchors, DEFAULT_FORMATION_ID } from "./formations.js";
+import { pick, rngFromSeed } from "./rng.js";
 import type { LineupSlot, Side, Vec2 } from "./types.js";
 
 /** One XI slot during Build. */
@@ -33,28 +29,37 @@ export interface BuildSlot {
   slotId: string;
   position: string;
   anchor: Vec2;
-  /** Increments on each reroll; drives deterministic candidate batches. */
-  rollIndex: number;
-  rerollsUsed: number;
-  emergencyUsed: boolean;
   selectedPlayerId?: string;
+  /** Scenario drawn on the turn this player was picked. */
+  pickedFromScenarioId?: string;
 }
 
-/** In-progress Build state for one side. */
+/** In-progress draft/build state for one side. */
 export interface BuildState {
   seed: string;
-  scenarioId: string;
   side: Side;
+  /** Formation chosen before the draft (FIFA Draft-style). */
+  formationId: string;
   slots: BuildSlot[];
-  emergencyRerollsRemaining: number;
+  /** Scenario offered on the current turn (before the next pick). */
+  currentScenarioId: string;
+  /** Picks completed (0–11). When 11, draft is complete. */
+  turnIndex: number;
+  /** Global rerolls left for the whole draft. */
+  globalRerollsRemaining: number;
+  /** Rerolls consumed on the current turn (drives deterministic redraws). */
+  rerollCounter: number;
 }
+
+export type RerollMode = "full" | "year";
 
 export interface LineupValidationError {
   code:
     | "wrong_scenario"
     | "duplicate_player"
     | "unknown_player"
-    | "incomplete";
+    | "incomplete"
+    | "position_mismatch";
   message: string;
   playerId?: string;
 }
@@ -64,22 +69,19 @@ export interface LineupValidationResult {
   errors: LineupValidationError[];
 }
 
-function slotRng(
+function turnScenarioRng(
   seed: string,
-  scenarioId: string,
-  slotId: string,
-  rollIndex: number,
+  turnIndex: number,
+  rerollCounter: number,
 ) {
-  return rngFromSeed(
-    `${seed}:scenario:${scenarioId}:slot:${slotId}:roll:${rollIndex}`,
-  );
+  return rngFromSeed(`${seed}:turn:${turnIndex}:reroll:${rerollCounter}`);
 }
 
 function scenarioDrawRng(seed: string) {
   return rngFromSeed(`${seed}:draw`);
 }
 
-/** Draw one scenario from the catalog (scenario roll). */
+/** Draw one scenario from the catalog (single initial draw). */
 export function drawScenario(
   catalog: SquadCatalog,
   seed: string,
@@ -106,32 +108,70 @@ export function drawOpponentScenario(
   return pick(rng, pool);
 }
 
-/** Initialize Build state with empty slots for a 4-3-3 formation. */
+function drawScenarioForTurn(
+  catalog: SquadCatalog,
+  seed: string,
+  turnIndex: number,
+  rerollCounter: number,
+  excludeIds: ReadonlySet<string> = new Set(),
+): SquadScenario {
+  let pool = catalog.scenarios.filter((s) => !excludeIds.has(s.id));
+  if (pool.length === 0) pool = [...catalog.scenarios];
+  if (pool.length === 0) throw new Error("drawScenarioForTurn: empty catalog");
+  const rng = turnScenarioRng(seed, turnIndex, rerollCounter);
+  return pick(rng, pool);
+}
+
+function drawYearForTeam(
+  catalog: SquadCatalog,
+  team: string,
+  seed: string,
+  turnIndex: number,
+  rerollCounter: number,
+  excludeCup?: number,
+): SquadScenario {
+  let pool = catalog.scenarios.filter(
+    (s) => s.team === team && s.cup !== excludeCup,
+  );
+  if (pool.length === 0) {
+    pool = catalog.scenarios.filter((s) => s.team === team);
+  }
+  if (pool.length === 0) {
+    throw new Error(`drawYearForTeam: no scenarios for team ${team}`);
+  }
+  const rng = turnScenarioRng(seed, turnIndex, rerollCounter);
+  return pick(rng, pool);
+}
+
+/** Initialize draft state with empty slots and the first scenario roll. */
 export function initBuildState(
   catalog: SquadCatalog,
-  scenarioId: string,
   seed: string,
   side: Side,
+  startingScenarioId?: string,
+  formationId: string = DEFAULT_FORMATION_ID,
 ): BuildState {
-  getScenario(catalog, scenarioId);
-  const anchors = formationAnchors();
+  const anchors = formationAnchors(formationId);
   const slots: BuildSlot[] = anchors.map((spec, i) => {
     const x = side === "home" ? spec.anchor.x : 1 - spec.anchor.x;
     return {
       slotId: String(i),
       position: spec.position,
       anchor: { x, y: spec.anchor.y },
-      rollIndex: 0,
-      rerollsUsed: 0,
-      emergencyUsed: false,
     };
   });
+  const scenario = startingScenarioId
+    ? getScenario(catalog, startingScenarioId)
+    : drawScenarioForTurn(catalog, seed, 0, 0);
   return {
     seed,
-    scenarioId,
     side,
+    formationId,
     slots,
-    emergencyRerollsRemaining: EMERGENCY_REROLLS_TOTAL,
+    currentScenarioId: scenario.id,
+    turnIndex: 0,
+    globalRerollsRemaining: GLOBAL_REROLLS_PER_BUILD,
+    rerollCounter: 0,
   };
 }
 
@@ -143,90 +183,98 @@ function selectedPlayerIds(state: BuildState): Set<string> {
   return ids;
 }
 
-function roleFitScore(natural: string, slotPosition: string): number {
-  return positionFit(natural, slotPosition);
+/** Whether a player can be placed in a slot (exact or adjacent role). */
+export function canPlaceInSlot(
+  player: PlayerCard,
+  slot: BuildSlot,
+): boolean {
+  if (slot.selectedPlayerId) return false;
+  return positionFit(player.naturalPosition, slot.position) >= FIT_ADJACENT;
 }
 
-/** Pool of squad players not yet selected, preferring position fit. */
-function eligiblePool(
+/** Open slots compatible with a player from the current squad. */
+export function openSlotsForPlayer(
   catalog: SquadCatalog,
-  scenarioId: string,
-  slotPosition: string,
-  excluded: Set<string>,
+  state: BuildState,
+  playerId: string,
+): BuildSlot[] {
+  const player = getPlayer(catalog, playerId);
+  const scenario = getScenario(catalog, state.currentScenarioId);
+  if (player.team !== scenario.team || player.cup !== scenario.cup) {
+    return [];
+  }
+  if (!scenario.playerIds.includes(playerId)) return [];
+  if (selectedPlayerIds(state).has(playerId)) return [];
+  return state.slots.filter((s) => canPlaceInSlot(player, s));
+}
+
+/** Full current scenario squad minus already-picked players. */
+export function currentSquadPlayers(
+  catalog: SquadCatalog,
+  state: BuildState,
 ): PlayerCard[] {
-  const all = scenarioPlayers(catalog, scenarioId).filter(
-    (p) => !excluded.has(p.id),
+  const taken = selectedPlayerIds(state);
+  return scenarioPlayers(catalog, state.currentScenarioId).filter(
+    (p) => !taken.has(p.id),
   );
-  const slotRole = canonicalRole(slotPosition);
-  const sorted = [...all].sort((a, b) => {
-    const fitA = roleFitScore(a.naturalPosition, slotPosition);
-    const fitB = roleFitScore(b.naturalPosition, slotPosition);
-    if (fitB !== fitA) return fitB - fitA;
-    return a.name.localeCompare(b.name);
-  });
-  // Prefer players who can play this slot (exact or adjacent role).
-  if (slotRole) {
-    const fitting = sorted.filter(
-      (p) => roleFitScore(p.naturalPosition, slotPosition) >= 0.5,
+}
+
+/**
+ * Players selectable on this turn: in the current squad and with at least one
+ * open compatible slot. Catalog uses a single naturalPosition per player.
+ */
+export function selectablePlayers(
+  catalog: SquadCatalog,
+  state: BuildState,
+): PlayerCard[] {
+  if (state.turnIndex >= state.slots.length) return [];
+  return currentSquadPlayers(catalog, state).filter(
+    (p) => openSlotsForPlayer(catalog, state, p.id).length > 0,
+  );
+}
+
+/** Reroll the current scenario (full team+year or year-only for same team). */
+export function rerollScenario(
+  catalog: SquadCatalog,
+  state: BuildState,
+  mode: RerollMode,
+): BuildState {
+  if (state.turnIndex >= state.slots.length) {
+    throw new Error("draft already complete");
+  }
+  if (state.globalRerollsRemaining <= 0) {
+    throw new Error("no global rerolls remaining");
+  }
+
+  const current = getScenario(catalog, state.currentScenarioId);
+  const nextRerollCounter = state.rerollCounter + 1;
+  let nextScenario: SquadScenario;
+
+  if (mode === "full") {
+    nextScenario = drawScenarioForTurn(
+      catalog,
+      state.seed,
+      state.turnIndex,
+      nextRerollCounter,
+      new Set([state.currentScenarioId]),
     );
-    if (fitting.length >= CANDIDATES_PER_SLOT) return fitting;
+  } else {
+    nextScenario = drawYearForTeam(
+      catalog,
+      current.team,
+      state.seed,
+      state.turnIndex,
+      nextRerollCounter,
+      current.cup,
+    );
   }
-  return sorted;
-}
 
-function sampleCandidates(
-  pool: PlayerCard[],
-  seed: string,
-  scenarioId: string,
-  slotId: string,
-  rollIndex: number,
-): PlayerCard[] {
-  if (pool.length === 0) return [];
-  const rng = slotRng(seed, scenarioId, slotId, rollIndex);
-  const copy = [...pool];
-  const count = Math.min(CANDIDATES_PER_SLOT, copy.length);
-  const out: PlayerCard[] = [];
-  for (let i = 0; i < count; i++) {
-    const idx = randInt(rng, 0, copy.length - 1);
-    out.push(copy.splice(idx, 1)[0]!);
-  }
-  return out;
-}
-
-/** Slot roll — deterministic candidate batch for one position. */
-export function rollSlotCandidates(
-  catalog: SquadCatalog,
-  state: BuildState,
-  slotId: string,
-): PlayerCard[] {
-  const slot = state.slots.find((s) => s.slotId === slotId);
-  if (!slot) throw new Error(`unknown slot: ${slotId}`);
-  const excluded = selectedPlayerIds(state);
-  const pool = eligiblePool(
-    catalog,
-    state.scenarioId,
-    slot.position,
-    excluded,
-  );
-  return sampleCandidates(
-    pool,
-    state.seed,
-    state.scenarioId,
-    slotId,
-    slot.rollIndex,
-  );
-}
-
-/** All slot candidate batches keyed by slotId. */
-export function allSlotCandidates(
-  catalog: SquadCatalog,
-  state: BuildState,
-): Record<string, PlayerCard[]> {
-  const out: Record<string, PlayerCard[]> = {};
-  for (const slot of state.slots) {
-    out[slot.slotId] = rollSlotCandidates(catalog, state, slot.slotId);
-  }
-  return out;
+  return {
+    ...state,
+    currentScenarioId: nextScenario.id,
+    rerollCounter: nextRerollCounter,
+    globalRerollsRemaining: state.globalRerollsRemaining - 1,
+  };
 }
 
 function updateSlot(
@@ -242,72 +290,60 @@ function updateSlot(
   };
 }
 
-/** Reroll candidates for a slot (normal or emergency). */
-export function rerollSlot(
-  state: BuildState,
-  slotId: string,
-  emergency = false,
-): BuildState {
-  const slot = state.slots.find((s) => s.slotId === slotId);
-  if (!slot) throw new Error(`unknown slot: ${slotId}`);
-  if (slot.selectedPlayerId) return state;
-
-  if (emergency) {
-    if (state.emergencyRerollsRemaining <= 0) {
-      throw new Error("no emergency rerolls remaining");
-    }
-    if (slot.emergencyUsed) {
-      throw new Error("emergency reroll already used on this slot");
-    }
-    const next = updateSlot(state, slotId, {
-      rollIndex: slot.rollIndex + 1,
-      emergencyUsed: true,
-    });
-    return {
-      ...next,
-      emergencyRerollsRemaining: state.emergencyRerollsRemaining - 1,
-    };
-  }
-
-  if (slot.rerollsUsed >= REROLLS_PER_SLOT) {
-    throw new Error("reroll limit reached for this slot");
-  }
-  return updateSlot(state, slotId, {
-    rollIndex: slot.rollIndex + 1,
-    rerollsUsed: slot.rerollsUsed + 1,
-  });
-}
-
-/** Select a player for a slot. */
+/** Pick a player from the current squad into a slot; auto-rolls the next scenario. */
 export function selectPlayer(
   catalog: SquadCatalog,
   state: BuildState,
   slotId: string,
   playerId: string,
 ): BuildState {
+  if (state.turnIndex >= state.slots.length) {
+    throw new Error("draft already complete");
+  }
+
   const slot = state.slots.find((s) => s.slotId === slotId);
   if (!slot) throw new Error(`unknown slot: ${slotId}`);
+  if (slot.selectedPlayerId) throw new Error(`slot ${slotId} already filled`);
 
   const player = getPlayer(catalog, playerId);
-  const scenario = getScenario(catalog, state.scenarioId);
+  const scenario = getScenario(catalog, state.currentScenarioId);
   if (player.team !== scenario.team || player.cup !== scenario.cup) {
-    throw new Error(`player ${playerId} not eligible for scenario`);
+    throw new Error(`player ${playerId} not eligible for current scenario`);
   }
   if (!scenario.playerIds.includes(playerId)) {
-    throw new Error(`player ${playerId} not in scenario squad`);
+    throw new Error(`player ${playerId} not in current scenario squad`);
   }
 
   const taken = selectedPlayerIds(state);
-  if (taken.has(playerId) && slot.selectedPlayerId !== playerId) {
+  if (taken.has(playerId)) {
     throw new Error(`player ${playerId} already selected`);
   }
 
-  const candidates = rollSlotCandidates(catalog, state, slotId);
-  if (!candidates.some((c) => c.id === playerId)) {
-    throw new Error(`player ${playerId} not in current candidate batch`);
+  if (!canPlaceInSlot(player, slot)) {
+    throw new Error(
+      `player ${playerId} cannot play ${slot.position} (natural ${player.naturalPosition})`,
+    );
   }
 
-  return updateSlot(state, slotId, { selectedPlayerId: playerId });
+  const nextTurn = state.turnIndex + 1;
+  let next: BuildState = {
+    ...updateSlot(state, slotId, {
+      selectedPlayerId: playerId,
+      pickedFromScenarioId: state.currentScenarioId,
+    }),
+    turnIndex: nextTurn,
+    rerollCounter: 0,
+  };
+
+  if (nextTurn >= state.slots.length) return next;
+
+  const nextScenario = drawScenarioForTurn(
+    catalog,
+    state.seed,
+    nextTurn,
+    0,
+  );
+  return { ...next, currentScenarioId: nextScenario.id };
 }
 
 /** Chemistry % from current selections (0 if incomplete). */
@@ -325,7 +361,6 @@ export function buildChemistryPercent(
     });
   }
   if (placements.length !== state.slots.length) {
-    // Partial lineup: chemistry from filled slots only (live meter while building).
     return placements.length === 0 ? 0 : chemistryPercent(placements);
   }
   return chemistryPercent(placements);
@@ -356,7 +391,71 @@ export function buildStateToLineup(
   });
 }
 
-/** Validate a lineup against a scenario. */
+/** Validate a completed build state (multi-scenario XI). */
+export function validateBuildState(
+  catalog: SquadCatalog,
+  state: BuildState,
+): LineupValidationResult {
+  const errors: LineupValidationError[] = [];
+  const seen = new Set<string>();
+
+  const filled = state.slots.filter((s) => s.selectedPlayerId);
+  if (filled.length !== state.slots.length) {
+    errors.push({
+      code: "incomplete",
+      message: `expected 11 slots, got ${filled.length}`,
+    });
+  }
+
+  for (const slot of state.slots) {
+    if (!slot.selectedPlayerId) continue;
+    const p = catalog.players[slot.selectedPlayerId];
+    if (!p) {
+      errors.push({
+        code: "unknown_player",
+        message: `unknown player ${slot.selectedPlayerId}`,
+        playerId: slot.selectedPlayerId,
+      });
+      continue;
+    }
+    if (slot.pickedFromScenarioId) {
+      const scenario = getScenario(catalog, slot.pickedFromScenarioId);
+      if (p.team !== scenario.team || p.cup !== scenario.cup) {
+        errors.push({
+          code: "wrong_scenario",
+          message: `${slot.selectedPlayerId} not eligible for ${scenario.team} ${scenario.cup}`,
+          playerId: slot.selectedPlayerId,
+        });
+      }
+      if (!scenario.playerIds.includes(slot.selectedPlayerId)) {
+        errors.push({
+          code: "wrong_scenario",
+          message: `${slot.selectedPlayerId} not in scenario ${scenario.id}`,
+          playerId: slot.selectedPlayerId,
+        });
+      }
+    }
+    if (positionFit(p.naturalPosition, slot.position) < FIT_ADJACENT) {
+      errors.push({
+        code: "position_mismatch",
+        message: `${slot.selectedPlayerId} cannot play ${slot.position}`,
+        playerId: slot.selectedPlayerId,
+      });
+    }
+    if (seen.has(slot.selectedPlayerId)) {
+      errors.push({
+        code: "duplicate_player",
+        message: `duplicate player ${slot.selectedPlayerId}`,
+        playerId: slot.selectedPlayerId,
+      });
+    }
+    seen.add(slot.selectedPlayerId);
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+/** Validate a lineup against a single scenario (legacy CPU / tests). */
 export function validateLineup(
   catalog: SquadCatalog,
   scenarioId: string,
@@ -410,25 +509,37 @@ export function validateLineup(
   return { ok: errors.length === 0, errors };
 }
 
-/** Auto-fill empty slots with best-fit eligible players (deterministic). */
+/** Auto-fill remaining picks using the draft flow (deterministic). */
 export function autoFillLineup(
   catalog: SquadCatalog,
   state: BuildState,
 ): BuildState {
   let next = state;
-  for (const slot of next.slots) {
-    if (slot.selectedPlayerId) continue;
-    const candidates = rollSlotCandidates(catalog, next, slot.slotId);
-    if (candidates.length === 0) {
-      throw new Error(`no candidates to autofill slot ${slot.slotId}`);
+  while (!isLineupComplete(next)) {
+    const pool = selectablePlayers(catalog, next);
+    if (pool.length === 0) {
+      throw new Error(
+        `no selectable players on turn ${next.turnIndex} (scenario ${next.currentScenarioId})`,
+      );
     }
-    // Pick best position fit among current batch.
-    const best = [...candidates].sort(
+    const best = [...pool].sort((a, b) => {
+      const slotsA = openSlotsForPlayer(catalog, next, a.id);
+      const slotsB = openSlotsForPlayer(catalog, next, b.id);
+      const fitA = Math.max(
+        ...slotsA.map((s) => positionFit(a.naturalPosition, s.position)),
+      );
+      const fitB = Math.max(
+        ...slotsB.map((s) => positionFit(b.naturalPosition, s.position)),
+      );
+      if (fitB !== fitA) return fitB - fitA;
+      return a.name.localeCompare(b.name);
+    })[0]!;
+    const targetSlot = openSlotsForPlayer(catalog, next, best.id).sort(
       (a, b) =>
-        roleFitScore(b.naturalPosition, slot.position) -
-        roleFitScore(a.naturalPosition, slot.position),
+        positionFit(best.naturalPosition, b.position) -
+        positionFit(best.naturalPosition, a.position),
     )[0]!;
-    next = selectPlayer(catalog, next, slot.slotId, best.id);
+    next = selectPlayer(catalog, next, targetSlot.slotId, best.id);
   }
   return next;
 }

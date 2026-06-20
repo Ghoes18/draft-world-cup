@@ -6,9 +6,8 @@ import {
   buildChemistryPercent,
   buildStateToLineup,
   buildStateToTeamStrength,
-  demoCatalog,
+  drawFormationOptions,
   drawOpponentScenario,
-  drawScenario,
   effectiveStrength,
   generateTimeline,
   getScenario,
@@ -16,13 +15,22 @@ import {
   isLineupComplete,
   simulateMatch,
   type BuildState,
+  type FormationDefinition,
   type MatchTimeline,
   type Tactic,
 } from "7a0-engine";
 import { MatchView } from "./_components/MatchView";
 import { BuildPanel } from "./_components/BuildPanel";
+import { FormationPicker } from "./_components/FormationPicker";
+import { Footer } from "./_components/Footer";
+import { Header } from "./_components/Header";
+import { LegendTicker } from "./_components/LegendTicker";
 import { StatsPanel } from "./_components/StatsPanel";
+import { ResultCard } from "./_components/ResultCard";
+import { Scorebug } from "./_components/Scoreboard";
+import { PitchMarkings } from "./_components/PitchMarkings";
 import { STRINGS as S } from "./_data/strings";
+import { useGameCatalog } from "./_hooks/useGameCatalog";
 
 function newSeed(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -32,6 +40,14 @@ function newSeed(): string {
 }
 
 export default function Page() {
+  const { catalog, source, ready } = useGameCatalog();
+  const [pendingSeed, setPendingSeed] = useState<string | null>(null);
+  const [formationOptions, setFormationOptions] = useState<FormationDefinition[]>(
+    [],
+  );
+  const [selectedFormationId, setSelectedFormationId] = useState<string | null>(
+    null,
+  );
   const [seed, setSeed] = useState<string | null>(null);
   const [buildState, setBuildState] = useState<BuildState | null>(null);
   const [opponentScenarioId, setOpponentScenarioId] = useState<string | null>(
@@ -40,59 +56,90 @@ export default function Page() {
   const [timeline, setTimeline] = useState<MatchTimeline | null>(null);
   const [tactic, setTactic] = useState<Tactic>("balanced");
 
-  const playerScenario = useMemo(() => {
-    if (!seed) return null;
-    return drawScenario(demoCatalog, seed);
-  }, [seed]);
-
   const opponentScenario = useMemo(() => {
-    if (!seed || !playerScenario) return null;
+    if (!seed || !catalog) return null;
     if (opponentScenarioId) {
-      return getScenario(demoCatalog, opponentScenarioId);
+      return getScenario(catalog, opponentScenarioId);
     }
-    return drawOpponentScenario(demoCatalog, seed, playerScenario.id);
-  }, [seed, playerScenario, opponentScenarioId]);
+    if (buildState) {
+      return drawOpponentScenario(
+        catalog,
+        seed,
+        buildState.currentScenarioId,
+      );
+    }
+    return null;
+  }, [seed, buildState, opponentScenarioId, catalog]);
 
   const awayStrength = useMemo(() => {
-    if (!seed || !opponentScenario) return null;
+    if (!seed || !opponentScenario || !catalog) return null;
     const awayBuild = autoFillLineup(
-      demoCatalog,
-      initBuildState(demoCatalog, opponentScenario.id, `${seed}:away`, "away"),
+      catalog,
+      initBuildState(catalog, `${seed}:away`, "away", opponentScenario.id),
     );
-    return buildStateToTeamStrength(demoCatalog, awayBuild);
-  }, [seed, opponentScenario]);
+    return buildStateToTeamStrength(catalog, awayBuild);
+  }, [seed, opponentScenario, catalog]);
 
   function onRoll() {
+    if (!catalog) return;
     const nextSeed = newSeed();
-    const scenario = drawScenario(demoCatalog, nextSeed);
-    const opponent = drawOpponentScenario(demoCatalog, nextSeed, scenario.id);
-    setSeed(nextSeed);
-    setBuildState(initBuildState(demoCatalog, scenario.id, nextSeed, "home"));
-    setOpponentScenarioId(opponent.id);
+    setPendingSeed(nextSeed);
+    setFormationOptions(drawFormationOptions(nextSeed, 5));
+    setSelectedFormationId(null);
+    setSeed(null);
+    setBuildState(null);
+    setOpponentScenarioId(null);
     setTimeline(null);
     setTactic("balanced");
   }
 
+  function onConfirmFormation() {
+    if (!catalog || !pendingSeed || !selectedFormationId) return;
+    const draft = initBuildState(
+      catalog,
+      pendingSeed,
+      "home",
+      undefined,
+      selectedFormationId,
+    );
+    const opponent = drawOpponentScenario(
+      catalog,
+      pendingSeed,
+      draft.currentScenarioId,
+    );
+    setSeed(pendingSeed);
+    setBuildState(draft);
+    setOpponentScenarioId(opponent.id);
+    setPendingSeed(null);
+    setFormationOptions([]);
+    setSelectedFormationId(null);
+  }
+
   function onSimulate() {
-    if (!seed || !buildState || !playerScenario || !opponentScenario) return;
+    if (!seed || !buildState || !opponentScenario || !catalog) return;
 
     const filled = isLineupComplete(buildState)
       ? buildState
-      : autoFillLineup(demoCatalog, buildState);
+      : autoFillLineup(catalog, buildState);
     if (!isLineupComplete(filled)) return;
 
     setBuildState(filled);
 
-    const chem = Math.round(buildChemistryPercent(demoCatalog, filled));
-    const homeLineup = buildStateToLineup(demoCatalog, filled);
-    const homeBase = buildStateToTeamStrength(demoCatalog, filled);
+    const chem = Math.round(buildChemistryPercent(catalog, filled));
+    const homeLineup = buildStateToLineup(catalog, filled);
+    const homeBase = buildStateToTeamStrength(catalog, filled);
 
     const awayBuild = autoFillLineup(
-      demoCatalog,
-      initBuildState(demoCatalog, opponentScenario.id, `${seed}:away`, "away"),
+      catalog,
+      initBuildState(catalog, `${seed}:away`, "away", opponentScenario.id),
     );
-    const awayBase = buildStateToTeamStrength(demoCatalog, awayBuild);
-    const awayLineup = buildStateToLineup(demoCatalog, awayBuild);
+    const awayBase = buildStateToTeamStrength(catalog, awayBuild);
+    const awayLineup = buildStateToLineup(catalog, awayBuild);
+
+    const firstPick = filled.slots.find((s) => s.pickedFromScenarioId);
+    const homeLabel = firstPick?.pickedFromScenarioId
+      ? getScenario(catalog, firstPick.pickedFromScenarioId)
+      : getScenario(catalog, filled.currentScenarioId);
 
     const result = simulateMatch({
       home: effectiveStrength(homeBase, { chemistryPct: chem, tactic }),
@@ -104,47 +151,90 @@ export default function Page() {
     const next = generateTimeline({
       result,
       seed,
-      scenario: { team: playerScenario.team, cup: playerScenario.cup },
+      scenario: { team: homeLabel.team, cup: homeLabel.cup },
       lineups: { home: homeLineup, away: awayLineup },
     });
     setTimeline(next);
   }
 
-  const canSimulate = buildState !== null;
+  const canSimulate = buildState !== null && catalog !== null;
+
+  if (!ready) {
+    return (
+      <main className="shell">
+        <p className="dim">{S.loading}</p>
+      </main>
+    );
+  }
+
+  const catalogHint =
+    source === "full" && catalog
+      ? S.build.catalogFull(catalog.scenarios.length)
+      : S.build.catalogDemo;
+
+  const draftLabel = buildState
+    ? S.build.draftInProgress(buildState.turnIndex)
+    : S.build.yourXi;
+  const score = timeline?.result.score;
+  const pens = timeline?.result.penalties;
+  const pickingFormation = pendingSeed !== null && buildState === null;
+  const drawn = buildState && opponentScenario;
 
   return (
-    <main style={{ maxWidth: 920, margin: "0 auto", padding: "2rem 1.25rem" }}>
-      <h1 style={{ marginBottom: "0.25rem" }}>{S.title}</h1>
-      <p style={{ color: "var(--muted)", marginTop: 0 }}>{S.subtitle}</p>
+    <main className="shell">
+      <Header meta={catalogHint} />
 
-      <div
-        style={{
-          display: "flex",
-          gap: "0.75rem",
-          alignItems: "center",
-          flexWrap: "wrap",
-          margin: "1.25rem 0",
-        }}
-      >
-        <button onClick={onRoll}>{S.roll}</button>
-        {playerScenario && opponentScenario && (
-          <>
-            <span style={{ fontVariantNumeric: "tabular-nums" }}>
-              <strong>{playerScenario.team}</strong> {playerScenario.cup}{" "}
-              {S.vs} <strong>{opponentScenario.team}</strong>{" "}
-              {opponentScenario.cup}
-            </span>
-            <button onClick={onSimulate} disabled={!canSimulate}>
-              {S.simulate}
-            </button>
-          </>
-        )}
-      </div>
+      <section className="hero">
+        <PitchMarkings />
+        <div className="hero__inner">
+          <div className="hero__kicker">
+            <span>{S.kickerLeft}</span>
+            <span aria-hidden>·</span>
+            <span>{S.kickerRight}</span>
+          </div>
 
-      {buildState && playerScenario && opponentScenario && awayStrength && (
+          <Scorebug
+            homeLabel={drawn ? draftLabel : S.heroHome}
+            awayLabel={drawn && opponentScenario ? opponentScenario.team : S.heroAway}
+            awayTag={drawn && opponentScenario ? `’${opponentScenario.cup}` : undefined}
+            homeScore={score ? score[0] : undefined}
+            awayScore={score ? score[1] : undefined}
+            pens={pens ? [pens[0], pens[1]] : undefined}
+          />
+
+          <LegendTicker />
+
+          <div className="hero__cta">
+            {!pickingFormation && (
+              <button className="btn-kick" onClick={onRoll}>
+                {buildState ? S.result.again : S.roll}
+              </button>
+            )}
+            {buildState && (
+              <button onClick={onSimulate} disabled={!canSimulate}>
+                {S.simulate}
+              </button>
+            )}
+          </div>
+
+          {!drawn && !pickingFormation && (
+            <p className="hero__hint">{S.noMatch}</p>
+          )}
+        </div>
+      </section>
+
+      {pickingFormation && formationOptions.length > 0 && (
+        <FormationPicker
+          options={formationOptions}
+          selectedId={selectedFormationId}
+          onSelect={setSelectedFormationId}
+          onConfirm={onConfirmFormation}
+        />
+      )}
+
+      {buildState && opponentScenario && awayStrength && catalog && (
         <BuildPanel
-          catalog={demoCatalog}
-          scenarioLabel={`${playerScenario.team} · ${playerScenario.cup}`}
+          catalog={catalog}
           awayStrength={awayStrength}
           buildState={buildState}
           onBuildState={setBuildState}
@@ -153,27 +243,36 @@ export default function Page() {
         />
       )}
 
-      {timeline && playerScenario && opponentScenario ? (
+      {timeline && opponentScenario && (
         <>
+          {seed && (
+            <ResultCard
+              timeline={timeline}
+              homeLabel={S.build.yourXi}
+              awayLabel={opponentScenario.team}
+              awayTag={`’${opponentScenario.cup}`}
+              seed={seed}
+              onAgain={onRoll}
+            />
+          )}
           <MatchView
             key={timeline.seed}
             timeline={timeline}
             labels={{
-              home: playerScenario.team,
+              home: S.build.yourXi,
               away: opponentScenario.team,
             }}
           />
           <StatsPanel
             timeline={timeline}
             labels={{
-              home: playerScenario.team,
+              home: S.build.yourXi,
               away: opponentScenario.team,
             }}
           />
         </>
-      ) : (
-        <p style={{ color: "var(--muted)" }}>{S.noMatch}</p>
       )}
+      <Footer />
     </main>
   );
 }

@@ -6,7 +6,8 @@
   "license": "UNLICENSED",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts"
   },
   "scripts": {
     "sim": "tsx src/cli/simulate.ts",

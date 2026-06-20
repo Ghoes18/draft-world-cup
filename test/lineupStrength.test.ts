@@ -65,7 +65,7 @@ describe("buildStateToTeamStrength", () => {
     const scenario = demoCatalog.scenarios[0]!;
     const filled = autoFillLineup(
       demoCatalog,
-      initBuildState(demoCatalog, scenario.id, "str-test", "home"),
+      initBuildState(demoCatalog, "str-test", "home", scenario.id),
     );
     const s = buildStateToTeamStrength(demoCatalog, filled);
     expect(s.overall).toBeGreaterThan(60);

@@ -126,14 +126,17 @@ export const PASSES_MIN = 2;
 export const PASSES_MAX = 6;
 
 // ---------------------------------------------------------------------------
-// Roll / Build — candidate batches (TUNABLE — MVP §4.5.1)
+// Roll / Build — live 7a0 draft flow (MVP §4.5.1)
 // ---------------------------------------------------------------------------
 
-/** Candidates offered per slot on each slot roll. */
+/** Global rerolls for the whole draft (team+year or year-only). */
+export const GLOBAL_REROLLS_PER_BUILD = 3;
+
+/** @deprecated Per-slot candidate batches — superseded by turn-based draft. */
 export const CANDIDATES_PER_SLOT = 3;
-/** Normal rerolls allowed per slot. */
+/** @deprecated Per-slot rerolls — superseded by GLOBAL_REROLLS_PER_BUILD. */
 export const REROLLS_PER_SLOT = 3;
-/** Emergency rerolls for the whole Build (one tight spot). */
+/** @deprecated Emergency rerolls — superseded by GLOBAL_REROLLS_PER_BUILD. */
 export const EMERGENCY_REROLLS_TOTAL = 1;
 
 // ---------------------------------------------------------------------------

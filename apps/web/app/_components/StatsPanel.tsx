@@ -44,60 +44,34 @@ export function StatsPanel({
   ];
 
   return (
-    <section
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 12,
-        padding: "1rem 1.25rem",
-        margin: "1rem 0",
-        maxWidth: 720,
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
-      <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>{S.stats.heading}</h2>
+    <section className="panel">
+      <div className="eyebrow">{S.stats.kicker}</div>
+      <h2 className="panel__title">{S.stats.heading}</h2>
 
       <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          color: "var(--muted)",
-          fontSize: "0.85rem",
-          marginBottom: "0.6rem",
-        }}
+        className="row"
+        style={{ justifyContent: "space-between", margin: "1rem 0 0.5rem" }}
       >
-        <strong>{labels.home}</strong>
-        <strong>{labels.away}</strong>
+        <strong style={{ color: "var(--home)", fontSize: "0.95rem" }}>
+          {labels.home}
+        </strong>
+        <strong style={{ color: "var(--away)", fontSize: "0.95rem", textAlign: "right" }}>
+          {labels.away}
+        </strong>
       </div>
 
       {/* Possession bar: home share vs away share. */}
-      <div
-        aria-hidden
-        style={{
-          display: "flex",
-          height: 8,
-          borderRadius: 999,
-          overflow: "hidden",
-          marginBottom: "0.9rem",
-          background: "var(--border)",
-        }}
-      >
-        <div style={{ width: `${stats.home.possession}%`, background: "#4f9dff" }} />
-        <div style={{ width: `${stats.away.possession}%`, background: "#ff9d4f" }} />
+      <div className="versus" aria-hidden style={{ marginBottom: "1rem" }}>
+        <div className="versus__home" style={{ width: `${stats.home.possession}%` }} />
+        <div className="versus__away" style={{ width: `${stats.away.possession}%` }} />
       </div>
 
-      <div style={{ display: "grid", gap: "0.4rem", fontSize: "0.9rem" }}>
+      <div>
         {rows.map((r) => (
-          <div
-            key={r.label}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "3rem 1fr 3rem",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ textAlign: "left", fontWeight: 600 }}>{r.home}</span>
-            <span style={{ textAlign: "center", color: "var(--muted)" }}>{r.label}</span>
-            <span style={{ textAlign: "right", fontWeight: 600 }}>{r.away}</span>
+          <div key={r.label} className="statrow">
+            <span className="statrow__val statrow__val--home">{r.home}</span>
+            <span className="statrow__label">{r.label}</span>
+            <span className="statrow__val statrow__val--away">{r.away}</span>
           </div>
         ))}
       </div>

@@ -61,7 +61,7 @@ src/
   cli/build-catalog.ts   # Download Fjelstul + build data/catalog.json
   lineupStrength.ts  # lineupToTeamStrength — derive attack/def/def/overall from XI
   positions.ts       # 7a0 position weights
-  roll.ts            # Scenario roll + build + slot rerolls
+  roll.ts            # Turn-based draft roll + global rerolls
   demoCatalog.ts     # Demo squads with autoral forces
   cli/import-squads.ts   # Batch import squad JSON → catalog
   timeline/          # generate.ts, filler, minutes, clusters

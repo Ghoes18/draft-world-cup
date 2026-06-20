@@ -20,7 +20,7 @@ import {
   defaultFjelstulPaths,
   FJELSTUL_FILES,
   fjelstulDownloadUrl,
-} from "../catalog/fjelstulImport.js";
+} from "7a0-engine/server";
 import { normalizeCatalog } from "../catalog.js";
 
 interface CliArgs {
@@ -102,13 +102,20 @@ async function main() {
   });
   const catalog = normalizeCatalog(raw);
 
+  const catalogJson = JSON.stringify(catalog, null, 2);
+
   await mkdir(dirname(outPath), { recursive: true });
-  await writeFile(outPath, JSON.stringify(catalog, null, 2), "utf8");
+  await writeFile(outPath, catalogJson, "utf8");
+
+  const webPath = resolve("apps/web/public/catalog.json");
+  await mkdir(dirname(webPath), { recursive: true });
+  await writeFile(webPath, catalogJson, "utf8");
 
   const playerCount = Object.keys(catalog.players).length;
   console.log(
     `Wrote ${catalog.scenarios.length} scenarios, ${playerCount} players (${args.from}–${args.to}, men's) → ${outPath}`,
   );
+  console.log(`Web viewer copy → ${webPath}`);
   console.log(
     "Forces are autoral (Fjelstul appearances). Replace with licensed 7a0 JSON via pnpm import:squads when available.",
   );
