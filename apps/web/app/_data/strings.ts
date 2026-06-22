@@ -83,7 +83,7 @@ export const STRINGS = {
     yourXi: "Your XI",
     lineupComplete: "Lineup complete — kick off when ready",
     pickSlot: "Tap a glowing slot on the pitch",
-    hintPlace: "Or choose a position below",
+    hintPlace: "Tap a highlighted slot on the pitch — or pick a position below",
     draftInProgress: (turn: number) =>
       turn >= 11 ? "XI complete" : `Draft (${turn}/11)`,
   },

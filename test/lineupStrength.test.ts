@@ -5,6 +5,7 @@ import {
   buildStateToTeamStrength,
   forceToRating,
   lineupToTeamStrength,
+  playerOverall,
 } from "../src/lineupStrength.js";
 import { defaultLineup } from "../src/lineup.js";
 import {
@@ -17,6 +18,13 @@ describe("forceToRating", () => {
     expect(forceToRating(255)).toBe(100);
     expect(forceToRating(0)).toBe(0);
     expect(forceToRating(128)).toBe(50);
+  });
+});
+
+describe("playerOverall", () => {
+  it("returns catalog overall when present", () => {
+    const pele = demoCatalog.players["br70-pelé"]!;
+    expect(playerOverall(pele)).toBe(forceToRating(pele.force));
   });
 });
 

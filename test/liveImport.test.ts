@@ -4,7 +4,13 @@ import {
   encode7a0Force,
   fnv1aByte,
   normalizeLiveSquadJson,
+  overlayLiveSquadsOnCatalog,
 } from "../src/catalog/liveImport.js";
+import { normalizeCatalog } from "../src/catalog.js";
+import {
+  parsePlayablePositions,
+  parsePlayerOverall,
+} from "../src/catalog/livePlayerParse.js";
 
 describe("fnv1aByte", () => {
   it("returns 0–255", () => {
@@ -27,6 +33,78 @@ describe("decode7a0Force", () => {
   });
 });
 
+describe("livePlayerParse", () => {
+  it("parses explicit positions and overall from API row", () => {
+    const row = {
+      id: "m1",
+      name: "Maradona",
+      pos: "MEI",
+      f: 0,
+      overall: 95,
+      positions: ["MEI", "PE", "PD"],
+    };
+    expect(parsePlayablePositions(row)).toEqual(["MEI", "PE", "PD"]);
+    expect(parsePlayerOverall(row, 200)).toBe(95);
+  });
+
+  it("falls back to single pos when no positions list", () => {
+    const row = { id: "s1", name: "Striker", pos: "PE", f: 0 };
+    expect(parsePlayablePositions(row)).toEqual(["PE"]);
+  });
+});
+
+describe("overlayLiveSquadsOnCatalog", () => {
+  it("patches API fields onto Fjelstul players by shirt number", () => {
+    const base = normalizeCatalog({
+      scenarios: [
+        {
+          id: "brazil-1970",
+          team: "Brazil",
+          cup: 1970,
+          players: [
+            {
+              id: "br70-pele",
+              name: "Pelé",
+              naturalPosition: "ST",
+              force: 200,
+              shirtNumber: 10,
+              positionSource: "inferred",
+              positions: ["ST"],
+            },
+          ],
+        },
+      ],
+    });
+
+    const id = "live-pele";
+    const force = 245;
+    const { catalog, patched } = overlayLiveSquadsOnCatalog(base, [
+      {
+        sel: "Brazil",
+        copa: 1970,
+        squad: [
+          {
+            id,
+            name: "Pelé",
+            pos: "PE",
+            f: encode7a0Force(id, force),
+            n: 10,
+            overall: 94,
+            positions: ["PE", "MEI", "PD"],
+          },
+        ],
+      },
+    ]);
+
+    expect(patched).toBe(1);
+    const player = catalog.players["br70-pele"]!;
+    expect(player.overall).toBe(94);
+    expect(player.positions).toEqual(["PE", "MEI", "PD"]);
+    expect(player.positionSource).toBe("api");
+    expect(player.force).toBe(force);
+  });
+});
+
 describe("normalizeLiveSquadJson", () => {
   it("produces full squad with decoded forces", () => {
     const id = "demo-1";
@@ -45,5 +123,29 @@ describe("normalizeLiveSquadJson", () => {
     expect(result.players).toHaveLength(2);
     expect(result.players[0]!.force).toBe(force);
     expect(result.players[0]!.naturalPosition).toBe("PE");
+    expect(result.players[0]!.positions).toEqual(["PE"]);
+    expect(result.players[0]!.positionSource).toBe("api");
+  });
+
+  it("uses API overall and multi-position list when provided", () => {
+    const id = "demo-3";
+    const result = normalizeLiveSquadJson({
+      sel: "Argentina",
+      copa: 1986,
+      squad: [
+        {
+          id,
+          name: "Maradona",
+          pos: "MEI",
+          f: encode7a0Force(id, 240),
+          overall: 96,
+          positions: ["MEI", "PE", "PD"],
+        },
+      ],
+    });
+    const player = result.players[0]!;
+    expect(player.overall).toBe(96);
+    expect(player.positions).toEqual(["MEI", "PE", "PD"]);
+    expect(player.positionSource).toBe("api");
   });
 });

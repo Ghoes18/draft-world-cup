@@ -129,8 +129,14 @@ export const PASSES_MAX = 6;
 // Roll / Build — live 7a0 draft flow (MVP §4.5.1)
 // ---------------------------------------------------------------------------
 
-/** Global rerolls for the whole draft (team+year or year-only). */
-export const GLOBAL_REROLLS_PER_BUILD = 3;
+/**
+ * Global rerolls for the whole draft (team+year or year-only).
+ *
+ * 7a0 uses 3 rerolls for 1950–2026 (20 men's WC editions). This catalog spans
+ * 1930–2026 (23 editions: +1930, 1934, 1938). Five rerolls — one extra
+ * per pre-1950 decade of history on top of 7a0's three.
+ */
+export const GLOBAL_REROLLS_PER_BUILD = 5;
 
 /** @deprecated Per-slot candidate batches — superseded by turn-based draft. */
 export const CANDIDATES_PER_SLOT = 3;

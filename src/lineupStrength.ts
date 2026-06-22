@@ -1,25 +1,18 @@
 /**
  * Derive team attack/defense/overall from the chosen XI — live 7a0 model.
  *
- * Each player contributes their `force`; fielded position sets attack/defense
+ * Each player contributes their API `overall`; fielded position sets attack/defense
  * weights. Chemistry and tactics apply afterward via `effectiveStrength`.
  */
 
 import { getPlayer, type SquadCatalog } from "./catalog.js";
-import { FORCE_TO_RATING } from "./constants.js";
 import type { TeamStrength } from "./engine.js";
 import { attackWeight, defenseWeight } from "./positions.js";
+import { playerOverall, forceToRating } from "./playerRating.js";
 import { buildStateToLineup, type BuildState } from "./roll.js";
 import type { LineupSlot } from "./types.js";
 
-function clamp(v: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, v));
-}
-
-/** Map raw force (0–255) to engine rating scale. */
-export function forceToRating(force: number): number {
-  return clamp(Math.round(force * FORCE_TO_RATING), 0, 100);
-}
+export { forceToRating, playerOverall } from "./playerRating.js";
 
 function weightedAverage(
   values: number[],
@@ -38,7 +31,7 @@ function weightedAverage(
 }
 
 /**
- * Aggregate `TeamStrength` from 11 lineup slots and player forces.
+ * Aggregate `TeamStrength` from 11 lineup slots and player overalls.
  * Uses fielded `slot.position` for weighting (not natural position).
  */
 export function lineupToTeamStrength(
@@ -55,7 +48,7 @@ export function lineupToTeamStrength(
 
   for (const slot of lineup) {
     const player = getPlayer(catalog, slot.playerId);
-    const rating = forceToRating(player.force);
+    const rating = playerOverall(player);
     ratings.push(rating);
     atkWeights.push(attackWeight(slot.position));
     defWeights.push(defenseWeight(slot.position));
@@ -93,7 +86,7 @@ export function partialBuildToTeamStrength(
   for (const slot of state.slots) {
     if (!slot.selectedPlayerId) continue;
     const player = getPlayer(catalog, slot.selectedPlayerId);
-    const rating = forceToRating(player.force);
+    const rating = playerOverall(player);
     ratings.push(rating);
     atkWeights.push(attackWeight(slot.position));
     defWeights.push(defenseWeight(slot.position));

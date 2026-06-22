@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeCatalog } from "../src/catalog.js";
 import { demoCatalog } from "../src/demoCatalog.js";
+import { GLOBAL_REROLLS_PER_BUILD } from "../src/constants.js";
 import {
   autoFillLineup,
   buildChemistryPercent,
@@ -33,7 +34,7 @@ describe("initBuildState", () => {
   it("starts with turn 0 and a current scenario", () => {
     const state = initBuildState(demoCatalog, "init-test", "home");
     expect(state.turnIndex).toBe(0);
-    expect(state.globalRerollsRemaining).toBe(3);
+    expect(state.globalRerollsRemaining).toBe(GLOBAL_REROLLS_PER_BUILD);
     expect(state.slots).toHaveLength(11);
     expect(state.formationId).toBeDefined();
     expect(
@@ -119,7 +120,7 @@ describe("rerollScenario", () => {
     const state = initBuildState(demoCatalog, "reroll-full", "home");
     const before = state.currentScenarioId;
     const after = rerollScenario(demoCatalog, state, "full");
-    expect(after.globalRerollsRemaining).toBe(2);
+    expect(after.globalRerollsRemaining).toBe(GLOBAL_REROLLS_PER_BUILD - 1);
     expect(after.rerollCounter).toBe(1);
     expect(after.currentScenarioId).toBeDefined();
     // Deterministic: same state → same reroll outcome.
@@ -168,14 +169,14 @@ describe("rerollScenario", () => {
     const scenario = cat.scenarios.find((s) => s.id === after.currentScenarioId)!;
     expect(scenario.team).toBe("Brazil");
     expect(scenario.cup).not.toBe(1970);
-    expect(after.globalRerollsRemaining).toBe(2);
+    expect(after.globalRerollsRemaining).toBe(GLOBAL_REROLLS_PER_BUILD - 1);
   });
 
   it("throws when global rerolls are exhausted", () => {
     let state = initBuildState(demoCatalog, "reroll-limit", "home");
-    state = rerollScenario(demoCatalog, state, "full");
-    state = rerollScenario(demoCatalog, state, "full");
-    state = rerollScenario(demoCatalog, state, "full");
+    for (let i = 0; i < GLOBAL_REROLLS_PER_BUILD; i++) {
+      state = rerollScenario(demoCatalog, state, "full");
+    }
     expect(state.globalRerollsRemaining).toBe(0);
     expect(() => rerollScenario(demoCatalog, state, "full")).toThrow(
       /no global rerolls/,

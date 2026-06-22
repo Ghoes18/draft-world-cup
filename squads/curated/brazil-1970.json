@@ -1,0 +1,21 @@
+{
+  "scenarios": [
+    {
+      "id": "brazil-1970",
+      "team": "Brazil",
+      "cup": 1970,
+      "players": [
+        { "name": "Félix", "naturalPosition": "GK", "positions": ["GK"], "positionSource": "api", "overall": 82, "force": 210, "shirtNumber": 1 },
+        { "name": "Carlos Alberto", "naturalPosition": "RB", "positions": ["RB", "RWB"], "positionSource": "api", "overall": 91, "force": 238, "shirtNumber": 4 },
+        { "name": "Brito", "naturalPosition": "RCB", "positions": ["CB", "RCB"], "positionSource": "api", "overall": 84, "force": 220 },
+        { "name": "Piazza", "naturalPosition": "LCB", "positions": ["CB", "LCB"], "positionSource": "api", "overall": 86, "force": 225 },
+        { "name": "Clodoaldo", "naturalPosition": "RCM", "positions": ["CM", "RCM", "CDM"], "positionSource": "api", "overall": 88, "force": 228 },
+        { "name": "Gérson", "naturalPosition": "CM", "positions": ["CM", "CDM"], "positionSource": "api", "overall": 89, "force": 232 },
+        { "name": "Jairzinho", "naturalPosition": "RW", "positions": ["RW", "ST", "RM"], "positionSource": "api", "overall": 90, "force": 240 },
+        { "name": "Pelé", "naturalPosition": "ST", "positions": ["ST", "CF", "CAM"], "positionSource": "api", "overall": 99, "force": 245 },
+        { "name": "Rivellino", "naturalPosition": "LCM", "positions": ["LW", "LCM", "CAM"], "positionSource": "api", "overall": 90, "force": 235 },
+        { "name": "Tostão", "naturalPosition": "LW", "positions": ["LW", "ST", "CF"], "positionSource": "api", "overall": 91, "force": 236 }
+      ]
+    }
+  ]
+}

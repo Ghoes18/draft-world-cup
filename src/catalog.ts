@@ -1,9 +1,52 @@
 /**
  * Squad catalog — normalized player + scenario data for the roll/build layer.
  *
- * Each player has one autoral `force` (0–255). Team attack/defense/overall are
- * derived from the chosen XI via `lineupToTeamStrength` — not stored on scenarios.
+ * Player `overall` (0–100) is the FIFA-style general rating from the API when
+ * available. Team attack/defense/overall are derived from the chosen XI via
+ * `lineupToTeamStrength` — not stored on scenarios.
  */
+
+import { forceToRating } from "./playerRating.js";
+import type { PositionSource } from "./catalog/livePlayerParse.js";
+
+const FJELSTUL_COARSE = new Set(["GK", "CB", "CM", "ST"]);
+
+function inferPositionSource(
+  positions: readonly string[] | undefined,
+  explicit?: PositionSource,
+): PositionSource | undefined {
+  if (explicit) return explicit;
+  if (!positions?.length) return undefined;
+  const coarseOnly = positions.every((p) =>
+    FJELSTUL_COARSE.has(p.trim().toUpperCase()),
+  );
+  return coarseOnly ? "inferred" : "api";
+}
+
+function hydratePlayerCard(player: PlayerCard): PlayerCard {
+  const overall =
+    typeof player.overall === "number" && Number.isFinite(player.overall)
+      ? Math.round(Math.min(100, Math.max(0, player.overall)))
+      : forceToRating(player.force);
+  const positionSource = inferPositionSource(
+    player.positions,
+    player.positionSource,
+  );
+  return {
+    ...player,
+    overall,
+    ...(positionSource !== undefined ? { positionSource } : {}),
+  };
+}
+
+/** Backfill overall/positionSource on catalogs loaded from older JSON exports. */
+export function hydrateCatalog(catalog: SquadCatalog): SquadCatalog {
+  const players: Record<string, PlayerCard> = {};
+  for (const [id, player] of Object.entries(catalog.players)) {
+    players[id] = hydratePlayerCard(player);
+  }
+  return { ...catalog, players };
+}
 
 /** One real player eligible for a *(team, Cup)* scenario. */
 export interface PlayerCard {
@@ -11,10 +54,19 @@ export interface PlayerCard {
   name: string;
   team: string;
   cup: number;
-  /** Natural position — 7a0 codes (GR, ZAG, PE…) or FIFA (GK, CB, ST…). */
+  /** Primary natural position — drives chemistry scoring. */
   naturalPosition: string;
+  /**
+   * Playable positions from the API for that Cup (e.g. Maradona: AM, CF, LW).
+   * When set with `positionSource: "api"`, only same-role formation slots apply.
+   */
+  positions?: readonly string[];
+  /** How `positions` were sourced — API lists are strict; inferred allows Fjelstul expansion. */
+  positionSource?: PositionSource;
   shirtNumber?: number;
-  /** Player strength 0–255 (decoded or autoral). */
+  /** FIFA-style general overall (0–100), shown in UI and used for team strength. */
+  overall: number;
+  /** Legacy raw strength 0–255 (decoded 7a0 `f` or autoral import). */
   force: number;
 }
 
@@ -43,6 +95,10 @@ export interface RawCatalogExport {
       id: string;
       name: string;
       naturalPosition: string;
+      positions?: string[];
+      positionSource?: PositionSource;
+      overall?: number;
+      rating?: number;
       force: number;
       shirtNumber?: number;
     }>;
@@ -59,7 +115,23 @@ export interface LiveSquadJson {
     pos: string;
     f: number;
     n?: number;
+    overall?: number;
+    rating?: number;
+    positions?: string[] | string;
+    playablePositions?: string[] | string;
   }>;
+}
+
+function resolveOverall(
+  overall: number | undefined,
+  rating: number | undefined,
+  force: number,
+): number {
+  const direct = overall ?? rating;
+  if (typeof direct === "number" && Number.isFinite(direct)) {
+    return Math.round(Math.min(100, Math.max(0, direct)));
+  }
+  return forceToRating(force);
 }
 
 /** Normalize a raw autoral export into a `SquadCatalog`. */
@@ -80,6 +152,15 @@ export function normalizeCatalog(raw: RawCatalogExport): SquadCatalog {
         cup: s.cup,
         naturalPosition: p.naturalPosition,
         force: p.force,
+        overall: resolveOverall(p.overall, p.rating, p.force),
+        ...(p.positions !== undefined && p.positions.length > 0
+          ? { positions: p.positions }
+          : {}),
+        ...(p.positionSource !== undefined
+          ? { positionSource: p.positionSource }
+          : p.positions !== undefined && p.positions.length > 0
+            ? { positionSource: "api" as const }
+            : {}),
         ...(p.shirtNumber !== undefined
           ? { shirtNumber: p.shirtNumber }
           : {}),

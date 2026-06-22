@@ -24,6 +24,8 @@ export type { MatchStats, TeamStats } from "./consumers/stats.js";
 export * from "./catalog.js";
 export * from "./catalog/liveImport.js";
 export * from "./positions.js";
+export * from "./playerRating.js";
+export * from "./playerPositions.js";
 export * from "./lineupStrength.js";
 export * from "./roll.js";
 export { demoCatalog } from "./demoCatalog.js";

@@ -828,6 +828,23 @@ button.pitch__slot:hover:not(:disabled) {
   box-shadow: 0 0 0 3px var(--home-glow), 0 10px 28px rgba(0, 0, 0, 0.2);
 }
 
+.pitch__slot--compatible {
+  border-color: var(--home);
+  background: rgba(20, 53, 36, 0.94);
+  box-shadow: 0 0 0 2px var(--home-glow), 0 0 18px rgba(198, 242, 78, 0.35);
+  animation: pitch-slot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pitch-slot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px var(--home-glow), 0 0 14px rgba(198, 242, 78, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 3px var(--home-glow), 0 0 22px rgba(198, 242, 78, 0.48);
+  }
+}
+
 .pitch__pos,
 .pitch__num {
   font-family: var(--font-mono), monospace;
@@ -860,6 +877,35 @@ button.pitch__slot:hover:not(:disabled) {
   color: var(--chalk-2);
   text-align: center;
   pointer-events: none;
+}
+
+.pitch__token-pos {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+  text-align: center;
+  pointer-events: none;
+}
+
+.pitch__token-pos--pick {
+  color: var(--home);
+}
+
+.chip__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.chip__positions {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
 }
 
 /* ---- formation picker (FIFA Draft style) ------------------------------- */

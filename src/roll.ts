@@ -3,7 +3,7 @@
  *
  * Live 7a0 draft flow: each turn rolls one *(team, Cup)* scenario; the player
  * picks one squad member into a compatible XI slot. After 11 picks the draft is
- * complete. Three global rerolls can refresh the current scenario (full draw or
+ * complete. Global rerolls can refresh the current scenario (full draw or
  * year-only). All randomness derives from the server-owned seed (mulberry32).
  */
 
@@ -11,7 +11,7 @@ import {
   chemistryPercent,
   positionFit,
 } from "./chemistry.js";
-import { FIT_ADJACENT, GLOBAL_REROLLS_PER_BUILD } from "./constants.js";
+import { GLOBAL_REROLLS_PER_BUILD } from "./constants.js";
 import {
   getPlayer,
   getScenario,
@@ -21,6 +21,7 @@ import {
   type SquadScenario,
 } from "./catalog.js";
 import { formationAnchors, DEFAULT_FORMATION_ID } from "./formations.js";
+import { canPlayInSlot, slotFitForPlayer } from "./playerPositions.js";
 import { pick, rngFromSeed } from "./rng.js";
 import type { LineupSlot, Side, Vec2 } from "./types.js";
 
@@ -183,13 +184,13 @@ function selectedPlayerIds(state: BuildState): Set<string> {
   return ids;
 }
 
-/** Whether a player can be placed in a slot (exact or adjacent role). */
+/** Whether a player can be placed in a slot. */
 export function canPlaceInSlot(
   player: PlayerCard,
   slot: BuildSlot,
 ): boolean {
   if (slot.selectedPlayerId) return false;
-  return positionFit(player.naturalPosition, slot.position) >= FIT_ADJACENT;
+  return canPlayInSlot(player, slot.position);
 }
 
 /** Open slots compatible with a player from the current squad. */
@@ -435,7 +436,7 @@ export function validateBuildState(
         });
       }
     }
-    if (positionFit(p.naturalPosition, slot.position) < FIT_ADJACENT) {
+    if (!canPlayInSlot(p, slot.position)) {
       errors.push({
         code: "position_mismatch",
         message: `${slot.selectedPlayerId} cannot play ${slot.position}`,
@@ -526,18 +527,17 @@ export function autoFillLineup(
       const slotsA = openSlotsForPlayer(catalog, next, a.id);
       const slotsB = openSlotsForPlayer(catalog, next, b.id);
       const fitA = Math.max(
-        ...slotsA.map((s) => positionFit(a.naturalPosition, s.position)),
+        ...slotsA.map((s) => slotFitForPlayer(a, s.position)),
       );
       const fitB = Math.max(
-        ...slotsB.map((s) => positionFit(b.naturalPosition, s.position)),
+        ...slotsB.map((s) => slotFitForPlayer(b, s.position)),
       );
       if (fitB !== fitA) return fitB - fitA;
       return a.name.localeCompare(b.name);
     })[0]!;
     const targetSlot = openSlotsForPlayer(catalog, next, best.id).sort(
       (a, b) =>
-        positionFit(best.naturalPosition, b.position) -
-        positionFit(best.naturalPosition, a.position),
+        slotFitForPlayer(best, b.position) - slotFitForPlayer(best, a.position),
     )[0]!;
     next = selectPlayer(catalog, next, targetSlot.slotId, best.id);
   }

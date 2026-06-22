@@ -90,6 +90,10 @@ pnpm import:squads --dir ./squads --out ./data/catalog.json
 # Build full men's World Cup catalog (1930–2022) from Fjelstul open data:
 pnpm build:catalog
 # Options: --from 1950 --to 2022 --cache ./data/fjelstul --out ./data/catalog.json
+
+# Overlay pipeline (heuristic base < external CSV < curated JSON):
+pnpm import:external --csv ./data/external-ratings.csv --overlay ./data/catalog.json
+pnpm import:squads --dir ./squads/curated --overlay ./data/catalog.json
 ```
 
 Forces from `build:catalog` are **autoral** (derived from appearances + goals in the Fjelstul database). They are not live 7a0 ratings. Replace with licensed `{ sel, copa, squad, f }` JSON via `import:squads` when available. See [data/fjelstul/ATTRIBUTION.md](./data/fjelstul/ATTRIBUTION.md).

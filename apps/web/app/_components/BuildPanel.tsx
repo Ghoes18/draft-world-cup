@@ -12,13 +12,14 @@ import {
   currentSquadPlayers,
   effectiveStrength,
   expectedGoals,
-  forceToRating,
-  getPlayer,
+  formatPlacementOptions,
+  formatPlayerPositions,
   getFormation,
   getScenario,
   isLineupComplete,
   openSlotsForPlayer,
   partialBuildToTeamStrength,
+  playerOverall,
   rerollScenario,
   selectPlayer,
   selectablePlayers,
@@ -250,13 +251,13 @@ export function BuildPanel({
           <Pitch
             catalog={catalog}
             buildState={buildState}
-            highlightSlotId={
-              highlightSlotId ??
-              (pendingSlots.length === 1 ? pendingSlots[0]?.slotId : undefined)
+            compatibleSlotIds={
+              pendingPlayer ? pendingSlots.map((s) => s.slotId) : undefined
             }
+            highlightSlotId={highlightSlotId}
             onSlotPick={!complete ? onSlotPick : undefined}
           />
-          {pendingPlayer && pendingSlots.length > 1 && (
+          {pendingPlayer && pendingSlots.length > 0 && (
             <p className="dim" style={{ fontSize: "0.82rem", marginTop: "0.75rem" }}>
               {S.build.hintPlace}
             </p>
@@ -307,6 +308,11 @@ function PlayerPickRow({
   onPlace: (slotId: string) => void;
   slots: { slotId: string; position: string }[];
 }) {
+  const positions =
+    selected && slots.length > 0
+      ? formatPlacementOptions(slots)
+      : formatPlayerPositions(player);
+
   return (
     <div className={`chip${selected ? " chip--selected" : ""}`}>
       <button
@@ -315,13 +321,13 @@ function PlayerPickRow({
         aria-pressed={selected}
         onClick={onSelect}
       >
-        <span className="rating">{forceToRating(player.force)}</span>
-        <strong>{player.name}</strong>
-        <span className="mono dim" style={{ fontSize: "0.78rem" }}>
-          {player.naturalPosition}
+        <span className="rating">{playerOverall(player)}</span>
+        <span className="chip__body">
+          <strong>{player.name}</strong>
+          <span className="chip__positions mono dim">{positions}</span>
         </span>
       </button>
-      {selected && (
+      {selected && slots.length > 0 && (
         <div className="row" style={{ gap: "0.35rem" }}>
           {slots.map((s) => (
             <button key={s.slotId} type="button" onClick={() => onPlace(s.slotId)}>

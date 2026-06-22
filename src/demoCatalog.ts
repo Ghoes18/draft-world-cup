@@ -4,9 +4,9 @@
  * TODO(data): replace via `pnpm import:squads` when licensed squad JSON exists.
  */
 
-import { normalizeCatalog, type SquadCatalog } from "./catalog.js";
+import { normalizeCatalog, type RawCatalogExport, type SquadCatalog } from "./catalog.js";
 
-const raw = {
+const raw: RawCatalogExport = {
   scenarios: [
     {
       id: "brazil-1970",
@@ -77,14 +77,14 @@ const raw = {
         { id: "ar86-ruggeri", name: "Ruggeri", naturalPosition: "CB", shirtNumber: 19, force: 212 },
         { id: "ar86-burruchaga", name: "Burruchaga", naturalPosition: "RCM", shirtNumber: 7, force: 228 },
         { id: "ar86-enrique", name: "Enrique", naturalPosition: "CM", shirtNumber: 12, force: 218 },
-        { id: "ar86-maradona", name: "Maradona", naturalPosition: "AM", shirtNumber: 10, force: 248 },
-        { id: "ar86-valdano", name: "Valdano", naturalPosition: "ST", shirtNumber: 11, force: 232 },
+        { id: "ar86-maradona", name: "Maradona", naturalPosition: "AM", positions: ["AM", "CAM", "CF", "LW", "CM"], positionSource: "api", shirtNumber: 10, force: 248 },
+        { id: "ar86-valdano", name: "Valdano", naturalPosition: "ST", positions: ["ST"], positionSource: "api", shirtNumber: 11, force: 232 },
         { id: "ar86-giusti", name: "Giusti", naturalPosition: "DM", shirtNumber: 14, force: 208 },
         { id: "ar86-olarticoechea", name: "Olarticoechea", naturalPosition: "LB", shirtNumber: 16, force: 205 },
         { id: "ar86-cuciuffo", name: "Cuciuffo", naturalPosition: "RB", shirtNumber: 9, force: 212 },
         { id: "ar86-tapia", name: "Tapia", naturalPosition: "CM", shirtNumber: 21, force: 200 },
         { id: "ar86-sergio", name: "Sergio Batista", naturalPosition: "DM", shirtNumber: 6, force: 202 },
-        { id: "ar86-calderon", name: "Calderón", naturalPosition: "ST", shirtNumber: 17, force: 195 },
+        { id: "ar86-calderon", name: "Calderón", naturalPosition: "ST", positions: ["ST"], positionSource: "api", shirtNumber: 17, force: 195 },
         { id: "ar86-borghi", name: "Borghi", naturalPosition: "AM", shirtNumber: 20, force: 198 },
         { id: "ar86-nery", name: "Nery Pumpido", naturalPosition: "GK", shirtNumber: 1, force: 190 },
         { id: "ar86-islas", name: "Islas", naturalPosition: "GK", shirtNumber: 22, force: 185 },

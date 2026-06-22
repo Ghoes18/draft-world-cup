@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { demoCatalog, type SquadCatalog } from "7a0-engine";
+import { demoCatalog, hydrateCatalog, type SquadCatalog } from "7a0-engine";
 
 export type CatalogSource = "full" | "demo";
 
@@ -22,7 +22,7 @@ export function useGameCatalog(): {
       .then((data: SquadCatalog | null) => {
         if (cancelled) return;
         if (data?.scenarios?.length) {
-          setCatalog(data);
+          setCatalog(hydrateCatalog(data));
           setSource("full");
         } else {
           setCatalog(demoCatalog);

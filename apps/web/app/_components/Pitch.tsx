@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  forceToRating,
+  playerOverall,
   getPlayer,
   type BuildState,
   type SquadCatalog,
@@ -33,14 +33,19 @@ function anchorToScreen(anchor: Vec2, position: string): { left: string; top: st
 export function Pitch({
   catalog,
   buildState,
+  compatibleSlotIds,
   highlightSlotId,
   onSlotPick,
 }: {
   catalog: SquadCatalog;
   buildState: BuildState;
+  /** Empty slots where the pending player may be placed. */
+  compatibleSlotIds?: readonly string[];
   highlightSlotId?: string;
   onSlotPick?: (slotId: string) => void;
 }) {
+  const compatible = new Set(compatibleSlotIds ?? []);
+
   return (
     <div className="pitch" aria-label={S.build.lineup}>
       <div className="pitch__stripes" aria-hidden />
@@ -53,8 +58,14 @@ export function Pitch({
           ? getPlayer(catalog, slot.selectedPlayerId)
           : null;
         const filled = Boolean(player);
-        const highlight = highlightSlotId === slot.slotId;
-        const Tag = onSlotPick && !filled ? "button" : "div";
+        const isCompatible = !filled && compatible.has(slot.slotId);
+        const highlight =
+          highlightSlotId === slot.slotId ||
+          (isCompatible && compatible.size > 0);
+        const clickable = Boolean(
+          onSlotPick && !filled && (isCompatible || compatible.size === 0),
+        );
+        const Tag = clickable ? "button" : "div";
 
         const surname = player?.name.split(" ").pop();
 
@@ -70,27 +81,35 @@ export function Pitch({
                 "pitch__slot",
                 filled ? "pitch__slot--filled" : "",
                 highlight ? "pitch__slot--highlight" : "",
+                isCompatible ? "pitch__slot--compatible" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
-              onClick={
-                onSlotPick && !filled ? () => onSlotPick(slot.slotId) : undefined
-              }
+              onClick={clickable ? () => onSlotPick!(slot.slotId) : undefined}
               aria-label={
                 filled && player
                   ? `${player.name}, ${slot.position}`
-                  : `${slot.position}, ${S.build.empty}`
+                  : isCompatible
+                    ? `${S.build.placeIn(slot.position)}, ${S.build.empty}`
+                    : `${slot.position}, ${S.build.empty}`
               }
               title={player?.name}
             >
               {filled && player ? (
-                <span className="pitch__num">{forceToRating(player.force)}</span>
+                <span className="pitch__num">{playerOverall(player)}</span>
               ) : (
                 <span className="pitch__pos">{slot.position}</span>
               )}
             </Tag>
             {filled && surname ? (
-              <span className="pitch__token-name">{surname}</span>
+              <>
+                <span className="pitch__token-name">{surname}</span>
+                <span className="pitch__token-pos">{slot.position}</span>
+              </>
+            ) : isCompatible ? (
+              <span className="pitch__token-pos pitch__token-pos--pick">
+                {slot.position}
+              </span>
             ) : null}
           </div>
         );

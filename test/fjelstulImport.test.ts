@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  addGoalCounts,
   buildCatalogFromFjelstul,
+  buildEnhancedStats,
   filterSquadRows,
   indexAppearances,
 } from "../src/catalog/fjelstulImport.js";
@@ -51,6 +51,8 @@ describe("fjelstulImport", () => {
     const pele = raw.scenarios[0]!.players.find((p) => p.name.includes("Pel"));
     expect(pele).toBeDefined();
     expect(pele!.force).toBeGreaterThan(150);
+    expect(pele!.overall).toBeGreaterThanOrEqual(58);
+    expect(pele!.overall).toBeLessThanOrEqual(100);
   });
 
   it("filters to men's tournaments only", () => {
@@ -66,27 +68,32 @@ describe("fjelstulImport", () => {
     expect(filtered).toHaveLength(1);
   });
 
-  it("indexes goals into appearance stats", () => {
-    const stats = indexAppearances([
-      {
-        tournament_id: "WC-1970",
-        team_id: "T-01",
-        player_id: "P-1",
-        starter: "1",
-        substitute: "0",
-      },
-    ]);
-    addGoalCounts(stats, [
-      {
-        tournament_id: "WC-1970",
-        team_id: "T-01",
-        player_team_id: "T-01",
-        player_id: "P-1",
-        own_goal: "0",
-      },
-    ]);
-    const merit = appearanceMerit(stats.get("WC-1970|T-01|P-1")!);
-    expect(merit).toBeGreaterThan(3);
+  it("indexes goals into enhanced appearance stats", () => {
+    const stats = buildEnhancedStats(
+      [
+        {
+          tournament_id: "WC-1970",
+          team_id: "T-01",
+          player_id: "P-1",
+          starter: "1",
+          substitute: "0",
+        },
+      ],
+      [
+        {
+          tournament_id: "WC-1970",
+          team_id: "T-01",
+          player_team_id: "T-01",
+          player_id: "P-1",
+          own_goal: "0",
+          stage_name: "final",
+        },
+      ],
+    );
+    const s = stats.get("WC-1970|T-01|P-1")!;
+    expect(s.goals).toBe(1);
+    expect(s.finalGoals).toBe(1);
+    expect(appearanceMerit(s)).toBeGreaterThan(3);
   });
 
   it("reads fixture CSV files", async () => {
