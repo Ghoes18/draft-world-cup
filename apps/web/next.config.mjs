@@ -9,6 +9,12 @@ const nextConfig = {
   outputFileTracingRoot: repoRoot,
   // The engine ships raw TypeScript source (no build step); let Next compile it.
   transpilePackages: ["7a0-engine"],
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "upload.wikimedia.org" },
+      { protocol: "https", hostname: "commons.wikimedia.org" },
+    ],
+  },
   webpack: (config) => {
     // 7a0-engine source uses NodeNext-style ".js" specifiers that resolve to
     // ".ts" sources. Teach webpack to follow them. Run `next dev` (webpack),

@@ -50,6 +50,7 @@ describe("fjelstulImport", () => {
 
     const pele = raw.scenarios[0]!.players.find((p) => p.name.includes("Pel"));
     expect(pele).toBeDefined();
+    expect(pele!.name).not.toMatch(/not applicable/i);
     expect(pele!.force).toBeGreaterThan(150);
     expect(pele!.overall).toBeGreaterThanOrEqual(58);
     expect(pele!.overall).toBeLessThanOrEqual(100);

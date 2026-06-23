@@ -13,15 +13,17 @@ pnpm build:catalog
 # 2. Optional — overlay external CSV ratings (below curated)
 pnpm import:external --csv ./data/external-ratings.csv --overlay ./data/catalog.json
 
-# 3. Curated squads — fine positions + tuned overall (wins on conflicts)
+# 3. Curated squads — positions + tuned overall (photos: legends only, see src/legends.ts)
 pnpm import:squads --dir ./squads/curated --overlay ./data/catalog.json
 ```
 
-Each step writes `data/catalog.json` and `apps/web/public/catalog.json`.
+Each step writes `data/catalog.json` and `apps/web/public/catalog.json`. Legend headshots are applied automatically from `src/legends.ts` — not from squad JSON.
 
 ## Curated overlay (`squads/curated/`)
 
 JSON files with explicit `positions`, `positionSource: "api"`, and `overall` per player. Matched onto the Fjelstul base by **shirt number**, then **normalized name**.
+
+Photos are **not** stored here. Add or edit legends in `src/legends.ts`.
 
 Templates: `brazil-1970.json`, `argentina-1986.json`.
 

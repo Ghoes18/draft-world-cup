@@ -21,6 +21,7 @@ import {
   type RawCatalogExport,
   type SquadCatalog,
 } from "../catalog.js";
+import { applyLegendPhotosToCatalog } from "../legends.js";
 import {
   mergeRawCatalogExports,
   overlayRawExportOnCatalog,
@@ -82,7 +83,8 @@ async function loadOverlayBase(path: string): Promise<SquadCatalog> {
 }
 
 async function writeCatalog(catalog: SquadCatalog, outPath: string): Promise<void> {
-  const json = JSON.stringify(catalog, null, 2);
+  const patched = applyLegendPhotosToCatalog(catalog);
+  const json = JSON.stringify(patched, null, 2);
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, json, "utf8");
 

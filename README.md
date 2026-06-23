@@ -91,7 +91,8 @@ pnpm import:squads --dir ./squads --out ./data/catalog.json
 pnpm build:catalog
 # Options: --from 1950 --to 2022 --cache ./data/fjelstul --out ./data/catalog.json
 
-# Overlay pipeline (heuristic base < external CSV < curated JSON):
+# Overlay pipeline (heuristic base < Wikimedia photos < external CSV < curated JSON):
+pnpm import:photos --overlay ./data/catalog.json
 pnpm import:external --csv ./data/external-ratings.csv --overlay ./data/catalog.json
 pnpm import:squads --dir ./squads/curated --overlay ./data/catalog.json
 ```

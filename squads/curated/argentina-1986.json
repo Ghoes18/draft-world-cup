@@ -5,17 +5,105 @@
       "team": "Argentina",
       "cup": 1986,
       "players": [
-        { "name": "Nery Pumpido", "naturalPosition": "GK", "positions": ["GK"], "positionSource": "api", "overall": 84, "force": 215, "shirtNumber": 18 },
-        { "name": "José Luis Brown", "naturalPosition": "RCB", "positions": ["CB", "RCB"], "positionSource": "api", "overall": 82, "force": 218, "shirtNumber": 5 },
-        { "name": "Daniel Passarella", "naturalPosition": "LCB", "positions": ["CB", "LCB"], "positionSource": "api", "overall": 88, "force": 230, "shirtNumber": 6 },
-        { "name": "José Luis Cuciuffo", "naturalPosition": "RCB", "positions": ["CB", "RCB"], "positionSource": "api", "overall": 83, "force": 216, "shirtNumber": 9 },
-        { "name": "Sergio Batista", "naturalPosition": "CDM", "positions": ["CDM", "CM"], "positionSource": "api", "overall": 84, "force": 220, "shirtNumber": 2 },
-        { "name": "Jorge Burruchaga", "naturalPosition": "RCM", "positions": ["CM", "RCM", "CAM"], "positionSource": "api", "overall": 86, "force": 228, "shirtNumber": 7 },
-        { "name": "Héctor Enrique", "naturalPosition": "LCM", "positions": ["CM", "LCM"], "positionSource": "api", "overall": 82, "force": 214, "shirtNumber": 12 },
-        { "name": "Diego Maradona", "naturalPosition": "CAM", "positions": ["CAM", "CF", "LW", "CM"], "positionSource": "api", "overall": 96, "force": 248, "shirtNumber": 10 },
-        { "name": "Jorge Valdano", "naturalPosition": "ST", "positions": ["ST"], "positionSource": "api", "overall": 87, "force": 232, "shirtNumber": 11 },
-        { "name": "Oscar Garré", "naturalPosition": "LB", "positions": ["LB", "LWB"], "positionSource": "api", "overall": 83, "force": 218, "shirtNumber": 13 },
-        { "name": "Néstor Clausen", "naturalPosition": "RB", "positions": ["RB", "RWB"], "positionSource": "api", "overall": 82, "force": 216, "shirtNumber": 8 }
+        {
+          "name": "Nery Pumpido",
+          "naturalPosition": "GK",
+          "positions": ["GK"],
+          "positionSource": "api",
+          "overall": 84,
+          "force": 215,
+          "shirtNumber": 18
+        },
+        {
+          "name": "José Luis Brown",
+          "naturalPosition": "RCB",
+          "positions": ["CB", "RCB"],
+          "positionSource": "api",
+          "overall": 82,
+          "force": 218,
+          "shirtNumber": 5
+        },
+        {
+          "name": "Daniel Passarella",
+          "naturalPosition": "LCB",
+          "positions": ["CB", "LCB"],
+          "positionSource": "api",
+          "overall": 88,
+          "force": 230,
+          "shirtNumber": 6
+        },
+        {
+          "name": "José Luis Cuciuffo",
+          "naturalPosition": "RCB",
+          "positions": ["CB", "RCB"],
+          "positionSource": "api",
+          "overall": 83,
+          "force": 216,
+          "shirtNumber": 9
+        },
+        {
+          "name": "Sergio Batista",
+          "naturalPosition": "CDM",
+          "positions": ["CDM", "CM"],
+          "positionSource": "api",
+          "overall": 84,
+          "force": 220,
+          "shirtNumber": 2
+        },
+        {
+          "name": "Jorge Burruchaga",
+          "naturalPosition": "RCM",
+          "positions": ["CM", "RCM", "CAM"],
+          "positionSource": "api",
+          "overall": 86,
+          "force": 228,
+          "shirtNumber": 7
+        },
+        {
+          "name": "Héctor Enrique",
+          "naturalPosition": "LCM",
+          "positions": ["CM", "LCM"],
+          "positionSource": "api",
+          "overall": 82,
+          "force": 214,
+          "shirtNumber": 12
+        },
+        {
+          "name": "Diego Maradona",
+          "naturalPosition": "CAM",
+          "positions": ["CAM", "CF", "LW", "CM"],
+          "positionSource": "api",
+          "overall": 96,
+          "force": 248,
+          "shirtNumber": 10
+        },
+        {
+          "name": "Jorge Valdano",
+          "naturalPosition": "ST",
+          "positions": ["ST"],
+          "positionSource": "api",
+          "overall": 87,
+          "force": 232,
+          "shirtNumber": 11
+        },
+        {
+          "name": "Oscar Garré",
+          "naturalPosition": "LB",
+          "positions": ["LB", "LWB"],
+          "positionSource": "api",
+          "overall": 83,
+          "force": 218,
+          "shirtNumber": 13
+        },
+        {
+          "name": "Néstor Clausen",
+          "naturalPosition": "RB",
+          "positions": ["RB", "RWB"],
+          "positionSource": "api",
+          "overall": 82,
+          "force": 216,
+          "shirtNumber": 8
+        }
       ]
     }
   ]

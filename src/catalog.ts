@@ -7,7 +7,9 @@
  */
 
 import { forceToRating } from "./playerRating.js";
+import { cleanPlayerDisplayName } from "./playerNames.js";
 import type { PositionSource } from "./catalog/livePlayerParse.js";
+import type { PhotoSource } from "./playerPhoto.js";
 
 const FJELSTUL_COARSE = new Set(["GK", "CB", "CM", "ST"]);
 
@@ -34,6 +36,7 @@ function hydratePlayerCard(player: PlayerCard): PlayerCard {
   );
   return {
     ...player,
+    name: cleanPlayerDisplayName(player.name),
     overall,
     ...(positionSource !== undefined ? { positionSource } : {}),
   };
@@ -68,6 +71,10 @@ export interface PlayerCard {
   overall: number;
   /** Legacy raw strength 0–255 (decoded 7a0 `f` or autoral import). */
   force: number;
+  /** Optional headshot URL (Wikimedia Commons or curated). */
+  photoUrl?: string;
+  /** How `photoUrl` was sourced — curated/external are not overwritten by import:photos. */
+  photoSource?: PhotoSource;
 }
 
 /** A *(team, Cup)* pairing with full squad roster. */
@@ -101,6 +108,8 @@ export interface RawCatalogExport {
       rating?: number;
       force: number;
       shirtNumber?: number;
+      photoUrl?: string;
+      photoSource?: PhotoSource;
     }>;
   }>;
 }
@@ -164,6 +173,8 @@ export function normalizeCatalog(raw: RawCatalogExport): SquadCatalog {
         ...(p.shirtNumber !== undefined
           ? { shirtNumber: p.shirtNumber }
           : {}),
+        ...(p.photoUrl !== undefined ? { photoUrl: p.photoUrl } : {}),
+        ...(p.photoSource !== undefined ? { photoSource: p.photoSource } : {}),
       };
       players[p.id] = card;
       playerIds.push(p.id);

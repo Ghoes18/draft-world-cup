@@ -8,6 +8,7 @@
  */
 
 import { positionCodesFromFjelstul } from "../playerPositions.js";
+import { playerDisplayNameFromParts } from "../playerNames.js";
 import {
   scenarioIdFromTeamCup,
   type RawCatalogExport,
@@ -95,10 +96,7 @@ export function indexAppearancePositions(
 }
 
 function playerDisplayName(given: string, family: string): string {
-  const g = given.trim();
-  const f = family.trim();
-  if (g && f) return `${g} ${f}`;
-  return g || f || "Unknown";
+  return playerDisplayNameFromParts(given, family);
 }
 
 function squadPlayerKey(

@@ -33,5 +33,8 @@ data/fjelstul/*.csv
 data/catalog.json
 apps/web/public/catalog.json
 
+# Wikidata photo lookup cache (run pnpm import:photos)
+data/player-photos.json
+
 # Cursor
 .cursor/

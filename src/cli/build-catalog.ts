@@ -22,6 +22,9 @@ import {
   fjelstulDownloadUrl,
 } from "7a0-engine/server";
 import { normalizeCatalog } from "../catalog.js";
+import { overlayRawExportOnCatalog } from "../catalog/catalogOverlay.js";
+import { applyLegendPhotosToCatalog } from "../legends.js";
+import { loadCuratedExportsFromDir } from "./curatedSquadsLoader.js";
 
 interface CliArgs {
   out: string;
@@ -100,7 +103,22 @@ async function main() {
     fromYear: args.from,
     toYear: args.to,
   });
-  const catalog = normalizeCatalog(raw);
+  let catalog = normalizeCatalog(raw);
+
+  const curated = await loadCuratedExportsFromDir();
+  if (curated.length > 0) {
+    const result = overlayRawExportOnCatalog(catalog, curated);
+    catalog = result.catalog;
+    console.log(
+      `Curated overlay: ${result.patched} players patched, ${result.unmatched} unmatched`,
+    );
+  }
+
+  catalog = applyLegendPhotosToCatalog(catalog);
+  const legendPhotos = Object.values(catalog.players).filter(
+    (p) => p.photoUrl,
+  ).length;
+  console.log(`Legend photos: ${legendPhotos} players`);
 
   const catalogJson = JSON.stringify(catalog, null, 2);
 

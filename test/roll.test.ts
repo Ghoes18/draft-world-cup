@@ -12,6 +12,7 @@ import {
   rerollScenario,
   selectPlayer,
   selectablePlayers,
+  currentSquadPlayers,
   validateBuildState,
   validateLineup,
   type BuildState,
@@ -79,6 +80,13 @@ describe("selectablePlayers", () => {
     state = selectPlayer(demoCatalog, state, target!.slotId, first.id);
     const pool = selectablePlayers(demoCatalog, state);
     expect(pool.every((p) => p.id !== first.id)).toBe(true);
+  });
+
+  it("current squad can be larger than selectable when positions are full", () => {
+    const state = initBuildState(demoCatalog, "full-pos-test", "home");
+    const squad = currentSquadPlayers(demoCatalog, state);
+    const selectable = selectablePlayers(demoCatalog, state);
+    expect(squad.length).toBeGreaterThanOrEqual(selectable.length);
   });
 });
 

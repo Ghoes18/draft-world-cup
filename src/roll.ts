@@ -224,13 +224,22 @@ export function currentSquadPlayers(
  * Players selectable on this turn: in the current squad and with at least one
  * open compatible slot. Catalog uses a single naturalPosition per player.
  */
+export function isPlayerPickable(
+  catalog: SquadCatalog,
+  state: BuildState,
+  playerId: string,
+): boolean {
+  if (state.turnIndex >= state.slots.length) return false;
+  return openSlotsForPlayer(catalog, state, playerId).length > 0;
+}
+
 export function selectablePlayers(
   catalog: SquadCatalog,
   state: BuildState,
 ): PlayerCard[] {
   if (state.turnIndex >= state.slots.length) return [];
-  return currentSquadPlayers(catalog, state).filter(
-    (p) => openSlotsForPlayer(catalog, state, p.id).length > 0,
+  return currentSquadPlayers(catalog, state).filter((p) =>
+    isPlayerPickable(catalog, state, p.id),
   );
 }
 

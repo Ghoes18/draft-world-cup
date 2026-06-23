@@ -669,11 +669,16 @@ button:focus-visible {
 
 .build__head {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+}
+
+.build__formation {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
 }
 
 .build__complete {
@@ -685,19 +690,651 @@ button:focus-visible {
 
 .build__grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(360px, 1.1fr);
+  grid-template-columns: minmax(300px, 0.95fr) minmax(340px, 1.05fr);
   gap: clamp(1rem, 3vw, 1.5rem);
   align-items: start;
 }
 
-.build__roll,
+.build__controls {
+  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.build__pitch-wrap {
+  position: sticky;
+  top: clamp(0.75rem, 2vw, 1.25rem);
+}
+
 .build__pitch {
   margin-top: 0;
 }
 
-.panel--pitch::before {
-  width: 84px;
-  background: linear-gradient(90deg, var(--home), var(--away));
+.build__pitch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.build__pitch-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  color: var(--home);
+  letter-spacing: 0.04em;
+  max-width: 14rem;
+}
+
+.build__pitch-pending .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--line);
+}
+
+.build__tactic {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.build__chem-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.build__chem-val strong {
+  color: var(--chalk);
+}
+
+/* ---- draft progress (11-pip ticker) ----------------------------------- */
+
+.draft-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.draft-progress__track {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 4px;
+}
+
+.draft-progress__pip {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  transition: background 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.draft-progress__pip--done {
+  background: var(--home);
+  border-color: transparent;
+  box-shadow: 0 0 8px var(--home-glow);
+}
+
+.draft-progress__pip--active {
+  background: var(--chalk-2);
+  border-color: var(--home);
+  box-shadow: 0 0 10px var(--home-glow);
+  animation: pip-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.draft-progress__label {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--chalk-dim);
+}
+
+/* ---- current roll card -------------------------------------------------- */
+
+.draft-roll {
+  background: linear-gradient(
+    145deg,
+    rgba(198, 242, 78, 0.07),
+    transparent 48%
+  );
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 1rem 1.05rem 0.85rem;
+}
+
+.draft-roll__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.draft-roll__turn {
+  font-size: 0.68rem;
+  color: var(--chalk-dim);
+}
+
+.draft-roll__team {
+  margin: 0.35rem 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--chalk);
+}
+
+.draft-roll__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  margin-bottom: 0.85rem;
+}
+
+.draft-roll__dot {
+  opacity: 0.45;
+}
+
+.draft-roll__rerolls--low {
+  color: var(--away);
+}
+
+.draft-roll__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.draft-roll__btn {
+  min-height: 44px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  background: var(--turf-0);
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  transition:
+    border-color 0.15s var(--ease),
+    background 0.15s var(--ease),
+    transform 0.12s var(--ease);
+}
+
+.draft-roll__btn:hover:not(:disabled) {
+  border-color: var(--home);
+  background: var(--turf-3);
+}
+
+.draft-roll__btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.draft-roll__btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.draft-roll__hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+/* ---- build stats strip -------------------------------------------------- */
+
+.build-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.build-stats__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.build-stats__num {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--chalk);
+}
+
+.build-stats__delta {
+  font-size: 0.65rem;
+  margin-left: 0.25rem;
+  font-weight: 600;
+}
+
+.meter--chem {
+  height: 14px;
+}
+
+.seg--wide {
+  display: flex;
+  width: 100%;
+}
+
+.seg--wide button {
+  flex: 1;
+  min-height: 44px;
+  text-align: center;
+}
+
+/* ---- squad pool --------------------------------------------------------- */
+
+.draft-pool {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: 0;
+}
+
+.draft-pool__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.draft-pool__count {
+  color: var(--chalk-dim);
+}
+
+.draft-pool__hint {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--home);
+  background: rgba(198, 242, 78, 0.08);
+  border: 1px solid rgba(198, 242, 78, 0.22);
+  border-radius: 5px;
+  animation: hint-in 0.25s var(--ease);
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.draft-pool__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: min(58vh, 480px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.25rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}
+
+.draft-pool__list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.draft-pool__list::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 999px;
+}
+
+/* ---- player pick cards -------------------------------------------------- */
+
+.player-card {
+  flex-shrink: 0;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  transition:
+    border-color 0.18s var(--ease),
+    box-shadow 0.18s var(--ease),
+    transform 0.12s var(--ease);
+}
+
+.player-card:hover {
+  border-color: var(--line-2);
+}
+
+.player-card--selected {
+  border-color: var(--home);
+  box-shadow:
+    0 0 0 1px var(--home-glow),
+    0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.player-card--unavailable {
+  opacity: 0.62;
+}
+
+.player-card--unavailable:hover {
+  border-color: var(--line);
+}
+
+.player-card--unavailable .player-card__main {
+  cursor: not-allowed;
+}
+
+.player-card--unavailable .player-card__ovr {
+  color: var(--chalk-dim);
+  background: var(--turf-1);
+  border-color: var(--line-2);
+}
+
+.player-card--unavailable .player-card__name:not(.player-name--legend) {
+  color: var(--chalk-dim);
+}
+
+.player-card--unavailable .player-name--legend {
+  filter: grayscale(0.55) brightness(0.85);
+}
+
+.player-card--unavailable .player-card__pos {
+  color: var(--chalk-dim);
+  opacity: 0.85;
+}
+
+.player-card--unavailable .player-card__chev {
+  color: var(--chalk-dim);
+  opacity: 0.5;
+}
+
+.player-card__main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 72px;
+  padding: 0.85rem 1rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+.player-card__main:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.player-card__ovr {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.1rem;
+  height: 3.1rem;
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--home);
+  background: var(--turf-0);
+  border: 2px solid rgba(198, 242, 78, 0.45);
+  border-radius: 8px;
+}
+
+.player-card--selected .player-card__ovr {
+  background: var(--home);
+  color: var(--turf-0);
+  border-color: var(--home);
+}
+
+.player-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.player-card__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Golden name treatment for World Cup legends */
+.player-name--legend {
+  background: linear-gradient(
+    105deg,
+    #f5e6a8 0%,
+    #e8c547 38%,
+    #fff4c2 52%,
+    #c9a227 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 8px rgba(232, 197, 71, 0.35));
+}
+
+.legend__name.player-name--legend {
+  filter: drop-shadow(0 0 10px rgba(232, 197, 71, 0.45));
+}
+
+.pitch__token-name.player-name--legend {
+  filter: drop-shadow(0 0 6px rgba(232, 197, 71, 0.4));
+}
+
+.player-avatar--legend {
+  border-color: #e8c547;
+  box-shadow:
+    0 0 0 1px rgba(232, 197, 71, 0.45),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.player-card__pos {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  letter-spacing: 0.03em;
+}
+
+.player-card__chev {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono), monospace;
+  font-size: 1.15rem;
+  color: var(--chalk-dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.player-card--selected .player-card__chev {
+  color: var(--home);
+  border-color: rgba(198, 242, 78, 0.35);
+}
+
+.player-card__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0 1rem 0.85rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.7rem;
+  margin-top: 0;
+  animation: slots-in 0.2s var(--ease);
+}
+
+@keyframes slots-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slot-pill {
+  min-height: 40px;
+  padding: 0.45rem 0.8rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--home);
+  background: rgba(198, 242, 78, 0.1);
+  border: 1px solid rgba(198, 242, 78, 0.35);
+  border-radius: 999px;
+  transition:
+    background 0.15s var(--ease),
+    transform 0.1s var(--ease);
+}
+
+.slot-pill:hover:not(:disabled) {
+  background: rgba(198, 242, 78, 0.2);
+  border-color: var(--home);
+}
+
+.slot-pill:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.draft-xg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+.draft-xg__vals strong {
+  color: var(--home);
+}
+
+/* ---- player avatars ----------------------------------------------------- */
+
+.player-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--turf-0);
+  border: 2px solid var(--line-2);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.player-avatar--sm {
+  width: 2rem;
+  height: 2rem;
+}
+
+.player-avatar--md {
+  width: 3.25rem;
+  height: 3.25rem;
+}
+
+.player-avatar--lg {
+  width: 4.25rem;
+  height: 4.25rem;
+}
+
+.player-avatar--selected {
+  border-color: var(--home);
+  box-shadow:
+    0 0 0 1px var(--home-glow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.player-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+}
+
+.player-avatar__initials {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--chalk-2);
+  text-transform: uppercase;
+}
+
+.player-avatar--md .player-avatar__initials {
+  font-size: 0.82rem;
+}
+
+.player-avatar--lg .player-avatar__initials {
+  font-size: 1rem;
+}
+
+.pitch__slot .player-avatar {
+  width: 100%;
+  height: 100%;
+  border-width: 0;
+  box-shadow: none;
+  border-radius: 50%;
+}
+
+.pitch__slot .player-avatar__initials {
+  font-size: 0.58rem;
 }
 
 .draw-display {
@@ -707,6 +1344,11 @@ button:focus-visible {
   font-size: clamp(1.15rem, 3vw, 1.6rem);
   line-height: 1;
   text-transform: uppercase;
+}
+
+.panel--pitch::before {
+  width: 84px;
+  background: linear-gradient(90deg, var(--home), var(--away));
 }
 
 /* ---- formation pitch ---------------------------------------------------- */
@@ -731,71 +1373,49 @@ button:focus-visible {
   box-shadow: inset 0 0 0 6px rgba(234, 242, 236, 0.025);
 }
 
-.pitch__stripes,
+.pitch__count {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.65rem;
+  z-index: 2;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+  padding: 0.2rem 0.45rem;
+  background: rgba(6, 18, 12, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
 .pitch__mark {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.pitch__stripes::before,
-.pitch__stripes::after {
-  content: "";
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  height: 22%;
-  border: 1px solid var(--line-2);
-}
-
-.pitch__stripes::before {
-  top: 0;
-  border-top: 0;
-  border-radius: 0 0 999px 999px;
-}
-
-.pitch__stripes::after {
-  bottom: 0;
-  border-bottom: 0;
-  border-radius: 999px 999px 0 0;
-}
-
-.pitch__half {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px solid var(--line-2);
-}
-
-.pitch__circle {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 30%;
-  aspect-ratio: 1;
-  border: 1px solid var(--line-2);
-  border-radius: 999px;
-  transform: translate(-50%, -50%);
+.pitch__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .pitch__token {
   position: absolute;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
+  width: clamp(48px, 12vw, 64px);
+  height: clamp(48px, 12vw, 64px);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
 
 .pitch__slot {
   pointer-events: auto;
-  flex-shrink: 0;
-  width: clamp(48px, 12vw, 64px);
-  height: clamp(48px, 12vw, 64px);
+  width: 100%;
+  height: 100%;
   min-height: 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -806,6 +1426,7 @@ button:focus-visible {
   border-radius: 50%;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
   text-align: center;
+  box-sizing: border-box;
 }
 
 button.pitch__slot {
@@ -819,8 +1440,29 @@ button.pitch__slot:hover:not(:disabled) {
 }
 
 .pitch__slot--filled {
+  border-style: solid;
   border-color: rgba(198, 242, 78, 0.52);
   background: rgba(6, 18, 12, 0.9);
+}
+
+.pitch__slot--empty {
+  border-style: dashed;
+  border-color: rgba(234, 242, 236, 0.18);
+  background: rgba(6, 18, 12, 0.65);
+}
+
+.pitch__token-meta {
+  position: absolute;
+  top: calc(100% + 0.22rem);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.08rem;
+  width: max-content;
+  max-width: 6.5rem;
+  pointer-events: none;
 }
 
 .pitch__slot--highlight {
@@ -1301,11 +1943,24 @@ button.pitch__slot:hover:not(:disabled) {
     grid-template-columns: 1fr;
   }
 
+  .build__pitch-wrap {
+    position: static;
+  }
+
+  .draft-pool__list {
+    max-height: none;
+  }
+
   .pitch {
     min-height: 440px;
   }
 
   .pitch__slot {
+    width: 100%;
+    height: 100%;
+  }
+
+  .pitch__token {
     width: 52px;
     height: 52px;
   }

@@ -13,6 +13,7 @@
     "sim": "tsx src/cli/simulate.ts",
     "import:squads": "tsx src/cli/import-squads.ts",
     "import:external": "tsx src/cli/import-external.ts",
+    "import:photos": "tsx src/cli/import-photos.ts",
     "fetch:squads": "tsx src/cli/fetch-squads.ts",
     "build:catalog": "tsx src/cli/build-catalog.ts",
     "test": "vitest run",

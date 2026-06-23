@@ -84,6 +84,12 @@ function patchPlayer(
     ...(overlay.shirtNumber !== undefined
       ? { shirtNumber: overlay.shirtNumber }
       : {}),
+    ...(overlay.photoUrl !== undefined ? { photoUrl: overlay.photoUrl } : {}),
+    ...(overlay.photoSource !== undefined
+      ? { photoSource: overlay.photoSource }
+      : overlay.photoUrl !== undefined
+        ? { photoSource: "curated" as const }
+        : {}),
   };
 }
 

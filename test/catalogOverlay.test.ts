@@ -55,6 +55,57 @@ describe("overlayRawExportOnCatalog", () => {
     expect(pele.positionSource).toBe("api");
   });
 
+  it("patches curated photoUrl by name", () => {
+    const base = normalizeCatalog({
+      scenarios: [
+        {
+          id: "brazil-1970",
+          team: "Brazil",
+          cup: 1970,
+          players: [
+            {
+              id: "br70-pele",
+              name: "Pelé",
+              naturalPosition: "ST",
+              force: 200,
+              overall: 72,
+            },
+          ],
+        },
+      ],
+    });
+
+    const { catalog, patched } = overlayRawExportOnCatalog(base, [
+      {
+        scenarios: [
+          {
+            id: "brazil-1970",
+            team: "Brazil",
+            cup: 1970,
+            players: [
+              {
+                id: "curated-pele",
+                name: "Pelé",
+                naturalPosition: "ST",
+                positions: ["ST", "CF", "CAM"],
+                positionSource: "api",
+                overall: 99,
+                force: 245,
+                photoUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Pele.jpg?width=128",
+                photoSource: "curated",
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    expect(patched).toBe(1);
+    const pele = catalog.players["br70-pele"]!;
+    expect(pele.photoUrl).toContain("Pele.jpg");
+    expect(pele.photoSource).toBe("curated");
+  });
+
   it("matches Fjelstul names with not applicable prefix", () => {
     const base = normalizeCatalog({
       scenarios: [
