@@ -23,32 +23,31 @@ import {
   playerOverall,
   rerollScenario,
   selectPlayer,
+  type BuildAction,
   type BuildState,
   type PlayerCard,
   type SquadCatalog,
-  type Tactic,
   type TeamStrength,
 } from "7a0-engine";
 import { Pitch } from "./Pitch";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { STRINGS as S } from "../_data/strings";
 
-const TACTICS: readonly Tactic[] = ["offensive", "balanced", "defensive"];
+const BUILD_TACTIC = "balanced" as const;
 
 export function BuildPanel({
   catalog,
   awayStrength,
   buildState,
   onBuildState,
-  tactic,
-  onTactic,
+  onAction,
 }: {
   catalog: SquadCatalog;
   awayStrength: TeamStrength;
   buildState: BuildState;
   onBuildState: (s: BuildState) => void;
-  tactic: Tactic;
-  onTactic: (t: Tactic) => void;
+  /** Optional: records each draft action (online duel server-replay log). */
+  onAction?: (action: BuildAction) => void;
 }) {
   const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null);
   const [highlightSlotId, setHighlightSlotId] = useState<string | undefined>();
@@ -59,7 +58,7 @@ export function BuildPanel({
     ? buildStateToTeamStrength(catalog, buildState)
     : partialBuildToTeamStrength(catalog, buildState);
   const homeEff = homeBase
-    ? effectiveStrength(homeBase, { chemistryPct: chem, tactic })
+    ? effectiveStrength(homeBase, { chemistryPct: chem, tactic: BUILD_TACTIC })
     : null;
   const lambdaHome =
     homeEff != null
@@ -93,6 +92,7 @@ export function BuildPanel({
   function onSelect(slotId: string, playerId: string) {
     try {
       onBuildState(selectPlayer(catalog, buildState, slotId, playerId));
+      onAction?.({ type: "pick", slotId, playerId });
       setPendingPlayerId(null);
       setHighlightSlotId(undefined);
     } catch {
@@ -103,6 +103,7 @@ export function BuildPanel({
   function onReroll(mode: "full" | "year") {
     try {
       onBuildState(rerollScenario(catalog, buildState, mode));
+      onAction?.({ type: "reroll", mode });
       setPendingPlayerId(null);
       setHighlightSlotId(undefined);
     } catch {
@@ -193,22 +194,6 @@ export function BuildPanel({
           )}
 
           <div className="build__meta">
-            <div className="build__tactic">
-              <span className="label">{S.build.tactic}</span>
-              <div className="seg seg--wide" role="group" aria-label={S.build.tactic}>
-                {TACTICS.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    aria-pressed={tactic === t}
-                    onClick={() => onTactic(t)}
-                  >
-                    {S.build[t]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="build__chem">
               <div className="build__chem-head">
                 <span className="label">{S.build.chemistry}</span>

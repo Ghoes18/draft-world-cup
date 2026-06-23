@@ -290,18 +290,18 @@ LOBBY → DRAW → BUILD (timer) → READY → SIMULATE (server) → REVEAL → 
 
 ### 9.5 Real-time architecture (proposed)
 
-Leverage a managed real-time + Postgres + serverless stack (aligns with a **Supabase** setup):
+Leverage a managed real-time + serverless stack (**Convex**):
 
-- **Real-time layer** — per-room **channel** using **broadcast** (state sync) + **presence** (who's connected/ready). Room state is small and short-lived.
-- **Authoritative simulation** — a server function (**Edge Function** / server route) receives confirmed lineups, generates the **official seed**, runs the engine, builds the timeline, and returns the **canonical, immutable payload**. The client only presents it.
-- **Persistence (Postgres)** — rooms, participants, match state, timelines, results, ELO, history.
+- **Real-time layer** — per-room state via **Convex queries** (reactive sync) + presence fields on `room_players` (connected / building / ready / disconnected). Room state is small and short-lived.
+- **Authoritative simulation** — a **Convex mutation or action** receives confirmed lineups, generates the **official seed**, runs the engine, builds the timeline, and writes the **canonical, immutable payload**. The client only presents it.
+- **Persistence (Convex database)** — rooms, participants, match state, timelines, results, ELO, history.
 - **Auth** — existing *better-auth*, required for ranked play.
 - **Reuse** — `/api/match/record` (results), `/api/metric` (telemetry), `/api/shorten` (invites).
 
 ```
-Client A ─┐                          ┌─ Realtime channel (broadcast + presence) ─┐
-          ├─ confirm lineup ─→  Edge Function (engine + timeline, server seed) ──┤→ canonical timeline → both clients present
-Client B ─┘                          └─ Postgres (rooms, matches, results, ELO) ─┘
+Client A ─┐                          ┌─ Convex (queries + subscriptions) ─┐
+          ├─ confirm lineup ─→  Convex mutation/action (engine + timeline, server seed) ──┤→ canonical timeline → both clients present
+Client B ─┘                          └─ Convex tables (rooms, matches, results, ELO) ─┘
 ```
 
 ### 9.6 Decoupled presentation online

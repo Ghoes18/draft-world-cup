@@ -744,12 +744,6 @@ button:focus-visible {
   border-top: 1px solid var(--line);
 }
 
-.build__tactic {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
 .build__chem-head {
   display: flex;
   align-items: baseline;

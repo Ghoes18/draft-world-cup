@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "tournament": {
+    "year": 1966,
+    "champion": "England",
+    "runnerUp": "West Germany"
+  },
+  "teams": [
+    {
+      "name": "Argentina",
+      "finalPosition": 6,
+      "roster": [
+        { "jersey": 1, "name": "Antonio Roma", "position": "GK", "starter": true, "goals": 0 },
+        { "jersey": 10, "name": "Antonio Rattín", "position": "MF", "captain": true, "starter": true, "goals": 0 },
+        { "jersey": 19, "name": "Luis Artime", "position": "FW", "starter": true, "goals": 3 },
+        { "jersey": 20, "name": "Ermindo Onega", "position": "FW", "starter": true, "goals": 1 },
+        { "jersey": 7, "name": "Silvio Marzolini", "position": "DF", "starter": true, "goals": 0 },
+        { "jersey": 4, "name": "Roberto Perfumo", "position": "DF", "starter": true, "goals": 0 },
+        { "jersey": 22, "name": "Aníbal Tarabini", "position": "FW", "starter": false, "goals": 0 }
+      ]
+    }
+  ]
+}

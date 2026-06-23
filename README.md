@@ -112,7 +112,7 @@ The production app is **Next.js (App Router)**, auth via **better-auth**, i18n *
 - `/api/metric` — telemetry
 - `/api/auth` — sessions
 
-For online (M4) and daily (M6): **Supabase** Realtime + server route/Edge Function for authoritative engine + timeline (see MVP §4.2, PRD §9.5).
+For online (M4) and daily (M6): **Convex** — reactive queries/subscriptions for rooms and presence, plus mutations/actions for authoritative engine + timeline (see MVP §4.2, PRD §9.5).
 
 ## Calibration
 

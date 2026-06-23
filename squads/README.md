@@ -2,7 +2,7 @@
 
 **7a0 is design inspiration** — this project builds its own catalog. No external 7a0 app to fetch from.
 
-## Pipeline (precedence: heuristic < external CSV < curated JSON)
+## Pipeline (precedence: heuristic < Zafronix < external CSV < curated JSON)
 
 ```bash
 cd /Users/goncaloguimaraes/Desktop/programming/draft-world-cup
@@ -10,10 +10,14 @@ cd /Users/goncaloguimaraes/Desktop/programming/draft-world-cup
 # 1. Full roster — career heuristic overall for all ~10k players
 pnpm build:catalog
 
-# 2. Optional — overlay external CSV ratings (below curated)
+# 2. Optional — enrich pre-1970 squads (Fjelstul has no appearances before 1970)
+# Requires ZAFRONIX_API_KEY — https://api.zafronix.com/signup
+pnpm import:zafronix --from 1930 --to 1969 --overlay ./data/catalog.json
+
+# 3. Optional — overlay external CSV ratings (below curated)
 pnpm import:external --csv ./data/external-ratings.csv --overlay ./data/catalog.json
 
-# 3. Curated squads — positions + tuned overall (photos: legends only, see src/legends.ts)
+# 4. Curated squads — positions + tuned overall (photos: legends only, see src/legends.ts)
 pnpm import:squads --dir ./squads/curated --overlay ./data/catalog.json
 ```
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, Hanken_Grotesk, Martian_Mono } from "next/font/google";
 import "./globals.css";
+import { ConvexClientProvider } from "./_components/ConvexClientProvider";
 
 const display = Archivo({
   subsets: ["latin"],
@@ -37,7 +38,9 @@ export default function RootLayout({
       className={`${display.variable} ${body.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <ConvexClientProvider>{children}</ConvexClientProvider>
+      </body>
     </html>
   );
 }

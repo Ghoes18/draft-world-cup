@@ -82,7 +82,7 @@ Public export (`src/index.ts`) = engine + timeline + Fast text only (server-safe
 - **Result:** winner + side-by-side comparison + **rematch** (new draw, same players).
 - **Win rule (MVP default):** the two XIs **face each other head-to-head** in a single match (recommended as the most intuitive "duel"); tie → penalties.
 - **Robustness (MVP-level):** basic **reconnect** to an in-progress match within a short window; **AFK/abandon** → opponent awarded the win. (No ELO in MVP.)
-- **Realtime:** managed channel for broadcast + presence (e.g., Supabase Realtime); authoritative sim in a server/Edge Function; Postgres for rooms/matches/results.
+- **Realtime:** **Convex** reactive queries/subscriptions for room state and presence; authoritative sim in a **mutation or action**; Convex tables for rooms/matches/results.
 
 ### 4.3 Shareable highlights
 

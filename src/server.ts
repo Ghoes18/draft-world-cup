@@ -6,3 +6,5 @@
 
 export * from "./catalog/csv.js";
 export * from "./catalog/fjelstulImport.js";
+export * from "./catalog/zafronixClient.js";
+export * from "./catalog/zafronixImport.js";

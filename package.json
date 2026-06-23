@@ -7,19 +7,21 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./server": "./src/server.ts"
+    "./server": "./src/server.ts",
+    "./dist": "./dist/index.js"
   },
   "scripts": {
     "sim": "tsx src/cli/simulate.ts",
     "import:squads": "tsx src/cli/import-squads.ts",
     "import:external": "tsx src/cli/import-external.ts",
+    "import:zafronix": "tsx src/cli/import-zafronix.ts",
     "import:photos": "tsx src/cli/import-photos.ts",
     "fetch:squads": "tsx src/cli/fetch-squads.ts",
     "build:catalog": "tsx src/cli/build-catalog.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

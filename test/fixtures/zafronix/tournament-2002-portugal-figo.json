@@ -1,0 +1,21 @@
+{
+  "tournament": {
+    "year": 2002,
+    "champion": "Brazil",
+    "runnerUp": "Germany"
+  },
+  "teams": [
+    {
+      "name": "Portugal",
+      "finalPosition": 14,
+      "squad": [
+        {
+          "jersey": 7,
+          "name": "Luís Figo",
+          "position": "MF",
+          "goals": 0
+        }
+      ]
+    }
+  ]
+}

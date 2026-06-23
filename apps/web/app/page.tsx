@@ -17,7 +17,6 @@ import {
   type BuildState,
   type FormationDefinition,
   type MatchTimeline,
-  type Tactic,
 } from "7a0-engine";
 import { MatchView } from "./_components/MatchView";
 import { BuildPanel } from "./_components/BuildPanel";
@@ -54,7 +53,6 @@ export default function Page() {
     null,
   );
   const [timeline, setTimeline] = useState<MatchTimeline | null>(null);
-  const [tactic, setTactic] = useState<Tactic>("balanced");
 
   const opponentScenario = useMemo(() => {
     if (!seed || !catalog) return null;
@@ -90,7 +88,6 @@ export default function Page() {
     setBuildState(null);
     setOpponentScenarioId(null);
     setTimeline(null);
-    setTactic("balanced");
   }
 
   function onConfirmFormation() {
@@ -142,7 +139,7 @@ export default function Page() {
       : getScenario(catalog, filled.currentScenarioId);
 
     const result = simulateMatch({
-      home: effectiveStrength(homeBase, { chemistryPct: chem, tactic }),
+      home: effectiveStrength(homeBase, { chemistryPct: chem, tactic: "balanced" }),
       away: effectiveStrength(awayBase, { chemistryPct: 50, tactic: "balanced" }),
       seed,
       knockout: false,
@@ -238,8 +235,6 @@ export default function Page() {
           awayStrength={awayStrength}
           buildState={buildState}
           onBuildState={setBuildState}
-          tactic={tactic}
-          onTactic={setTactic}
         />
       )}
 

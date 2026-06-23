@@ -33,7 +33,7 @@ When MVP.md and PRD.md disagree, **MVP.md wins**.
 - **Live physics / player AI** simulation that decides goals during play (FIFA-style). Rejected — use engine → timeline → presentation only.
 - **Animated match views** (2D, 3D, canvas, video). Presentation is text-only.
 - **Vite / browser demo harness** — removed; do not reintroduce unless product asks.
-- **Convex** — not used here; proposed backend for online is Supabase per MVP/PRD.
+- **Convex** — planned backend for online (M4) and daily (M6); not wired in this repo yet (MVP §4.2, PRD §9.5).
 - **Client-side authoritative** simulation for competitive modes.
 
 ## The central architecture decision
@@ -102,7 +102,7 @@ Live game: **Next.js (App Router)**, **better-auth**, i18n **PT / EN / ES**. Reu
 
 - `/api/match/record`, `/api/shorten`, `/api/metric`, `/api/auth`
 
-Proposed realtime (MVP §4.2 / PRD §9.5): **Supabase** — Realtime channels, server route for engine+timeline, Postgres. Data sketches: MVP §5, PRD §11.
+Proposed realtime (MVP §4.2 / PRD §9.5): **Convex** — reactive queries/subscriptions for rooms and match state, mutations/actions for engine+timeline. Data sketches: MVP §5, PRD §11.
 
 ## MVP build order
 

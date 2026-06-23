@@ -29,6 +29,9 @@ coverage/
 # Downloaded Fjelstul CSV cache (see data/fjelstul/ATTRIBUTION.md)
 data/fjelstul/*.csv
 
+# Zafronix API response cache (see import:zafronix)
+data/zafronix/
+
 # Generated full catalog (run pnpm build:catalog)
 data/catalog.json
 apps/web/public/catalog.json

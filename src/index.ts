@@ -33,6 +33,7 @@ export * from "./playerRating.js";
 export * from "./playerPositions.js";
 export * from "./lineupStrength.js";
 export * from "./roll.js";
+export * from "./online.js";
 export * from "./playerPhoto.js";
 export * from "./playerNames.js";
 export {
