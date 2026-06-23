@@ -19,6 +19,7 @@ export const STRINGS = {
     heading: "Pick your formation",
     hint: "Five shapes on offer — like FIFA Draft. Your choice locks in for this run.",
     confirm: "Start draft",
+    drawing: "Drawing…",
     mentality: {
       defensive: "Defensive",
       balanced: "Balanced",

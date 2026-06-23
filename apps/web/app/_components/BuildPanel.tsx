@@ -4,7 +4,7 @@
  * BuildPanel — draft HUD + squad pool (left) and live formation pitch (right).
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   buildChemistryPercent,
   buildStateToTeamStrength,
@@ -27,11 +27,21 @@ import {
   type BuildState,
   type PlayerCard,
   type SquadCatalog,
+  type SquadScenario,
   type TeamStrength,
 } from "7a0-engine";
+import { useCasinoRoulette } from "../_hooks/useCasinoRoulette";
 import { Pitch } from "./Pitch";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { STRINGS as S } from "../_data/strings";
+
+function scenarioLabel(team: string, cup: number): string {
+  return `${team} · ’${String(cup).slice(-2)}`;
+}
+
+function scenarioId(s: SquadScenario): string {
+  return s.id;
+}
 
 const BUILD_TACTIC = "balanced" as const;
 
@@ -71,8 +81,23 @@ export function BuildPanel({
 
   const currentScenario = getScenario(catalog, buildState.currentScenarioId);
   const formationLabel = getFormation(buildState.formationId).label;
-  const scenarioLabel = `${currentScenario.team} · ${currentScenario.cup}`;
-  const squadPool = complete ? [] : currentSquadPlayers(catalog, buildState);
+  const scenarioSpinKey = `${buildState.turnIndex}:${buildState.rerollCounter}:${buildState.currentScenarioId}`;
+  const scenarioPool = useMemo(() => catalog.scenarios, [catalog.scenarios]);
+
+  const { display: displayScenario, spinning: scenarioSpinning } = useCasinoRoulette({
+    pool: scenarioPool,
+    target: currentScenario,
+    spinKey: scenarioSpinKey,
+    getId: scenarioId,
+    durationMs: 2200,
+  });
+
+  const displayBuildState = useMemo(() => ({
+    ...buildState,
+    currentScenarioId: displayScenario.id
+  }), [buildState, displayScenario.id]);
+
+  const squadPool = complete ? [] : currentSquadPlayers(catalog, displayBuildState);
   const squadSize = currentSquadPlayers(catalog, buildState).length;
   const rerollsLeft = buildState.globalRerollsRemaining;
   const turnIndex = buildState.turnIndex;
@@ -149,14 +174,18 @@ export function BuildPanel({
             <>
               <DraftProgress turnIndex={turnIndex} filledSlots={filledSlots} />
 
-              <div className="draft-roll">
+              <div className={`draft-roll${scenarioSpinning ? " draft-roll--spinning" : ""}`}>
                 <div className="draft-roll__meta">
                   <span className="label">{S.build.currentRoll}</span>
                   <span className="draft-roll__turn mono">
                     {S.build.turn(`${turnIndex + 1} / 11`)}
                   </span>
                 </div>
-                <p className="draft-roll__team">{scenarioLabel}</p>
+                <div className="draft-roll__team">
+                  <span className="draft-roll__team-line">
+                    {scenarioLabel(displayScenario.team, displayScenario.cup)}
+                  </span>
+                </div>
                 <div className="draft-roll__facts mono dim">
                   <span>{S.build.squadSize(squadSize)}</span>
                   <span className="draft-roll__dot" aria-hidden>
@@ -174,7 +203,7 @@ export function BuildPanel({
                   <button
                     type="button"
                     className="draft-roll__btn"
-                    disabled={rerollsLeft <= 0}
+                    disabled={rerollsLeft <= 0 || scenarioSpinning}
                     onClick={() => onReroll("full")}
                   >
                     {S.build.rerollSelection}
@@ -182,7 +211,7 @@ export function BuildPanel({
                   <button
                     type="button"
                     className="draft-roll__btn"
-                    disabled={rerollsLeft <= 0}
+                    disabled={rerollsLeft <= 0 || scenarioSpinning}
                     onClick={() => onReroll("year")}
                   >
                     {S.build.rerollYear}
@@ -229,7 +258,7 @@ export function BuildPanel({
           </div>
 
           {!complete && squadPool.length > 0 && (
-            <div className="draft-pool">
+            <div className={`draft-pool${scenarioSpinning ? " draft-pool--spinning" : ""}`}>
               <div className="draft-pool__head">
                 <span className="label">
                   {pendingPickable && pendingPlayer
