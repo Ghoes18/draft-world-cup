@@ -8,19 +8,19 @@ Ship the **smallest version worth launching**: a readable **text simulation** (l
 
 ### 2.1 In scope (MVP)
 
-1. **Simulation** — the existing Poisson engine + an **event timeline** + two speed tiers (Fast text, Ultra Fast instant). Reused everywhere.
-2. **Text presentation only** — minute-by-minute ticker (Fast) and instant result (Ultra Fast); no animated match view.
-3. **Online (1v1 Duel)** — server-authoritative, room by **code**, synced build, simultaneous reveal, rematch.
-4. **Shareable highlights** — a link that **replays the goals** as text commentary (seed + lineups + tactics encoded; shortened via `/api/shorten`).
-5. **Match statistics** — possession, shots, on-target, corners, penalties, xG, passes.
-6. **Squad chemistry** — a lineup bonus/penalty that nudges team strength.
-7. **Tactical choice** — Offensive / Balanced / Defensive, biasing the goal model.
-8. **Daily challenge** — one shared daily scenario; compare and share results.
+1. ✅ **Simulation** — the existing Poisson engine + an **event timeline** + two speed tiers (Fast text, Ultra Fast instant). Reused everywhere. *(M1)*
+2. ✅ **Text presentation only** — minute-by-minute ticker (Fast) and instant result (Ultra Fast); no animated match view. *(M1 — `apps/web`)*
+3. ✅ **Online (World Cup Tournament)** — server-authoritative, untimed solo draft → join a pool of 8 → the moment the pool fills (or a stalled pool times out and is topped up with CPU bots drafted from real historical squads), the server resolves 2 round-robin groups → semifinals → final in one mutation. *(M4 — Convex backend + `/duel` UI)*
+4. ⏳ **Shareable highlights** — a link that **replays the goals** as text commentary (seed + lineups + tactics encoded; shortened via `/api/shorten`). *(M5)*
+5. ✅ **Match statistics** — possession, shots, on-target, corners, penalties, xG, passes. *(M3)*
+6. ✅ **Squad chemistry** — a lineup bonus/penalty that nudges team strength. *(M2)*
+7. ✅ **Tactical choice** — Offensive / Balanced / Defensive, biasing the goal model. *(M2)*
+8. ⏳ **Daily challenge** — one shared daily scenario; compare and share results. *(M6)*
 
 ### 2.2 Out of scope (post-MVP)
 
 - **Animated match views** (2D, 3D, or video/GIF export of highlights).
-- Online **matchmaking, ELO/ranking, leaderboards** (beyond the daily leaderboard), online **Final** and **Knockout brackets**.
+- **ELO/ranking, persistent leaderboards** (beyond the daily leaderboard), seeded/skill-based matchmaking. *(The 8-player World Cup tournament — random pool, group stage → semis → final — shipped ahead of schedule in M4; only ranked matchmaking remains deferred.)*
 - Emotes, leagues/seasons, spectators, native apps, monetisation.
 - Advanced reconnection (basic only in MVP).
 
@@ -49,10 +49,13 @@ Reuse existing routes: `/api/match/record` (results), `/api/shorten` (highlight/
 | Engine | ✅ M1 | `src/engine.ts`, `src/poisson.ts`, `src/rng.ts`, `src/constants.ts` |
 | Timeline | ✅ M1 | `src/timeline/`, `src/types.ts` |
 | Fast text | ✅ M1 | `src/consumers/fastText.ts`, `src/cli/simulate.ts` (`pnpm sim`) |
-| Chemistry / tactics UI | ⏳ M2 | Engine API ready; Build screen in main app |
-| Stats, online, highlights, daily | ⏳ M3–M6 | Specs below; not started in this package |
+| Chemistry + tactics | ✅ M2 | `src/chemistry.ts`, `src/strength.ts`; Build panel + formation picker in `apps/web` |
+| Match statistics | ✅ M3 | `src/consumers/stats.ts`; `StatsPanel` in `apps/web` |
+| Online World Cup tournament | ✅ M4 | `apps/web/convex/tournament.ts`, `apps/web/app/duel/`; `src/online.ts` (replay validation + `resolveDuel`) |
+| Shareable highlights | ⏳ M5 | Spec §4.3; `/api/shorten` in main app (not wired here) |
+| Daily challenge | ⏳ M6 | Spec §4.7; not started |
 
-Public export (`src/index.ts`) = engine + timeline + Fast text only (server-safe bundle).
+Public export (`src/index.ts`) = engine + timeline + Fast text + stats + chemistry/tactics + online replay helpers (server-safe bundle).
 
 ---
 
@@ -67,22 +70,22 @@ Public export (`src/index.ts`) = engine + timeline + Fast text only (server-safe
   - **Ultra Fast** — **instant** final score + badges (today's 7a0 behaviour).
 - The speed tier is a **persisted preference**; switching mid-match never changes the outcome.
 
-### 4.2 Online (1v1 Duel)
+### 4.2 Online (World Cup Tournament)
 
-- **Server authority (mandatory):** the **server** picks scenario + seed, validates lineups, runs the engine, builds the canonical timeline. The client only presents the result. No client-decided outcomes.
-- **Flow / state machine:** 
+- **Server authority (mandatory):** the **server** owns every match seed, validates each player's submitted draft (action-log replay, same anti-cheat as solo), runs the engine, builds every canonical timeline. The client only presents what it reads back. No client-decided outcomes.
+- **Flow / state machine:**
   ```
-  LOBBY → DRAW → BUILD (timer) → READY → SIMULATE (server) → REVEAL → RESULT → (REMATCH → DRAW | END)
-
+  BUILD (untimed, solo) → JOIN POOL → [pool fills to 8, or stalls and is bot-filled] →
+  RESOLVE (server: groups → semis → final, one mutation) → REVEAL (bracket + standings) → (SEARCH AGAIN → BUILD)
   ```
-- **Rooms:** create → short **code** + **invite link**; join by code/link; lobby shows **presence** (connected / building / ready / disconnected).
-- **DRAW (scenario roll):** server picks one *(team, Cup)* + seed; both players build from eligible squads for that scenario (online duel) or each receives their own scenario (solo).
-- **Build:** synchronised timer; **slot rolls and rerolls validated server-side**; incomplete XI at timer end → neutral auto-fill (MVP rule).
-- **Reveal:** both players see the **same** canonical result; each may read it in Fast or Ultra Fast.
-- **Result:** winner + side-by-side comparison + **rematch** (new draw, same players).
-- **Win rule (MVP default):** the two XIs **face each other head-to-head** in a single match (recommended as the most intuitive "duel"); tie → penalties.
-- **Robustness (MVP-level):** basic **reconnect** to an in-progress match within a short window; **AFK/abandon** → opponent awarded the win. (No ELO in MVP.)
-- **Realtime:** **Convex** reactive queries/subscriptions for room state and presence; authoritative sim in a **mutation or action**; Convex tables for rooms/matches/results.
+- **Pool:** no rooms or codes — a player drafts solo and joins a shared pool. The instant the pool reaches **8 players**, the tournament resolves; while waiting, the client shows live "x / 8 players" fill progress.
+- **Format:** **2 round-robin groups of 4** (6 fixtures each, 3/1/0 points, tiebreak by goal difference then goals scored) → top 2 per group advance → **semifinals** (cross-bracket: Group A 1st vs Group B 2nd, and vice versa) → **final**. No third-place playoff.
+- **Resolution model:** **instant/batch** — all 15 fixtures (12 group + 2 semi + 1 final) are simulated and stored in one mutation the moment the pool is ready. No live timers, no per-match presence.
+- **Draws:** group-stage fixtures allow a draw (`resolveDuel(..., knockout: false)`); semifinals and the final never do — a tie goes to penalties (`knockout: true`), same rule as solo knockout matches.
+- **Stalled-pool handling:** if the pool doesn't fill within the timeout window, remaining seats are auto-filled with **CPU bots drafted from real historical squads already in the catalog** (e.g. Portugal 2006, Spain 2010 — not generic neutral-strength fillers), using the same `autoFillLineup` + scenario draft the solo campaign's CPU opponent already uses.
+- **Reveal:** every player reactively sees the same group standings, their own group fixtures (each playable as a full Fast/Ultra Fast timeline), the bracket, and the champion — all derived from the one canonical resolution.
+- **Result:** "Search again with a new squad" returns to a fresh, untimed draft and rejoins the pool. Tournaments are immutable history, not a rematchable room.
+- **Realtime:** **Convex** reactive queries for pool fill progress and tournament state; the resolution itself runs in a **mutation** (`startTournament`, triggered by `joinQueue` or the scheduled bot-fill backstop `tryStartTournament`); Convex tables for `queue`/`tournaments`/`participants`/`matches`.
 
 ### 4.3 Shareable highlights
 
@@ -151,12 +154,10 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 
 | Table             | Key fields                                                                    |
 | ----------------- | ----------------------------------------------------------------------------- |
-| `rooms`           | id, code, status, host_id, rules(json), created_at                            |
-| `room_players`    | room_id, user_id, presence, ready, joined_at                                  |
-| `matches`         | id, room_id?, kind('online'|'daily'|'solo'), seed, scenario(team,cup), status |
-| `match_lineups`   | match_id, user_id, lineup(json), tactic, chemistry_pct, confirmed_at          |
-| `match_timelines` | match_id, timeline(json), duration_ms                                         |
-| `match_results`   | match_id, user_id, gf, ga, stats(json), badges(json), outcome                 |
+| `queue`           | player_id, name, seed, formation_id, tactic, actions(json), joined_at, last_seen, tournament_id? |
+| `tournaments`      | id, seed, created_at, champion_slot                                          |
+| `participants`     | tournament_id, slot(0-7), group_index(0/1), kind('human'|'cpu'), player_id?, name, scenario_id? |
+| `matches`          | id, tournament_id, stage('group'|'semi'|'final'), group_index?, home_slot, away_slot, seed, timeline(json), gf, ga, winner_slot? |
 | `daily`           | date, seed, scenario(team,cup)                                                |
 
 
@@ -165,22 +166,22 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 ## 6. Build order (milestones)
 
 1. ~~**M1 — Server-authoritative engine + timeline generator** (pure functions; verify via `pnpm sim` / Fast text). *Foundation for online + daily.*~~ ✅
-2. **M2 — Chemistry + Tactics** wired into the engine and surfaced in Build (live chemistry meter, tactic picker).
-3. **M3 — Match statistics** screen (derived from timeline).
-4. **M4 — Online 1v1 Duel** (rooms by code, synced build, server sim, reveal, rematch, basic reconnect/AFK).
-5. **M5 — Shareable highlights** (text goal replay link + share card).
-6. **M6 — Daily challenge** (daily seed, one attempt, simple leaderboard, share).
+2. ~~**M2 — Chemistry + Tactics** wired into the engine and surfaced in Build (live chemistry meter, tactic picker).~~ ✅
+3. ~~**M3 — Match statistics** screen (derived from timeline).~~ ✅
+4. **M4 — Online World Cup Tournament** (untimed solo draft, 8-player pool, instant batch resolution of 2 groups → semis → final, CPU bot-fill on a stalled pool). ✅ *Convex + `/duel` implemented.*
+5. **M5 — Shareable highlights** (text goal replay link + share card). ⏳
+6. **M6 — Daily challenge** (daily seed, one attempt, simple leaderboard, share). ⏳
 
 ---
 
 ## 7. Definition of done (acceptance)
 
-- A solo match can be read in **Fast** or resolved in **Ultra Fast**, all from one timeline, with **skip** working in Fast.
-- **Chemistry** and **tactics** measurably change λ and the result, and are visible in Build and stats.
-- Two players on **different devices** complete an **online duel** by code, see the **same** result simultaneously, and can **rematch**; outcome is **server-decided**.
-- A finished match produces a **working highlight link** (replays goals as text, previews with a share card) and a **stats** breakdown.
-- The **daily challenge** gives everyone the same scenario and records a comparable result.
-- **Fast text** and **Ultra Fast** are always available on all devices.
+- ✅ A solo match can be read in **Fast** or resolved in **Ultra Fast**, all from one timeline, with **skip** working in Fast.
+- ✅ **Chemistry** and **tactics** measurably change λ and the result, and are visible in Build and stats.
+- ✅ Up to 8 players on **different devices** join the pool, see the **same** server-resolved group standings, bracket, and champion the instant the tournament resolves, and can **search again with a new squad**; outcome is fully **server-decided**.
+- ⏳ A finished match produces a **working highlight link** (replays goals as text, previews with a share card) and a **stats** breakdown. *(Stats ✅; highlight link ⏳ M5.)*
+- ⏳ The **daily challenge** gives everyone the same scenario and records a comparable result.
+- ✅ **Fast text** and **Ultra Fast** are always available on all devices.
 
 ---
 
@@ -189,7 +190,7 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 
 | Metric                                          | Target   |
 | ----------------------------------------------- | -------- |
-| Online duel completion (no abandon)             | ≥ 85%    |
+| World Cup pools that fill with 8 humans (vs. bot-filled) | ≥ 50%    |
 | Fast-mode adoption (matches read as ticker)     | ≥ 40%    |
 | Highlight share rate (matches → links created)  | ≥ 15%    |
 | Daily challenge participation (DAU who play it) | ≥ 25%    |
@@ -200,9 +201,10 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 
 ## 9. Open decisions (MVP)
 
-1. **Online win rule:** head-to-head (recommended) vs same-scenario comparison.
-2. **Tie-break:** penalties (recommended) vs higher band.
-3. **Incomplete XI at timer end:** neutral auto-fill (recommended) vs penalty.
+1. **Group-stage tiebreak beyond goal difference/goals scored:** head-to-head result vs straight alphabetical/slot order (only matters at this small 4-team scale).
+2. **Tie-break (knockout):** penalties (recommended, implemented) vs higher band.
+3. **Incomplete XI at draft end:** neutral auto-fill (recommended, implemented) vs penalty.
 4. **Tactic δ** value and **chemistry range** (±3) — calibrate via playtests.
 5. **Daily attempts:** strictly one official attempt vs best-of-N.
-6. **Build timer** length (≈ 60–120 s).
+6. **Pool fill timeout** before CPU bot-fill kicks in (currently 60s) — calibrate against real queue traffic.
+7. **CPU bot squad variety:** demo catalog now has 8 historical scenarios (enough for a 1-human/7-bot tournament without repeats); revisit if pool sizes grow.

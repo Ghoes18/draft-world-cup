@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
   demoCatalog,
-  getFormation,
+  drawFormationOptions,
   initBuildState,
+  isLineupComplete,
   type BuildAction,
   type BuildState,
   type FormationDefinition,
   type MatchTimeline,
-  type Side,
   type TeamStrength,
 } from "7a0-engine";
 import type { FunctionReturnType } from "convex/server";
@@ -18,68 +18,118 @@ import { api } from "../../convex/_generated/api";
 import { BuildPanel } from "../_components/BuildPanel";
 import { FormationPicker } from "../_components/FormationPicker";
 import { MatchView } from "../_components/MatchView";
-import { ResultCard } from "../_components/ResultCard";
 import { StatsPanel } from "../_components/StatsPanel";
 import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
 import { usePlayerId } from "../_hooks/usePlayerId";
 
-/** The duel is played on the engine's demo catalog — identical to the server's
- * `duelCatalog`, so the shared draft seed rolls the same scenarios on both. */
+/** The tournament is played on the engine's demo catalog — identical to the
+ * server's `duelCatalog`, so a replayed action log rolls the same scenarios
+ * on both sides. */
 const CATALOG = demoCatalog;
 const NEUTRAL_AWAY: TeamStrength = { attack: 78, defense: 78, overall: 78 };
 
-type RoomPlayer = {
-  playerId: string;
-  name: string;
-  seat: string;
-  presence: string;
-  confirmed: boolean;
-  lastSeen: number;
-};
+function newSeed(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID().slice(0, 12);
+  }
+  return `duel-${Date.now()}`;
+}
 
-type RoomState = NonNullable<FunctionReturnType<typeof api.duel.roomState>> & {
-  players: RoomPlayer[];
-};
+type Phase = "build" | "searching" | "reveal";
 
-function useRoom(code: string | null) {
-  return useQuery(api.duel.roomState, code ? { code } : "skip");
+type TournamentState = NonNullable<FunctionReturnType<typeof api.tournament.tournamentState>>;
+
+/** Draft state lives here (not inside BuildStep) so it survives a "Cancel"
+ * round-trip through `searching` — only an explicit reroll or "Search again"
+ * should ever discard an in-progress squad. */
+function useDraftState() {
+  const [seed, setSeedState] = useState<string>(() => newSeed());
+  const [formationOptions, setFormationOptions] = useState<FormationDefinition[]>(
+    () => drawFormationOptions(seed, 5),
+  );
+  const [pendingFormationId, setPendingFormationId] = useState<string | null>(null);
+  const [formationId, setFormationId] = useState<string | null>(null);
+  const [buildState, setBuildState] = useState<BuildState | null>(null);
+  const actionsRef = useRef<BuildAction[]>([]);
+
+  function reset() {
+    const next = newSeed();
+    setSeedState(next);
+    setFormationOptions(drawFormationOptions(next, 5));
+    setPendingFormationId(null);
+    setFormationId(null);
+    setBuildState(null);
+    actionsRef.current = [];
+  }
+
+  function confirmFormation() {
+    if (!pendingFormationId) return;
+    setFormationId(pendingFormationId);
+    setBuildState(initBuildState(CATALOG, seed, "home", undefined, pendingFormationId));
+  }
+
+  return {
+    seed,
+    formationOptions,
+    pendingFormationId,
+    setPendingFormationId,
+    formationId,
+    buildState,
+    setBuildState,
+    actionsRef,
+    reset,
+    confirmFormation,
+  };
 }
 
 export default function DuelPage() {
   const { playerId, name, setName } = usePlayerId();
-  const [code, setCode] = useState<string | null>(null);
-
-  // Pick up ?code= from an invite link on first load.
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const c = url.searchParams.get("code");
-    if (c) setCode(c.toUpperCase());
-  }, []);
-
-  const room = useRoom(code);
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
+
+  const [phase, setPhase] = useState<Phase>("build");
+  const [tournamentId, setTournamentId] = useState<TournamentState["tournamentId"] | null>(null);
+  const draft = useDraftState();
 
   return (
     <main className="shell">
-      <Header meta="Online Duel · 1v1" />
+      <Header meta="Online · World Cup" />
       {!convexReady ? (
         <SetupHint />
       ) : !playerId ? (
         <p className="dim">Loading…</p>
-      ) : !code || room === null ? (
-        <Lobby
+      ) : phase === "build" ? (
+        <BuildStep
+          draft={draft}
           playerId={playerId}
           name={name}
           setName={setName}
-          notFound={code != null && room === null}
-          onEnter={setCode}
+          onQueued={() => setPhase("searching")}
+          onMatched={(id) => {
+            setTournamentId(id);
+            setPhase("reveal");
+          }}
         />
-      ) : room === undefined ? (
-        <p className="dim">Connecting to room {code}…</p>
-      ) : (
-        <Room room={room} playerId={playerId} onLeave={() => setCode(null)} />
-      )}
+      ) : phase === "searching" ? (
+        <SearchingStep
+          playerId={playerId}
+          onMatched={(id) => {
+            setTournamentId(id);
+            setPhase("reveal");
+          }}
+          onCancel={() => setPhase("build")}
+        />
+      ) : tournamentId ? (
+        <RevealStep
+          tournamentId={tournamentId}
+          playerId={playerId}
+          onSearchAgain={() => {
+            draft.reset();
+            setTournamentId(null);
+            setPhase("build");
+          }}
+        />
+      ) : null}
       <Footer />
     </main>
   );
@@ -88,7 +138,7 @@ export default function DuelPage() {
 function SetupHint() {
   return (
     <section className="panel" style={{ padding: "1.5rem" }}>
-      <h2 className="panel__title">Online duel needs Convex</h2>
+      <h2 className="panel__title">Online World Cup needs Convex</h2>
       <p className="dim">
         Run <code>pnpm build</code> (engine) then <code>npx convex dev</code> in{" "}
         <code>apps/web</code>. That writes <code>NEXT_PUBLIC_CONVEX_URL</code> to{" "}
@@ -98,261 +148,76 @@ function SetupHint() {
   );
 }
 
-function Lobby({
+/** Solo, untimed draft — identical UX to the home page's Build flow, but the
+ * action log is recorded (`onAction`) so the server can replay/validate it,
+ * and "Join World Cup" replaces "Simulate" as the terminal action. Draft
+ * state itself lives in the parent (`useDraftState`) so a "Cancel" back out
+ * of `searching` returns here with the same squad, not a fresh one. */
+function BuildStep({
+  draft,
   playerId,
   name,
   setName,
-  notFound,
-  onEnter,
+  onQueued,
+  onMatched,
 }: {
+  draft: ReturnType<typeof useDraftState>;
   playerId: string;
   name: string;
   setName: (n: string) => void;
-  notFound: boolean;
-  onEnter: (code: string) => void;
+  onQueued: () => void;
+  onMatched: (tournamentId: TournamentState["tournamentId"]) => void;
 }) {
-  const createRoom = useMutation(api.duel.createRoom);
-  const joinRoom = useMutation(api.duel.joinRoom);
-  const [joinCode, setJoinCode] = useState("");
+  const joinQueue = useMutation(api.tournament.joinQueue);
+  const { seed, formationOptions, pendingFormationId, setPendingFormationId, formationId, buildState, setBuildState, actionsRef, reset, confirmFormation } = draft;
+
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  async function onCreate() {
-    setError(null);
-    const { code } = await createRoom({ playerId, name });
-    onEnter(code);
-  }
+  const canJoin = buildState !== null && isLineupComplete(buildState);
 
-  async function onJoin() {
+  const onJoinWorldCup = useCallback(async () => {
+    if (!buildState || !formationId || submitting) return;
+    setSubmitting(true);
     setError(null);
-    const c = joinCode.trim().toUpperCase();
-    if (!c) return;
     try {
-      await joinRoom({ code: c, playerId, name });
-      onEnter(c);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not join");
-    }
-  }
-
-  return (
-    <section className="panel" style={{ padding: "1.5rem", display: "grid", gap: "1rem" }}>
-      <div>
-        <span className="label">Your name</span>
-        <input
-          className="seg"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ width: "100%", padding: "0.5rem" }}
-        />
-      </div>
-      {notFound && <p className="draft-roll__rerolls--low">Room not found.</p>}
-      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-        <button className="btn-kick" onClick={onCreate}>
-          Create room
-        </button>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <input
-            className="seg"
-            placeholder="CODE"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            style={{ padding: "0.5rem", textTransform: "uppercase" }}
-          />
-          <button onClick={onJoin}>Join</button>
-        </div>
-      </div>
-      {error && <p className="draft-roll__rerolls--low">{error}</p>}
-    </section>
-  );
-}
-
-function Room({
-  room,
-  playerId,
-  onLeave,
-}: {
-  room: RoomState;
-  playerId: string;
-  onLeave: () => void;
-}) {
-  const setPresence = useMutation(api.duel.setPresence);
-  const me = room.players.find((p: RoomPlayer) => p.playerId === playerId);
-  const mySide = (me?.seat ?? "home") as Side;
-
-  // Heartbeat so the opponent sees presence and disconnects are detectable.
-  useEffect(() => {
-    const tick = () =>
-      setPresence({ roomId: room.roomId, playerId }).catch(() => {});
-    tick();
-    const id = setInterval(tick, 10_000);
-    return () => clearInterval(id);
-  }, [room.roomId, playerId, setPresence]);
-
-  return (
-    <>
-      <PresenceBar room={room} playerId={playerId} onLeave={onLeave} />
-      {room.status === "lobby" && (
-        <LobbyRoom room={room} playerId={playerId} />
-      )}
-      {room.status === "build" && (
-        <BuildPhase room={room} playerId={playerId} mySide={mySide} confirmed={!!me?.confirmed} />
-      )}
-      {(room.status === "reveal" || room.status === "result") && (
-        <RevealPhase room={room} playerId={playerId} mySide={mySide} />
-      )}
-    </>
-  );
-}
-
-function PresenceBar({
-  room,
-  playerId,
-  onLeave,
-}: {
-  room: RoomState;
-  playerId: string;
-  onLeave: () => void;
-}) {
-  const inviteLink =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/duel?code=${room.code}`
-      : "";
-  return (
-    <section className="panel" style={{ padding: "1rem", display: "grid", gap: "0.5rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span className="mono">
-          Room <strong>{room.code}</strong>
-        </span>
-        <button onClick={onLeave}>Leave</button>
-      </div>
-      <ul style={{ display: "flex", gap: "1rem", listStyle: "none", padding: 0, margin: 0 }}>
-        {room.players.map((p: RoomPlayer) => (
-          <li key={p.playerId} className="mono dim">
-            {p.seat === "home" ? "🏠" : "✈️"} {p.name}
-            {p.playerId === playerId ? " (you)" : ""} · {p.presence}
-            {p.confirmed ? " ✓" : ""}
-          </li>
-        ))}
-      </ul>
-      {room.status === "lobby" && (
-        <p className="dim mono" style={{ wordBreak: "break-all" }}>
-          Invite: {inviteLink}
-        </p>
-      )}
-    </section>
-  );
-}
-
-function LobbyRoom({ room, playerId }: { room: RoomState; playerId: string }) {
-  const startDraw = useMutation(api.duel.startDraw);
-  const isHost = room.hostId === playerId;
-  const ready = room.players.length >= 2;
-  return (
-    <section className="hero__cta" style={{ padding: "1.5rem" }}>
-      {isHost ? (
-        <button className="btn-kick" disabled={!ready} onClick={() => startDraw({ roomId: room.roomId, playerId })}>
-          {ready ? "Start draft" : "Waiting for opponent…"}
-        </button>
-      ) : (
-        <p className="dim">Waiting for the host to start…</p>
-      )}
-    </section>
-  );
-}
-
-function BuildPhase({
-  room,
-  playerId,
-  mySide,
-  confirmed,
-}: {
-  room: RoomState;
-  playerId: string;
-  mySide: Side;
-  confirmed: boolean;
-}) {
-  const submitBuild = useMutation(api.duel.submitBuild);
-  const seed = room.seed!;
-  const options: FormationDefinition[] = useMemo(
-    () => (room.formationOptionIds ?? []).map((id) => getFormation(id)),
-    [room.formationOptionIds],
-  );
-
-  const [formationId, setFormationId] = useState<string | null>(null);
-  const [pendingFormationId, setPendingFormationId] = useState<string | null>(null);
-  const [buildState, setBuildState] = useState<BuildState | null>(null);
-  const actionsRef = useRef<BuildAction[]>([]);
-  const submittedRef = useRef(false);
-
-  // Reset everything when a new draw begins (seed changes / rematch).
-  useEffect(() => {
-    setFormationId(null);
-    setPendingFormationId(null);
-    setBuildState(null);
-    actionsRef.current = [];
-    submittedRef.current = false;
-  }, [seed]);
-
-  const confirmBuild = useCallback(
-    (fid: string) => {
-      if (submittedRef.current) return;
-      submittedRef.current = true;
-      submitBuild({
-        roomId: room.roomId,
+      const res = await joinQueue({
         playerId,
-        formationId: fid,
+        name,
+        seed,
+        formationId,
         tactic: "balanced",
         actionsJson: JSON.stringify(actionsRef.current),
-      }).catch(() => {
-        submittedRef.current = false;
       });
-    },
-    [room.roomId, playerId, submitBuild],
-  );
-
-  // Countdown + auto-submit at the deadline (server also backstops via scheduler).
-  const [remaining, setRemaining] = useState<number>(0);
-  useEffect(() => {
-    const tick = () => {
-      const ms = (room.buildDeadline ?? 0) - Date.now();
-      setRemaining(Math.max(0, Math.ceil(ms / 1000)));
-      if (ms <= 0 && !submittedRef.current) {
-        confirmBuild(formationId ?? pendingFormationId ?? options[0]?.id ?? "433-balanced");
-      }
-    };
-    tick();
-    const id = setInterval(tick, 500);
-    return () => clearInterval(id);
-  }, [room.buildDeadline, formationId, pendingFormationId, options, confirmBuild]);
-
-  function onConfirmFormation() {
-    if (!pendingFormationId) return;
-    setFormationId(pendingFormationId);
-    setBuildState(
-      initBuildState(CATALOG, seed, mySide, undefined, pendingFormationId),
-    );
-  }
-
-  if (confirmed || submittedRef.current) {
-    return (
-      <section className="panel" style={{ padding: "1.5rem", textAlign: "center" }}>
-        <h2 className="panel__title">Lineup locked in</h2>
-        <p className="dim">Waiting for your opponent… kickoff in {remaining}s.</p>
-      </section>
-    );
-  }
+      if (res.status === "matched") onMatched(res.tournamentId);
+      else onQueued();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not join the World Cup");
+      setSubmitting(false);
+    }
+  }, [buildState, formationId, submitting, joinQueue, playerId, name, seed, actionsRef, onMatched, onQueued]);
 
   return (
     <>
-      <section className="panel" style={{ padding: "0.75rem", textAlign: "center" }}>
-        <span className="mono">⏱ {remaining}s to build</span>
+      <section className="panel" style={{ padding: "1.5rem", display: "grid", gap: "1rem" }}>
+        <div>
+          <span className="label">Your name</span>
+          <input
+            className="seg"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{ width: "100%", padding: "0.5rem" }}
+          />
+        </div>
+        {error && <p className="draft-roll__rerolls--low">{error}</p>}
       </section>
+
       {!formationId || !buildState ? (
         <FormationPicker
-          options={options}
+          options={formationOptions}
           selectedId={pendingFormationId}
           onSelect={setPendingFormationId}
-          onConfirm={onConfirmFormation}
+          onConfirm={confirmFormation}
         />
       ) : (
         <>
@@ -363,9 +228,12 @@ function BuildPhase({
             onBuildState={setBuildState}
             onAction={(a) => actionsRef.current.push(a)}
           />
-          <section className="hero__cta" style={{ padding: "1rem" }}>
-            <button className="btn-kick" onClick={() => confirmBuild(formationId)}>
-              Confirm lineup
+          <section className="hero__cta" style={{ padding: "1rem", display: "flex", gap: "1rem" }}>
+            <button className="btn-kick" disabled={!canJoin || submitting} onClick={onJoinWorldCup}>
+              {submitting ? "Joining…" : "Join World Cup"}
+            </button>
+            <button onClick={reset} disabled={submitting}>
+              Reroll squad
             </button>
           </section>
         </>
@@ -374,61 +242,240 @@ function BuildPhase({
   );
 }
 
-function RevealPhase({
-  room,
+function SearchingStep({
   playerId,
-  mySide,
+  onMatched,
+  onCancel,
 }: {
-  room: RoomState;
   playerId: string;
-  mySide: Side;
+  onMatched: (tournamentId: TournamentState["tournamentId"]) => void;
+  onCancel: () => void;
 }) {
-  const rematch = useMutation(api.duel.rematch);
-  const timeline = room.timeline as MatchTimeline | null;
-  if (!timeline) return <p className="dim">Simulating…</p>;
+  const leaveQueue = useMutation(api.tournament.leaveQueue);
+  const heartbeat = useMutation(api.tournament.heartbeat);
+  const status = useQuery(api.tournament.myQueueStatus, { playerId });
 
-  const isHost = room.hostId === playerId;
-  const myResult = room.results.find((r) => r.playerId === playerId);
-  const oppName =
-    room.players.find((p: RoomPlayer) => p.playerId !== playerId)?.name ?? "Opponent";
-  const myName = room.players.find((p: RoomPlayer) => p.playerId === playerId)?.name ?? "You";
-  const labels =
-    mySide === "home"
-      ? { home: myName, away: oppName }
-      : { home: oppName, away: myName };
+  useEffect(() => {
+    const tick = () => heartbeat({ playerId }).catch(() => {});
+    tick();
+    const id = setInterval(tick, 10_000);
+    return () => clearInterval(id);
+  }, [playerId, heartbeat]);
+
+  useEffect(() => {
+    if (status?.status === "matched") onMatched(status.tournamentId);
+  }, [status, onMatched]);
+
+  const waitingCount = status?.status === "waiting" ? status.waitingCount : 1;
+  const poolSize = status?.status === "waiting" ? status.poolSize : 8;
+
+  return (
+    <section className="panel" style={{ padding: "1.5rem", textAlign: "center" }}>
+      <h2 className="panel__title">Filling the World Cup…</h2>
+      <p className="dim mono">
+        {waitingCount} / {poolSize} players
+      </p>
+      <p className="dim">
+        We'll auto-fill with real historical squads if the pool doesn't fill in time —
+        either way, kickoff is coming.
+      </p>
+      <button
+        onClick={async () => {
+          await leaveQueue({ playerId });
+          onCancel();
+        }}
+      >
+        Cancel
+      </button>
+    </section>
+  );
+}
+
+function slotName(participants: TournamentState["participants"], slot: number): string {
+  return participants.find((p) => p.slot === slot)?.name ?? `Slot ${slot}`;
+}
+
+function myJourney(state: TournamentState, mySlot: number): string {
+  const myGroup = state.participants.find((p) => p.slot === mySlot)?.groupIndex;
+  const final = state.matches.find((m) => m.stage === "final");
+  const semis = state.matches.filter((m) => m.stage === "semi");
+  if (state.championSlot === mySlot) return "🏆 Champion!";
+  if (final && (final.homeSlot === mySlot || final.awaySlot === mySlot)) return "Runner-up";
+  const mySemi = semis.find((m) => m.homeSlot === mySlot || m.awaySlot === mySlot);
+  if (mySemi) return "Eliminated in the semifinal";
+  const standing = state.standings.find((s) => s.groupIndex === myGroup);
+  const rank = standing?.table.findIndex((t) => t.slot === mySlot) ?? -1;
+  if (rank >= 0 && rank < 2) return "Advanced from the group — eliminated before the semifinal";
+  return "Eliminated in the group stage";
+}
+
+function RevealStep({
+  tournamentId,
+  playerId,
+  onSearchAgain,
+}: {
+  tournamentId: TournamentState["tournamentId"];
+  playerId: string;
+  onSearchAgain: () => void;
+}) {
+  const state = useQuery(api.tournament.tournamentState, { tournamentId });
+  const leaveQueue = useMutation(api.tournament.leaveQueue);
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  const mySlot = useMemo(
+    () => state?.participants.find((p) => p.playerId === playerId)?.slot,
+    [state, playerId],
+  );
+
+  // The player's queue seat is fully consumed once the tournament is read —
+  // clear it so it never lingers and gets miscounted by a future pool.
+  useEffect(() => {
+    leaveQueue({ playerId }).catch(() => {});
+  }, [playerId, leaveQueue]);
+
+  if (state === undefined) return <p className="dim">Loading tournament…</p>;
+  if (state === null) return <p className="dim">Tournament not found.</p>;
+
+  const myMatches = state.matches.filter(
+    (m) => mySlot !== undefined && (m.homeSlot === mySlot || m.awaySlot === mySlot),
+  );
+  const semis = state.matches.filter((m) => m.stage === "semi");
+  const final = state.matches.find((m) => m.stage === "final");
 
   return (
     <>
-      {myResult && (
-        <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
-          <h2 className="panel__title">
-            {myResult.outcome === "win"
-              ? "You win! 🏆"
-              : myResult.outcome === "loss"
-                ? "Defeat"
-                : "Draw"}
-          </h2>
-          <p className="mono dim">
-            {myResult.gf}–{myResult.ga} · chemistry {myResult.chemistryPct}%
-          </p>
+      <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
+        <h2 className="panel__title">
+          {mySlot !== undefined ? myJourney(state, mySlot) : "Tournament complete"}
+        </h2>
+        <p className="mono dim">Champion: {slotName(state.participants, state.championSlot)}</p>
+      </section>
+
+      <section className="panel" style={{ padding: "1rem", display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+        {state.standings.map((group) => (
+          <div key={group.groupIndex} style={{ flex: "1 1 280px" }}>
+            <h3 className="panel__title">Group {group.groupIndex === 0 ? "A" : "B"}</h3>
+            <table className="mono" style={{ width: "100%", fontSize: "0.85rem" }}>
+              <thead>
+                <tr>
+                  <th align="left">Team</th>
+                  <th>P</th>
+                  <th>GD</th>
+                  <th>Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.table.map((row) => (
+                  <tr
+                    key={row.slot}
+                    style={row.slot === mySlot ? { fontWeight: "bold" } : undefined}
+                  >
+                    <td>{slotName(state.participants, row.slot)}</td>
+                    <td align="center">{row.played}</td>
+                    <td align="center">{row.gd}</td>
+                    <td align="center">{row.points}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </section>
+
+      {mySlot !== undefined && (
+        <section className="panel" style={{ padding: "1rem" }}>
+          <h3 className="panel__title">Your group fixtures</h3>
+          {myMatches
+            .filter((m) => m.stage === "group")
+            .map((m, i) => {
+              const home = slotName(state.participants, m.homeSlot);
+              const away = slotName(state.participants, m.awaySlot);
+              const key = state.matches.indexOf(m);
+              return (
+                <div key={i} style={{ marginBottom: "0.5rem" }}>
+                  <button
+                    className="mono"
+                    onClick={() => setExpanded(expanded === key ? null : key)}
+                    style={{ width: "100%", textAlign: "left" }}
+                  >
+                    {home} {m.gf}–{m.ga} {away}
+                  </button>
+                  {expanded === key && (
+                    <FixtureDetail timeline={m.timeline as MatchTimeline} home={home} away={away} />
+                  )}
+                </div>
+              );
+            })}
         </section>
       )}
-      <ResultCard
-        timeline={timeline}
-        homeLabel={labels.home}
-        awayLabel={labels.away}
-        seed={timeline.seed}
-        onAgain={() => {
-          if (isHost) rematch({ roomId: room.roomId, playerId });
-        }}
-      />
+
+      <section className="panel" style={{ padding: "1rem" }}>
+        <h3 className="panel__title">Knockout bracket</h3>
+        {semis.map((m, i) => {
+          const home = slotName(state.participants, m.homeSlot);
+          const away = slotName(state.participants, m.awaySlot);
+          const key = state.matches.indexOf(m);
+          return (
+            <div key={`sf-${i}`} style={{ marginBottom: "0.5rem" }}>
+              <button
+                className="mono"
+                onClick={() => setExpanded(expanded === key ? null : key)}
+                style={{ width: "100%", textAlign: "left" }}
+              >
+                Semifinal {i + 1}: {home} {m.gf}–{m.ga} {away}
+              </button>
+              {expanded === key && (
+                <FixtureDetail timeline={m.timeline as MatchTimeline} home={home} away={away} />
+              )}
+            </div>
+          );
+        })}
+        {final && (
+          <div>
+            <button
+              className="mono"
+              onClick={() =>
+                setExpanded(expanded === state.matches.indexOf(final) ? null : state.matches.indexOf(final))
+              }
+              style={{ width: "100%", textAlign: "left" }}
+            >
+              Final: {slotName(state.participants, final.homeSlot)} {final.gf}–{final.ga}{" "}
+              {slotName(state.participants, final.awaySlot)}
+            </button>
+            {expanded === state.matches.indexOf(final) && (
+              <FixtureDetail
+                timeline={final.timeline as MatchTimeline}
+                home={slotName(state.participants, final.homeSlot)}
+                away={slotName(state.participants, final.awaySlot)}
+              />
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="hero__cta" style={{ padding: "1rem", textAlign: "center" }}>
+        <button className="btn-kick" onClick={onSearchAgain}>
+          Search again with a new squad
+        </button>
+      </section>
+    </>
+  );
+}
+
+function FixtureDetail({
+  timeline,
+  home,
+  away,
+}: {
+  timeline: MatchTimeline;
+  home: string;
+  away: string;
+}) {
+  const labels = { home, away };
+  return (
+    <>
       <MatchView key={timeline.seed} timeline={timeline} labels={labels} />
       <StatsPanel timeline={timeline} labels={labels} />
-      {!isHost && (
-        <p className="dim" style={{ textAlign: "center" }}>
-          The host can start a rematch.
-        </p>
-      )}
     </>
   );
 }

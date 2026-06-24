@@ -199,6 +199,30 @@ describe("resolveDuel", () => {
     expect(a.timeline.events).toEqual(b.timeline.events);
   });
 
+  it("knockout: false allows an unresolved draw (group-stage fixtures)", () => {
+    const home = replayBuild(demoCatalog, {
+      seed: "draw:home",
+      side: "home",
+      formationId: DEFAULT_FORMATION_ID,
+      actions: recordGreedyDraft("draw:home").actions,
+    });
+    const away = replayBuild(demoCatalog, {
+      seed: "draw:away",
+      side: "away",
+      formationId: DEFAULT_FORMATION_ID,
+      actions: recordGreedyDraft("draw:away").actions,
+    });
+    const res = resolveDuel(demoCatalog, {
+      seed: "group-fixture-5",
+      home: { buildState: home, tactic: "balanced" },
+      away: { buildState: away, tactic: "balanced" },
+      knockout: false,
+    });
+    expect(res.result.score).toEqual([2, 2]);
+    expect(res.result.winner).toBe("draw");
+    expect(res.result.shootout).toBeUndefined();
+  });
+
   it("auto-fills an incomplete (timed-out) XI before simulating", () => {
     const partial = replayBuild(demoCatalog, {
       seed: "afk:home",

@@ -257,15 +257,25 @@ Requirements:
 
 ## 9. Online mode (DETAILED)
 
+> **Implementation note:** the **8-player World Cup tournament** (§9.2 item 3,
+> originally scoped as post-MVP "Online Knockout") shipped early in MVP M4 —
+> see `MVP.md` §4.2 for the as-built flow. It replaces the room-by-code 1v1
+> Duel described below (§9.2 item 1, §9.3, §9.4 RF-O1/RF-O2) with an untimed
+> solo draft → shared pool → instant batch resolution of 2 round-robin
+> groups → semis → final, with CPU bot-fill (real historical squads) on a
+> stalled pool. ELO/ranking (§9.9), the room/code lobby model (§9.3-9.4), and
+> "Online Final" (§9.2 item 2) remain unimplemented/post-MVP as described
+> below — MVP.md wins where the two disagree.
+
 ### 9.1 Principle — server authority (non-negotiable)
 
 Because the engine is seed-deterministic and currently client-side, **the server must own the draw, the seed, the engine run and the timeline**. The client only **presents** a result it receives. This is the foundation of competitive integrity and a prerequisite (Phase 0) for everything else online.
 
 ### 9.2 Online formats
 
-1. **Online Duel (1v1)** — *top priority.* Both players receive the **same scenario**, build their XI within a timer, and play a **head-to-head** match the server simulates. (Default win rule: direct head-to-head; see Open Questions.)
-2. **Online Final** — fast variant: skip straight to building the XI and the Final, 1v1.
-3. **Online Knockout** — a **bracket of 4–16** seats mixing **humans and CPU**, with synchronised rounds.
+1. **Online Duel (1v1)** — superseded by item 3 (the World Cup tournament) as MVP's shipped online mode; kept here as the original v1 spec for reference. Both players receive the **same scenario**, build their XI within a timer, and play a **head-to-head** match the server simulates.
+2. **Online Final** — fast variant: skip straight to building the XI and the Final, 1v1. Not implemented.
+3. **Online Knockout** — a **bracket of 4–16** seats mixing **humans and CPU**, with synchronised rounds. **Implemented in MVP M4** as the 8-player World Cup tournament (untimed draft, instant batch resolution, no synchronised rounds — see `MVP.md` §4.2).
 
 ### 9.3 Match state machine
 

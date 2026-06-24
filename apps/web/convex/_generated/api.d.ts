@@ -8,8 +8,8 @@
  * @module
  */
 
-import type * as duel from "../duel.js";
 import type * as duelCatalog from "../duelCatalog.js";
+import type * as tournament from "../tournament.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +18,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  duel: typeof duel;
   duelCatalog: typeof duelCatalog;
+  tournament: typeof tournament;
 }>;
 
 /**

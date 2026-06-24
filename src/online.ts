@@ -108,7 +108,13 @@ function scenarioLabel(catalog: SquadCatalog, state: BuildState): MatchScenario 
  */
 export function resolveDuel(
   catalog: SquadCatalog,
-  input: { seed: string; home: ResolvedSide; away: ResolvedSide },
+  input: {
+    seed: string;
+    home: ResolvedSide;
+    away: ResolvedSide;
+    /** Tie → penalties (default, matches 1v1 duel behavior). `false` allows a draw — group-stage fixtures. */
+    knockout?: boolean;
+  },
 ): DuelResolution {
   const fill = (s: BuildState): BuildState =>
     isLineupComplete(s) ? s : autoFillLineup(catalog, s);
@@ -129,7 +135,7 @@ export function resolveDuel(
       tactic: input.away.tactic,
     }),
     seed: input.seed,
-    knockout: true,
+    knockout: input.knockout ?? true,
   });
 
   const timeline = generateTimeline({
