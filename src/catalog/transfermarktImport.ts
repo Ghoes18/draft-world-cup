@@ -13,6 +13,7 @@ import {
   getScenario,
 } from "../catalog.js";
 import { canonicalRole } from "../chemistry.js";
+import { transfermarktLabelToDetail } from "../positionsDetail.js";
 import { teamNamesMatch } from "./zafronixImport.js";
 import {
   lookupTransfermarktAlias,
@@ -28,7 +29,7 @@ import {
   type TransfermarktPlayerSearchResult,
 } from "./transfermarktClient.js";
 
-/** Transfermarkt English labels → internal formation codes. */
+/** Transfermarkt English labels → internal formation codes (coarse fallback). */
 const TRANSFERMARKT_POSITION_MAP: Readonly<Record<string, string>> = {
   goalkeeper: "GK",
   "centre-back": "CB",
@@ -143,11 +144,16 @@ function normalizeTransfermarktLabel(label: string): string {
   return label.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-/** Map one Transfermarkt label to an internal code, or null if generic/unknown. */
+/** Map one Transfermarkt label to a detail position code, or null if generic/unknown. */
 export function mapTransfermarktPosition(label: string): string | null {
   const normalized = normalizeTransfermarktLabel(label);
   if (!normalized || GENERIC_TRANSFERMARKT_LABELS.has(normalized)) return null;
 
+  // Prefer detail-level mapping (28 positions)
+  const detail = transfermarktLabelToDetail(normalized);
+  if (detail) return detail;
+
+  // Fallback to coarse map
   const direct = TRANSFERMARKT_POSITION_MAP[normalized];
   if (direct) return direct;
 

@@ -29,6 +29,7 @@ export {
 } from "./catalog/catalogOverlay.js";
 export * from "./catalog/liveImport.js";
 export * from "./positions.js";
+export * from "./positionsDetail.js";
 export * from "./playerRating.js";
 export * from "./playerPositions.js";
 export * from "./lineupStrength.js";

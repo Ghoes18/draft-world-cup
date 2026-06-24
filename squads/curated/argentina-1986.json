@@ -8,7 +8,9 @@
         {
           "name": "Nery Pumpido",
           "naturalPosition": "GK",
-          "positions": ["GK"],
+          "positions": [
+            "GK"
+          ],
           "positionSource": "api",
           "overall": 84,
           "force": 215,
@@ -17,7 +19,11 @@
         {
           "name": "José Luis Brown",
           "naturalPosition": "RCB",
-          "positions": ["CB", "RCB"],
+          "positions": [
+            "RCB",
+            "LCB",
+            "CB"
+          ],
           "positionSource": "api",
           "overall": 82,
           "force": 218,
@@ -25,8 +31,12 @@
         },
         {
           "name": "Daniel Passarella",
-          "naturalPosition": "LCB",
-          "positions": ["CB", "LCB"],
+          "naturalPosition": "CB",
+          "positions": [
+            "RCB",
+            "LCB",
+            "CB"
+          ],
           "positionSource": "api",
           "overall": 88,
           "force": 230,
@@ -34,8 +44,12 @@
         },
         {
           "name": "José Luis Cuciuffo",
-          "naturalPosition": "RCB",
-          "positions": ["CB", "RCB"],
+          "naturalPosition": "LCB",
+          "positions": [
+            "RCB",
+            "LCB",
+            "CB"
+          ],
           "positionSource": "api",
           "overall": 83,
           "force": 216,
@@ -43,8 +57,16 @@
         },
         {
           "name": "Sergio Batista",
-          "naturalPosition": "CDM",
-          "positions": ["CDM", "CM"],
+          "naturalPosition": "RWB",
+          "positions": [
+            "CDM",
+            "CDM_DEEP",
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT"
+          ],
           "positionSource": "api",
           "overall": 84,
           "force": 220,
@@ -52,8 +74,17 @@
         },
         {
           "name": "Jorge Burruchaga",
-          "naturalPosition": "RCM",
-          "positions": ["CM", "RCM", "CAM"],
+          "naturalPosition": "LWB",
+          "positions": [
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT",
+            "CAM",
+            "RAM",
+            "LAM"
+          ],
           "positionSource": "api",
           "overall": 86,
           "force": 228,
@@ -61,8 +92,14 @@
         },
         {
           "name": "Héctor Enrique",
-          "naturalPosition": "LCM",
-          "positions": ["CM", "LCM"],
+          "naturalPosition": "RCM",
+          "positions": [
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT"
+          ],
           "positionSource": "api",
           "overall": 82,
           "force": 214,
@@ -70,8 +107,22 @@
         },
         {
           "name": "Diego Maradona",
-          "naturalPosition": "CAM",
-          "positions": ["CAM", "CF", "LW", "CM"],
+          "naturalPosition": "LCM",
+          "positions": [
+            "CAM",
+            "RAM",
+            "LAM",
+            "CF",
+            "CF_FALSE9",
+            "CF_SUPPORT",
+            "LW",
+            "LW_INSIDE",
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT"
+          ],
           "positionSource": "api",
           "overall": 96,
           "force": 248,
@@ -79,8 +130,12 @@
         },
         {
           "name": "Jorge Valdano",
-          "naturalPosition": "ST",
-          "positions": ["ST"],
+          "naturalPosition": "CAM",
+          "positions": [
+            "ST",
+            "RST",
+            "LST"
+          ],
           "positionSource": "api",
           "overall": 87,
           "force": 232,
@@ -88,8 +143,11 @@
         },
         {
           "name": "Oscar Garré",
-          "naturalPosition": "LB",
-          "positions": ["LB", "LWB"],
+          "naturalPosition": "ST",
+          "positions": [
+            "LB",
+            "LWB"
+          ],
           "positionSource": "api",
           "overall": 83,
           "force": 218,
@@ -97,8 +155,11 @@
         },
         {
           "name": "Néstor Clausen",
-          "naturalPosition": "RB",
-          "positions": ["RB", "RWB"],
+          "naturalPosition": "ST",
+          "positions": [
+            "RB",
+            "RWB"
+          ],
           "positionSource": "api",
           "overall": 82,
           "force": 216,

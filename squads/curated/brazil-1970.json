@@ -8,7 +8,9 @@
         {
           "name": "Félix",
           "naturalPosition": "GK",
-          "positions": ["GK"],
+          "positions": [
+            "GK"
+          ],
           "positionSource": "api",
           "overall": 82,
           "force": 210,
@@ -16,8 +18,11 @@
         },
         {
           "name": "Carlos Alberto",
-          "naturalPosition": "RB",
-          "positions": ["RB", "RWB"],
+          "naturalPosition": "RCB",
+          "positions": [
+            "RB",
+            "RWB"
+          ],
           "positionSource": "api",
           "overall": 91,
           "force": 238,
@@ -25,8 +30,12 @@
         },
         {
           "name": "Brito",
-          "naturalPosition": "RCB",
-          "positions": ["CB", "RCB"],
+          "naturalPosition": "CB",
+          "positions": [
+            "RCB",
+            "LCB",
+            "CB"
+          ],
           "positionSource": "api",
           "overall": 84,
           "force": 220
@@ -34,63 +43,120 @@
         {
           "name": "Piazza",
           "naturalPosition": "LCB",
-          "positions": ["CB", "LCB"],
+          "positions": [
+            "RCB",
+            "LCB",
+            "CB"
+          ],
           "positionSource": "api",
           "overall": 86,
           "force": 225
         },
         {
           "name": "Clodoaldo",
-          "naturalPosition": "RCM",
-          "positions": ["CM", "RCM", "CDM"],
+          "naturalPosition": "RWB",
+          "positions": [
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT",
+            "CDM",
+            "CDM_DEEP"
+          ],
           "positionSource": "api",
           "overall": 88,
           "force": 228
         },
         {
           "name": "Gérson",
-          "naturalPosition": "CM",
-          "positions": ["CM", "CDM"],
+          "naturalPosition": "RCM",
+          "positions": [
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT",
+            "CDM",
+            "CDM_DEEP"
+          ],
           "positionSource": "api",
           "overall": 89,
           "force": 232
         },
         {
           "name": "Jairzinho",
-          "naturalPosition": "RW",
-          "positions": ["RW", "ST", "RM"],
+          "naturalPosition": "CM",
+          "positions": [
+            "RW",
+            "RW_INSIDE",
+            "ST",
+            "RST",
+            "LST",
+            "RM",
+            "CM_RIGHT"
+          ],
           "positionSource": "api",
           "overall": 90,
           "force": 240
         },
         {
           "name": "Pelé",
-          "naturalPosition": "ST",
-          "positions": ["ST", "CF", "CAM"],
+          "naturalPosition": "LCM",
+          "positions": [
+            "ST",
+            "RST",
+            "LST",
+            "CF",
+            "CF_FALSE9",
+            "CF_SUPPORT",
+            "CAM",
+            "RAM",
+            "LAM"
+          ],
           "positionSource": "api",
           "overall": 99,
           "force": 245
         },
         {
           "name": "Rivellino",
-          "naturalPosition": "LCM",
-          "positions": ["LW", "LCM", "CAM"],
+          "naturalPosition": "LWB",
+          "positions": [
+            "LW",
+            "LW_INSIDE",
+            "LCM",
+            "CM_LEFT",
+            "CAM",
+            "RAM",
+            "LAM"
+          ],
           "positionSource": "api",
           "overall": 90,
           "force": 235
         },
         {
           "name": "Tostão",
-          "naturalPosition": "LW",
-          "positions": ["LW", "ST", "CF"],
+          "naturalPosition": "RST",
+          "positions": [
+            "LW",
+            "LW_INSIDE",
+            "ST",
+            "RST",
+            "LST",
+            "CF",
+            "CF_FALSE9",
+            "CF_SUPPORT"
+          ],
           "positionSource": "api",
           "overall": 91,
           "force": 236
         },
         {
           "name": "Ado",
-          "naturalPosition": "GK",
-          "positions": ["GK"],
+          "naturalPosition": "LST",
+          "positions": [
+            "GK"
+          ],
           "positionSource": "api",
           "overall": 85,
           "force": 153,
@@ -98,8 +164,19 @@
         },
         {
           "name": "Edu",
-          "naturalPosition": "CM",
-          "positions": ["CM", "CDM", "CAM"],
+          "naturalPosition": "LST",
+          "positions": [
+            "CM",
+            "RCM",
+            "LCM",
+            "CM_LEFT",
+            "CM_RIGHT",
+            "CDM",
+            "CDM_DEEP",
+            "CAM",
+            "RAM",
+            "LAM"
+          ],
           "positionSource": "api",
           "overall": 85,
           "force": 150,
@@ -107,8 +184,10 @@
         },
         {
           "name": "Leão",
-          "naturalPosition": "GK",
-          "positions": ["GK"],
+          "naturalPosition": "LST",
+          "positions": [
+            "GK"
+          ],
           "positionSource": "api",
           "overall": 85,
           "force": 150,
@@ -116,8 +195,17 @@
         },
         {
           "name": "Caju",
-          "naturalPosition": "LW",
-          "positions": ["LW", "ST", "CF"],
+          "naturalPosition": "LST",
+          "positions": [
+            "LW",
+            "LW_INSIDE",
+            "ST",
+            "RST",
+            "LST",
+            "CF",
+            "CF_FALSE9",
+            "CF_SUPPORT"
+          ],
           "positionSource": "api",
           "overall": 87,
           "force": 150,
@@ -125,8 +213,15 @@
         },
         {
           "name": "Dario",
-          "naturalPosition": "CF",
-          "positions": ["CF", "ST"],
+          "naturalPosition": "LST",
+          "positions": [
+            "CF",
+            "CF_FALSE9",
+            "CF_SUPPORT",
+            "ST",
+            "RST",
+            "LST"
+          ],
           "positionSource": "api",
           "overall": 86,
           "force": 150,

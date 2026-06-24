@@ -10,6 +10,12 @@ import type { PlayerCard } from "./catalog.js";
 import type { PositionSource } from "./catalog/livePlayerParse.js";
 import { positionFit, canonicalRole, type Role } from "./chemistry.js";
 import { FIT_ADJACENT, FIT_EXACT } from "./constants.js";
+import {
+  detailToRole,
+  detailToFamily,
+  POSITION_DETAILS,
+  type PosDetail,
+} from "./positionsDetail.js";
 
 const ROLE_DISPLAY_ORDER: readonly Role[] = [
   "GK",
@@ -144,6 +150,22 @@ export function slotFitForPlayer(
 
 /** Human-readable position list for chips and pitch labels (API codes, not expanded). */
 export function formatPositionList(positions: readonly string[]): string {
+  // Check if we have detail-level positions
+  const hasDetail = positions.some(
+    (p) => p.trim().toUpperCase() in POSITION_DETAILS,
+  );
+
+  if (hasDetail) {
+    // Show detail labels (e.g. "RB · RCB · CB")
+    const labels = positions.map((p) => {
+      const upper = p.trim().toUpperCase();
+      const detail = POSITION_DETAILS[upper as PosDetail];
+      return detail ? detail.shortLabel : upper;
+    });
+    return [...new Set(labels)].join(" · ");
+  }
+
+  // Coarse fallback: group by role
   const roles = new Map<Role, string>();
   for (const p of positions) {
     const role = canonicalRole(p);

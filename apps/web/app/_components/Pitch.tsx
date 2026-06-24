@@ -8,8 +8,16 @@ import {
   type SquadCatalog,
   type Vec2,
 } from "7a0-engine";
+import { POSITION_DETAILS, type PosDetail } from "7a0-engine";
 import { STRINGS as S } from "../_data/strings";
 import { PlayerAvatar } from "./PlayerAvatar";
+
+/** Get a short display label for a position code (detail-aware). */
+function posLabel(code: string): string {
+  const upper = code.trim().toUpperCase();
+  const detail = POSITION_DETAILS[upper as PosDetail];
+  return detail ? detail.shortLabel : upper;
+}
 
 /** Engine anchors: x = goal→goal, y = flank. Vertical pitch: attack up, GK bottom. */
 const PITCH_EDGE = 0.06;
@@ -294,11 +302,11 @@ export function Pitch({
               >
                 {surname}
               </span>
-              <span className="pitch__token-pos">{slot.position}</span>
+              <span className="pitch__token-pos">{posLabel(slot.position)}</span>
             </>
           ) : isCompatible ? (
             <span className="pitch__token-pos pitch__token-pos--pick">
-              {slot.position}
+              {posLabel(slot.position)}
             </span>
           ) : null;
 
@@ -331,7 +339,7 @@ export function Pitch({
               {filled && player ? (
                 <PlayerAvatar player={player} size="sm" />
               ) : (
-                <span className="pitch__pos">{slot.position}</span>
+                <span className="pitch__pos">{posLabel(slot.position)}</span>
               )}
             </Tag>
             {meta ? <div className="pitch__token-meta">{meta}</div> : null}

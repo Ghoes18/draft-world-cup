@@ -7,9 +7,13 @@
  * Scoring follows the rules verbatim: full credit for the exact role, partial
  * for an adjacent role, little for an unrelated one. Chemistry % is the mean
  * fit across the XI, scaled to 0–100.
+ *
+ * Supports both coarse role codes (CB, CM, ST) and detail positions (RCB, LCM, RST).
+ * When detail positions are available, fit scoring is side-aware and more granular.
  */
 
 import { FIT_ADJACENT, FIT_EXACT, FIT_UNRELATED } from "./constants.js";
+import { detailPositionFit, detailToRole, POSITION_DETAILS, type PosDetail } from "./positionsDetail.js";
 
 /** Canonical role buckets that position codes collapse into. */
 export type Role = "GK" | "FB" | "CB" | "DM" | "CM" | "AM" | "W" | "ST";
@@ -53,14 +57,40 @@ export const ROLE_ADJACENCY: Record<Role, ReadonlySet<Role>> = {
 /**
  * Fit of a player (natural position) fielded at `assigned`:
  * exact role → 1.0, adjacent role → 0.5, otherwise → 0.15.
+ *
+ * Automatically detects detail positions (e.g. "RCB", "LCM") and uses
+ * side-aware scoring. Falls back to coarse role scoring for non-detail codes.
  */
 export function positionFit(natural: string, assigned: string): number {
+  // Check if both are detail positions
+  const natIsDetail = natural.trim().toUpperCase() in POSITION_DETAILS;
+  const asgIsDetail = assigned.trim().toUpperCase() in POSITION_DETAILS;
+
+  if (natIsDetail && asgIsDetail) {
+    return detailPositionFit(
+      natural.trim().toUpperCase() as PosDetail,
+      assigned.trim().toUpperCase() as PosDetail,
+    );
+  }
+
+  // Fallback to coarse role scoring
   const nat = canonicalRole(natural);
   const asg = canonicalRole(assigned);
   if (nat === null || asg === null) return FIT_UNRELATED;
   if (nat === asg) return FIT_EXACT;
   if (ROLE_ADJACENCY[nat].has(asg)) return FIT_ADJACENT;
   return FIT_UNRELATED;
+}
+
+/**
+ * Convenience: get the canonical role for any position code (coarse or detail).
+ */
+export function anyPositionRole(position: string): Role | null {
+  const upper = position.trim().toUpperCase();
+  if (upper in POSITION_DETAILS) {
+    return detailToRole(upper as PosDetail);
+  }
+  return canonicalRole(position);
 }
 
 /**
