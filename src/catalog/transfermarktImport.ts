@@ -13,6 +13,10 @@ import {
   getScenario,
 } from "../catalog.js";
 import { canonicalRole } from "../chemistry.js";
+import {
+  isAmbiguousDetailNatural,
+  isSideSpecificDetail,
+} from "./detailPositionsMigrate.js";
 import { transfermarktLabelToDetail } from "../positionsDetail.js";
 import { teamNamesMatch } from "./zafronixImport.js";
 import {
@@ -95,8 +99,17 @@ export interface TransfermarktImportOptions {
   toYear?: number;
   team?: string;
   limit?: number;
-  /** Default true — only players with positionSource inferred or unset coarse lists. */
+  /**
+   * Who to enrich:
+   * - `inferred` (default): Fjelstul inferred + coarse API blobs only (~100 players).
+   * - `ambiguous`: above + API players still on central detail naturals (CB/CM/ST…).
+   * - `force`: every outfield player (slow — prefer `pnpm migrate:catalog-positions`).
+   */
+  eligibility?: TransfermarktEligibilityMode;
+  /** @deprecated Use `eligibility`. `false` → `ambiguous`, not full catalog. */
   onlyInferred?: boolean;
+  /** Re-process every outfield player, including side-specific detail naturals. */
+  force?: boolean;
   minConfidence?: number;
   cacheDir?: string;
   fetchImpl?: typeof fetch;
@@ -260,30 +273,6 @@ const COARSE_CATALOG_POSITION_SETS: readonly string[][] = [
   ["CB", "LB", "RB"],
   ["CM", "CDM", "CAM"],
   ["ST", "CF"],
-  [
-    "RCB",
-    "LCB",
-    "CB",
-    "RB",
-    "LB",
-    "RWB",
-    "LWB",
-  ],
-  [
-    "RCM",
-    "LCM",
-    "CM",
-    "CM_LEFT",
-    "CM_RIGHT",
-    "CDM",
-    "CDM_DEEP",
-    "CAM",
-    "RAM",
-    "LAM",
-    "CAM_LEFT",
-    "CAM_RIGHT",
-  ],
-  ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
 ];
 
 function sortedPositionKey(positions: readonly string[]): string {
@@ -369,15 +358,87 @@ function coarseRoleCompatible(
   return compatible.some((code) => canonicalRole(code) === catalogRole);
 }
 
+/** Who qualifies for Transfermarkt position enrichment. */
+export type TransfermarktEligibilityMode = "inferred" | "ambiguous" | "force";
+
+function resolveEligibilityMode(
+  options: TransfermarktImportOptions,
+): TransfermarktEligibilityMode {
+  if (options.force) return "force";
+  if (options.eligibility) return options.eligibility;
+  if (options.onlyInferred === false) return "ambiguous";
+  return "inferred";
+}
+
+/** Whether this catalog player already has side-aware detail positions. */
+export function hasSideAwareDetailPositions(player: PlayerCard): boolean {
+  if (isSideSpecificDetail(player.naturalPosition)) return true;
+  return (
+    player.positionSource === "api" &&
+    !isCoarseCatalogPositions(player.positions) &&
+    (player.positions?.some((p) => isSideSpecificDetail(p)) ?? false)
+  );
+}
+
 /** Whether this catalog player is eligible for Transfermarkt position enrichment. */
 export function isEligibleForTransfermarktOverlay(
   player: PlayerCard,
-  onlyInferred: boolean,
+  modeOrLegacy: TransfermarktEligibilityMode | boolean = "inferred",
 ): boolean {
-  if (!onlyInferred) return true;
-  if (player.positionSource === "inferred") return true;
-  if (isCoarseCatalogPositions(player.positions)) return true;
-  return false;
+  const mode: TransfermarktEligibilityMode =
+    typeof modeOrLegacy === "boolean"
+      ? modeOrLegacy
+        ? "inferred"
+        : "ambiguous"
+      : modeOrLegacy;
+
+  const natural = player.naturalPosition.trim().toUpperCase();
+  if (natural === "GK") return false;
+
+  if (mode !== "force" && hasSideAwareDetailPositions(player)) {
+    return false;
+  }
+
+  switch (mode) {
+    case "force":
+      return true;
+    case "ambiguous":
+      return (
+        player.positionSource === "inferred" ||
+        isCoarseCatalogPositions(player.positions) ||
+        isAmbiguousDetailNatural(player.naturalPosition)
+      );
+    case "inferred":
+    default:
+      if (player.positionSource === "inferred") return true;
+      if (isCoarseCatalogPositions(player.positions)) return true;
+      return false;
+  }
+}
+
+export function countTransfermarktEligibility(
+  catalog: SquadCatalog,
+  options: TransfermarktImportOptions = {},
+): { eligible: number; skipped: number; mode: TransfermarktEligibilityMode } {
+  const mode = resolveEligibilityMode(options);
+  const fromYear = options.fromYear ?? 1930;
+  const toYear = options.toYear ?? 2022;
+  const teamFilter = options.team?.trim();
+  let eligible = 0;
+  let skipped = 0;
+
+  for (const scenario of catalog.scenarios) {
+    if (scenario.cup < fromYear || scenario.cup > toYear) continue;
+    if (teamFilter && !teamNamesMatch(scenario.team, teamFilter)) continue;
+    for (const playerId of scenario.playerIds) {
+      const player = catalog.players[playerId];
+      if (!player) continue;
+      if (isEligibleForTransfermarktOverlay(player, mode)) eligible++;
+      else skipped++;
+    }
+  }
+
+  return { eligible, skipped, mode };
 }
 
 export interface ScoredTransfermarktCandidate {
@@ -552,8 +613,9 @@ async function resolveTransfermarktSearch(
     candidate.team,
     candidate.cup,
   );
+  const maxQueries = candidate.cup < 1970 ? 1 : 2;
 
-  for (const query of queries) {
+  for (const query of queries.slice(0, maxQueries)) {
     try {
       const searchResponse = await searchTransfermarktPlayers(client, query);
       if (searchResponse.results.length > 0) {
@@ -628,11 +690,25 @@ function shouldSkipProfileFetch(
 ): boolean {
   if (options.skipProfileWhenConfident === false) return false;
 
-  const minConfidence = options.searchOnlyMinConfidence ?? 0.8;
-  if (best.confidence < minConfidence) return false;
-  if (nameSimilarity(candidate.player.name, best.result.name) < 0.99) return false;
-  if (mapTransfermarktPosition(best.result.position) === null) return false;
-  if (!nationalityMatchesTeam(best.result.nationalities, candidate.team)) return false;
+  const mapped = mapTransfermarktPosition(best.result.position);
+  if (mapped === null) return false;
+
+  const minConfidence = options.searchOnlyMinConfidence ?? 0.72;
+  const nameScore = nameSimilarity(candidate.player.name, best.result.name);
+
+  // Search lists a mappable primary position — profile rarely adds value.
+  if (best.confidence >= minConfidence && nameScore >= 0.85) return true;
+  if (
+    best.confidence >= minConfidence &&
+    nationalityMatchesTeam(best.result.nationalities, candidate.team)
+  ) {
+    return true;
+  }
+
+  if (nameScore < 0.99) return false;
+  if (!nationalityMatchesTeam(best.result.nationalities, candidate.team)) {
+    return false;
+  }
 
   if (candidate.cup >= 1990) return true;
 
@@ -658,7 +734,7 @@ function collectCandidates(
 ): CatalogCandidate[] {
   const fromYear = options.fromYear ?? 1930;
   const toYear = options.toYear ?? 2022;
-  const onlyInferred = options.onlyInferred ?? true;
+  const mode = resolveEligibilityMode(options);
   const teamFilter = options.team?.trim();
 
   const candidates: CatalogCandidate[] = [];
@@ -669,7 +745,7 @@ function collectCandidates(
 
     for (const playerId of scenario.playerIds) {
       const player = getPlayer(catalog, playerId);
-      if (!isEligibleForTransfermarktOverlay(player, onlyInferred)) continue;
+      if (!isEligibleForTransfermarktOverlay(player, mode)) continue;
       candidates.push({
         scenarioId: scenario.id,
         team: scenario.team,
@@ -723,14 +799,20 @@ export async function buildTransfermarktPositionOverlay(
   const candidates = collectCandidates(catalog, options);
 
   const delayMs = options.delayMs ?? 250;
-  if (candidates.length > 0 && options.onProgress) {
+  if (candidates.length > 0) {
     const estMinutes = Math.max(
       1,
-      Math.round((candidates.length * 2 * delayMs) / 60_000),
+      Math.round((candidates.length * delayMs) / 60_000),
     );
+    const mode = resolveEligibilityMode(options);
     console.error(
-      `Transfermarkt overlay: ${candidates.length} candidates (~${estMinutes}+ min; cache hits are faster).`,
+      `Transfermarkt overlay: ${candidates.length} candidates (mode=${mode}; ~${estMinutes}+ min with cache hits; search-only when possible).`,
     );
+    if (candidates.length > 500 && mode === "force") {
+      console.error(
+        "Tip: use default eligibility or pnpm migrate:catalog-positions instead of --force.",
+      );
+    }
   }
 
   const entries: TransfermarktOverlayEntry[] = [];

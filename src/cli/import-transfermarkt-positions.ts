@@ -4,10 +4,12 @@
  *
  * Usage:
  *   pnpm import:transfermarkt-positions --catalog ./data/catalog.json
- *   pnpm import:transfermarkt-positions --team Brazil --from 1970 --to 1970 --limit 30
+ *   pnpm import:transfermarkt-positions --team Brazil --from 1970 --to 1970
  *   pnpm import:transfermarkt-positions --apply --min-confidence 0.75
  *
- * Default is dry-run: writes overlay + report without modifying catalog.
+ * Fast path for all players: pnpm migrate:catalog-positions (no API).
+ * Default eligibility is inferred-only (~100 players). --all-players adds
+ * ambiguous central naturals, not the full 11k roster.
  */
 
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -17,6 +19,8 @@ import { defaultTransfermarktCacheDir } from "../catalog/transfermarktClient.js"
 import {
   applyTransfermarktPositionOverlay,
   buildTransfermarktPositionOverlay,
+  countTransfermarktEligibility,
+  type TransfermarktEligibilityMode,
   type TransfermarktImportReport,
 } from "../catalog/transfermarktImport.js";
 
@@ -30,7 +34,8 @@ interface CliArgs {
   team: string;
   limit: number | undefined;
   minConfidence: number;
-  onlyInferred: boolean;
+  eligibility: TransfermarktEligibilityMode;
+  force: boolean;
   apply: boolean;
   dryRun: boolean;
   skipProfileWhenConfident: boolean;
@@ -47,7 +52,8 @@ function parseArgs(argv: string[]): CliArgs {
   let team = "";
   let limit: number | undefined;
   let minConfidence = 0.72;
-  let onlyInferred = true;
+  let eligibility: TransfermarktEligibilityMode = "inferred";
+  let force = false;
   let apply = false;
   let dryRun = true;
   let skipProfileWhenConfident = true;
@@ -65,9 +71,13 @@ function parseArgs(argv: string[]): CliArgs {
     else if (a === "--limit" && argv[i + 1]) limit = Number(argv[++i]);
     else if (a === "--min-confidence" && argv[i + 1]) {
       minConfidence = Number(argv[++i]);
-    } else if (a === "--only-inferred") onlyInferred = true;
-    else if (a === "--all-players") onlyInferred = false;
-    else if (a === "--apply") {
+    } else if (a === "--only-inferred") eligibility = "inferred";
+    else if (a === "--all-players" || a === "--ambiguous") {
+      eligibility = "ambiguous";
+    } else if (a === "--force") {
+      force = true;
+      eligibility = "force";
+    } else if (a === "--apply") {
       apply = true;
       dryRun = false;
     } else if (a === "--dry-run") dryRun = true;
@@ -85,7 +95,8 @@ function parseArgs(argv: string[]): CliArgs {
     team,
     limit,
     minConfidence,
-    onlyInferred,
+    eligibility,
+    force,
     apply,
     dryRun,
     skipProfileWhenConfident,
@@ -101,6 +112,16 @@ async function loadCatalog(path: string): Promise<SquadCatalog> {
 async function writeJson(path: string, data: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, JSON.stringify(data, null, 2), "utf8");
+}
+
+function formatEta(seconds: number): string {
+  if (seconds <= 0) return "";
+  if (seconds < 90) return `~${seconds}s left`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 120) return `~${minutes}m left`;
+  const hours = Math.floor(minutes / 60);
+  const rem = minutes % 60;
+  return `~${hours}h${rem > 0 ? `${rem}m` : ""} left`;
 }
 
 function summarizeReport(report: TransfermarktImportReport): void {
@@ -120,9 +141,9 @@ function summarizeReport(report: TransfermarktImportReport): void {
   );
   if (report.candidatesConsidered === 0) {
     console.log(
-      "No eligible candidates in range. Fine curated/API positions are skipped by default.",
+      "No eligible candidates. Side-aware players are skipped — use pnpm migrate:catalog-positions for the full catalog.",
     );
-    console.log("Use --all-players to force, or narrow with --team/--from/--to.");
+    console.log("Try --ambiguous for central naturals only, or --force to re-import everyone.");
   }
 }
 
@@ -138,18 +159,41 @@ async function main() {
   }
 
   const catalog = await loadCatalog(catalogPath);
+  const preview = countTransfermarktEligibility(catalog, {
+    fromYear: args.from,
+    toYear: args.to,
+    ...(args.team ? { team: args.team } : {}),
+    eligibility: args.eligibility,
+    force: args.force,
+  });
+
+  console.error(
+    `Eligibility: ${preview.eligible} to query, ${preview.skipped} skipped (mode=${preview.mode}).`,
+  );
+  if (preview.eligible > 800 && preview.mode !== "inferred") {
+    console.error(
+      "Large batch — narrow with --from/--to/--team, or use pnpm migrate:catalog-positions first.",
+    );
+  }
+
   const startedAt = Date.now();
+  const recentDurations: number[] = [];
+  let lastIndex = 0;
+  let lastTickAt = startedAt;
+
   const report = await buildTransfermarktPositionOverlay(catalog, {
     fromYear: args.from,
     toYear: args.to,
     ...(args.team ? { team: args.team } : {}),
     ...(args.limit !== undefined ? { limit: args.limit } : {}),
     minConfidence: args.minConfidence,
-    onlyInferred: args.onlyInferred,
+    eligibility: args.eligibility,
+    force: args.force,
     cacheDir: resolve(args.cache),
     delayMs: args.delayMs,
     skipProfileWhenConfident: args.skipProfileWhenConfident,
-    requestTimeoutMs: 45_000,
+    searchOnlyMinConfidence: args.minConfidence,
+    requestTimeoutMs: 20_000,
     onProgress: (progress) => {
       if (progress.processing) {
         console.error(
@@ -157,18 +201,26 @@ async function main() {
         );
         return;
       }
+
+      const now = Date.now();
+      if (progress.index > lastIndex) {
+        recentDurations.push(now - lastTickAt);
+        if (recentDurations.length > 40) recentDurations.shift();
+        lastIndex = progress.index;
+        lastTickAt = now;
+      }
+
       const interval = progress.total >= 200 ? 10 : 25;
       const { index, total } = progress;
       if (index !== 1 && index % interval !== 0 && index !== total) return;
-      const elapsedSec = (Date.now() - startedAt) / 1000;
-      const rate = index / Math.max(elapsedSec, 0.001);
-      const etaSec = rate > 0 ? Math.round((total - index) / rate) : 0;
-      const eta =
-        etaSec >= 60
-          ? `~${Math.floor(etaSec / 60)}m${etaSec % 60}s left`
-          : etaSec > 0
-            ? `~${etaSec}s left`
-            : "";
+
+      const avgMs =
+        recentDurations.length > 0
+          ? recentDurations.reduce((a, b) => a + b, 0) / recentDurations.length
+          : now - startedAt;
+      const etaSec = Math.round(((total - index) * avgMs) / 1000);
+      const eta = formatEta(etaSec);
+
       console.error(
         `[${index}/${total}] ${progress.catalogName} (${progress.team} ${progress.cup}) → ${progress.status}${eta ? ` | ${eta}` : ""}`,
       );

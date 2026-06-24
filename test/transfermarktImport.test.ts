@@ -104,9 +104,21 @@ describe("transfermarkt eligibility", () => {
       positionSource: "api" as const,
       positions: ["CM", "CDM", "CAM"],
     };
-    expect(isEligibleForTransfermarktOverlay(apiPlayer, true)).toBe(false);
-    expect(isEligibleForTransfermarktOverlay(coarseApi, true)).toBe(true);
-    expect(isEligibleForTransfermarktOverlay(inferred, true)).toBe(true);
+    expect(isEligibleForTransfermarktOverlay(apiPlayer, "inferred")).toBe(false);
+    expect(isEligibleForTransfermarktOverlay(coarseApi, "inferred")).toBe(true);
+    expect(isEligibleForTransfermarktOverlay(inferred, "inferred")).toBe(true);
+  });
+
+  it("--all-players maps to ambiguous mode, not full-catalog force", () => {
+    const catalog = inferredCatalog();
+    const sideAware = {
+      ...catalog.players["brazil-1970__p-carlos"]!,
+      naturalPosition: "RCB",
+      positions: ["RCB", "LCB", "CB"],
+      positionSource: "api" as const,
+    };
+    expect(isEligibleForTransfermarktOverlay(sideAware, "ambiguous")).toBe(false);
+    expect(isEligibleForTransfermarktOverlay(sideAware, "force")).toBe(true);
   });
 });
 
