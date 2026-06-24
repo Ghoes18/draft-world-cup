@@ -25,19 +25,32 @@ describe("canonicalRole", () => {
 });
 
 describe("positionFit", () => {
-  it("gives full credit for the exact role", () => {
-    expect(positionFit("ST", "CF")).toBe(FIT_EXACT); // both → ST
-    expect(positionFit("RCB", "LCB")).toBe(FIT_EXACT); // both → CB
+  it("gives full credit for the exact detail code", () => {
+    expect(positionFit("RCB", "RCB")).toBe(1);
+    expect(positionFit("LW", "LW")).toBe(1);
   });
 
-  it("gives partial credit for an adjacent role", () => {
-    expect(positionFit("CB", "RB")).toBe(FIT_ADJACENT); // CB ↔ FB
-    expect(positionFit("CM", "AM")).toBe(FIT_ADJACENT);
+  it("gives same-role central credit for detail synonyms", () => {
+    expect(positionFit("ST", "CF")).toBe(0.85);
+  });
+
+  it("gives side-aware credit for detail positions", () => {
+    expect(positionFit("RCB", "LCB")).toBe(0.55);
+  });
+
+  it("gives partial credit for an adjacent detail role", () => {
+    expect(positionFit("CB", "RB")).toBe(0.28);
+    expect(positionFit("CM", "RAM")).toBe(0.28);
+  });
+
+  it("falls back to coarse scoring for non-detail codes", () => {
+    expect(positionFit("MF", "MF")).toBe(FIT_EXACT);
+    expect(positionFit("MF", "FW")).toBe(FIT_UNRELATED);
   });
 
   it("gives little credit for an unrelated role", () => {
-    expect(positionFit("ST", "CB")).toBe(FIT_UNRELATED);
-    expect(positionFit("GK", "ST")).toBe(FIT_UNRELATED); // GK is exact-only
+    expect(positionFit("ST", "CB")).toBe(0.1);
+    expect(positionFit("GK", "ST")).toBe(0.05);
   });
 
   it("treats unknown codes as unrelated", () => {

@@ -10,3 +10,4 @@ export * from "./catalog/zafronixClient.js";
 export * from "./catalog/zafronixImport.js";
 export * from "./catalog/transfermarktClient.js";
 export * from "./catalog/transfermarktImport.js";
+export * from "./catalog/detailPositionsMigrate.js";

@@ -30,7 +30,7 @@
         },
         {
           "name": "Brito",
-          "naturalPosition": "CB",
+          "naturalPosition": "RCB",
           "positions": [
             "RCB",
             "LCB",
@@ -86,7 +86,7 @@
         },
         {
           "name": "Jairzinho",
-          "naturalPosition": "CM",
+          "naturalPosition": "CM_RIGHT",
           "positions": [
             "RW",
             "RW_INSIDE",

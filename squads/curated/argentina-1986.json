@@ -31,7 +31,7 @@
         },
         {
           "name": "Daniel Passarella",
-          "naturalPosition": "CB",
+          "naturalPosition": "RCB",
           "positions": [
             "RCB",
             "LCB",
@@ -134,7 +134,7 @@
         },
         {
           "name": "Jorge Valdano",
-          "naturalPosition": "CAM",
+          "naturalPosition": "RAM",
           "positions": [
             "ST",
             "RST",
@@ -147,7 +147,7 @@
         },
         {
           "name": "Oscar Garré",
-          "naturalPosition": "ST",
+          "naturalPosition": "LST",
           "positions": [
             "LB",
             "LWB"
@@ -159,7 +159,7 @@
         },
         {
           "name": "Néstor Clausen",
-          "naturalPosition": "ST",
+          "naturalPosition": "RST",
           "positions": [
             "RB",
             "RWB"

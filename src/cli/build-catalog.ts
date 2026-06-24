@@ -165,6 +165,15 @@ async function main() {
   ).length;
   console.log(`Legend photos: ${legendPhotos} players`);
 
+  const { migrateCatalogToDetailPositions } = await import(
+    "../catalog/detailPositionsMigrate.js"
+  );
+  const detailResult = migrateCatalogToDetailPositions(catalog);
+  catalog = detailResult.catalog;
+  console.log(
+    `Detail positions: ${detailResult.stats.naturalChanged} naturals assigned, ${detailResult.stats.positionsExpanded} position lists expanded`,
+  );
+
   const catalogJson = JSON.stringify(catalog, null, 2);
 
   await mkdir(dirname(outPath), { recursive: true });

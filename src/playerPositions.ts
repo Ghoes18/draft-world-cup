@@ -156,13 +156,18 @@ export function formatPositionList(positions: readonly string[]): string {
   );
 
   if (hasDetail) {
-    // Show detail labels (e.g. "RB · RCB · CB")
-    const labels = positions.map((p) => {
+    const roles = new Map<Role, string>();
+    for (const p of positions) {
       const upper = p.trim().toUpperCase();
       const detail = POSITION_DETAILS[upper as PosDetail];
-      return detail ? detail.shortLabel : upper;
-    });
-    return [...new Set(labels)].join(" · ");
+      const role = detail ? detail.role : canonicalRole(upper);
+      if (!role || roles.has(role)) continue;
+      roles.set(role, detail ? detail.shortLabel : upper);
+    }
+    const ordered = ROLE_DISPLAY_ORDER.filter((r) => roles.has(r)).map(
+      (r) => roles.get(r)!,
+    );
+    if (ordered.length > 0) return ordered.join(" · ");
   }
 
   // Coarse fallback: group by role

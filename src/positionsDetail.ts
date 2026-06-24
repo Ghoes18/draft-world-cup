@@ -208,7 +208,6 @@ export function expandCoarseToDetail(coarse: string): readonly PosDetail[] {
     case "ST":
     case "FW":
     case "CA":
-    case "PE":
       return ["ST", "RST", "LST"];
     case "RST":
       return ["RST"];

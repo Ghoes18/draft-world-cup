@@ -16,6 +16,10 @@ import {
   normalizeCatalog,
   type SquadCatalog,
 } from "../catalog.js";
+import {
+  assignSquadDetailPositions,
+  expandPositionsToDetail,
+} from "./detailPositionsMigrate.js";
 import { readCsvFile, type CsvRow } from "./csv.js";
 import {
   appearanceMerit,
@@ -581,7 +585,7 @@ export async function buildCatalogFromFjelstul(
         );
       }
       const positions = uniqueExpanded([
-        ...positionCodesFromFjelstul(primaryCode),
+        ...expandPositionsToDetail(positionCodesFromFjelstul(primaryCode)),
       ]);
 
       return {
@@ -596,11 +600,13 @@ export async function buildCatalogFromFjelstul(
       };
     });
 
+    const detailPlayers = assignSquadDetailPositions(players);
+
     scenarios.push({
       id: scenarioId,
       team: team!,
       cup,
-      players,
+      players: detailPlayers,
     });
   }
 

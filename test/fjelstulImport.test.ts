@@ -143,7 +143,7 @@ describe("fjelstulImport", () => {
     expect(fullBack!.positions).toContain("RCB");
 
     expect(centerBack).toBeDefined();
-    expect(centerBack!.naturalPosition).toBe("CB");
+    expect(centerBack!.naturalPosition).toBe("RCB");
     expect(centerBack!.positions).toContain("RB");
   });
 

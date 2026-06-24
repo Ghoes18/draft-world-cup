@@ -260,6 +260,30 @@ const COARSE_CATALOG_POSITION_SETS: readonly string[][] = [
   ["CB", "LB", "RB"],
   ["CM", "CDM", "CAM"],
   ["ST", "CF"],
+  [
+    "RCB",
+    "LCB",
+    "CB",
+    "RB",
+    "LB",
+    "RWB",
+    "LWB",
+  ],
+  [
+    "RCM",
+    "LCM",
+    "CM",
+    "CM_LEFT",
+    "CM_RIGHT",
+    "CDM",
+    "CDM_DEEP",
+    "CAM",
+    "RAM",
+    "LAM",
+    "CAM_LEFT",
+    "CAM_RIGHT",
+  ],
+  ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
 ];
 
 function sortedPositionKey(positions: readonly string[]): string {

@@ -18,6 +18,7 @@
     "import:transfermarkt-positions": "tsx src/cli/import-transfermarkt-positions.ts",
     "import:photos": "tsx src/cli/import-photos.ts",
     "fetch:squads": "tsx src/cli/fetch-squads.ts",
+    "migrate:catalog-positions": "tsx src/cli/migrate-catalog-positions.ts",
     "build:catalog": "tsx src/cli/build-catalog.ts",
     "test": "vitest run",
     "test:watch": "vitest",
