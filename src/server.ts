@@ -8,3 +8,5 @@ export * from "./catalog/csv.js";
 export * from "./catalog/fjelstulImport.js";
 export * from "./catalog/zafronixClient.js";
 export * from "./catalog/zafronixImport.js";
+export * from "./catalog/transfermarktClient.js";
+export * from "./catalog/transfermarktImport.js";

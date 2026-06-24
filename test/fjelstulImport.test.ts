@@ -4,6 +4,8 @@ import {
   buildEnhancedStats,
   filterSquadRows,
   indexAppearances,
+  indexAppearancePositionCounts,
+  resolveDefenderNaturalPosition,
 } from "../src/catalog/fjelstulImport.js";
 import { appearanceMerit, meritsToForces } from "../src/catalog/deriveForce.js";
 import { parseCsvLine, readCsvFile } from "../src/catalog/csv.js";
@@ -101,5 +103,74 @@ describe("fjelstulImport", () => {
     const rows = await readCsvFile(`${fixtureDir}/squads.csv`);
     expect(rows.length).toBeGreaterThan(0);
     expect(rows[0]!.team_name).toBeDefined();
+  });
+
+  it("resolveDefenderNaturalPosition prefers fine appearance codes over coarse DF", () => {
+    expect(
+      resolveDefenderNaturalPosition(
+        new Map([
+          ["RB", 6],
+          ["DF", 1],
+        ]),
+      ),
+    ).toBe("RB");
+    expect(resolveDefenderNaturalPosition(new Map([["CB", 4]]))).toBe("CB");
+    expect(resolveDefenderNaturalPosition(new Map([["DF", 3]]))).toBe("CB");
+    expect(resolveDefenderNaturalPosition(undefined)).toBe("CB");
+  });
+
+  it("sets defender naturalPosition from appearance codes while keeping broad playable list", async () => {
+    const paths = {
+      squads: `${fixtureDir}/squads.csv`,
+      playerAppearances: `${fixtureDir}/player_appearances.csv`,
+      goals: `${fixtureDir}/goals.csv`,
+      tournaments: `${fixtureDir}/tournaments.csv`,
+    };
+
+    const raw = await buildCatalogFromFjelstul(paths, {
+      mensOnly: true,
+      fromYear: 1970,
+      toYear: 1970,
+    });
+
+    const players = raw.scenarios[0]!.players;
+    const fullBack = players.find((p) => p.name.includes("Carlos"));
+    const centerBack = players.find((p) => p.name.includes("Beto"));
+
+    expect(fullBack).toBeDefined();
+    expect(fullBack!.naturalPosition).toBe("RB");
+    expect(fullBack!.positions).toContain("LB");
+    expect(fullBack!.positions).toContain("RCB");
+
+    expect(centerBack).toBeDefined();
+    expect(centerBack!.naturalPosition).toBe("CB");
+    expect(centerBack!.positions).toContain("RB");
+  });
+
+  it("indexAppearancePositionCounts tallies per-match codes", () => {
+    const rows = [
+      {
+        tournament_id: "WC-1970",
+        team_id: "T-07",
+        player_id: "P-00004",
+        position_code: "RB",
+      },
+      {
+        tournament_id: "WC-1970",
+        team_id: "T-07",
+        player_id: "P-00004",
+        position_code: "RB",
+      },
+      {
+        tournament_id: "WC-1970",
+        team_id: "T-07",
+        player_id: "P-00004",
+        position_code: "CB",
+      },
+    ];
+    const counts = indexAppearancePositionCounts(rows);
+    const key = "WC-1970|T-07|P-00004";
+    expect(counts.get(key)?.get("RB")).toBe(2);
+    expect(counts.get(key)?.get("CB")).toBe(1);
   });
 });

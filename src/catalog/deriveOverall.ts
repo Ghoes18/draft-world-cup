@@ -7,9 +7,13 @@
  *      for the 35-attribute positional score we do not have in Fjelstul).
  *   2. International reputation (1–5★) adds +0…+3 on top, with pedigree floors
  *      so iconic squad players are not crushed by one bad World Cup edition.
+ *   3. Deterministic per-player spread so sparse early squads (e.g. Paraguay
+ *      1950) are not a flat wall of identical bench ratings.
  *
  * Curated overlays (Pelé 99, Maradona 96) still win on conflicts.
  */
+
+import { hashSeed } from "../rng.js";
 
 export interface CareerOverallInput {
   starts: number;
@@ -205,6 +209,36 @@ export function derivePlayerOverall(input: DerivePlayerOverallInput): number {
   const floored = Math.max(boosted, reputationPedigreeFloor(stars));
 
   return clamp(floored, 0, OVR_CEILING);
+}
+
+/**
+ * Break ties when many squad members share the same sparse Fjelstul profile
+ * (common for early World Cups with missing appearance rows).
+ */
+export function applyDeterministicOverallSpread(
+  baseOverall: number,
+  spreadKey: string,
+  minOverall: number = OVR_FLOOR,
+): number {
+  let overall: number;
+  if (baseOverall <= BENCH_BASE + 1) {
+    overall = BENCH_BASE + (hashSeed(spreadKey) % BENCH_SPREAD);
+  } else {
+    const tieBreak = (hashSeed(`${spreadKey}\0ovr`) % 5) - 2;
+    overall = baseOverall + tieBreak;
+  }
+  return clamp(Math.max(overall, minOverall), 0, OVR_CEILING);
+}
+
+/** Catalog import entry point: merit model + reputation + per-player spread. */
+export function finalizePlayerOverall(
+  input: DerivePlayerOverallInput,
+  spreadKey: string,
+): number {
+  const stars = inferInternationalReputation(input.pedigree);
+  const minOverall = reputationPedigreeFloor(stars);
+  const base = derivePlayerOverall(input);
+  return applyDeterministicOverallSpread(base, spreadKey, minOverall);
 }
 
 /**

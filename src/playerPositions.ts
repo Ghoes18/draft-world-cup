@@ -2,7 +2,7 @@
  * Playable positions per player — API-authoritative placement rules.
  *
  * - `positionSource: "api"` — only listed positions (same-role formation labels).
- * - `positionSource: "inferred"` — Fjelstul fallback expansion for draft viability.
+ * - `positionSource: "inferred"` — Fjelstul GK/DF/MF/FW expansion (FW = striker line only).
  * - No list — natural position with adjacent-role flexibility (legacy demo).
  */
 
@@ -34,24 +34,27 @@ export const FORMATION_VARIANTS: Record<Role, readonly string[]> = {
   ST: ["ST", "CF", "RST", "LST", "FW", "PE", "CA"],
 };
 
+/**
+ * Fjelstul squad rows only use GK/DF/MF/FW. Conservative expansion for draft
+ * eligibility — FW is striker-line (PE/CA), not wingers (PD).
+ */
+const FJELSTUL_COARSE_PLAYABLE: Record<string, readonly string[]> = {
+  GK: FORMATION_VARIANTS.GK,
+  DF: [...FORMATION_VARIANTS.CB, ...FORMATION_VARIANTS.FB],
+  MF: [
+    ...FORMATION_VARIANTS.DM,
+    ...FORMATION_VARIANTS.CM,
+    ...FORMATION_VARIANTS.AM,
+  ],
+  FW: FORMATION_VARIANTS.ST,
+};
+
 /** Raw Fjelstul appearance codes → playable formation slots (inferred only). */
 export function positionCodesFromFjelstul(positionCode: string): readonly string[] {
-  switch (positionCode.trim().toUpperCase()) {
-    case "GK":
-      return FORMATION_VARIANTS.GK;
-    case "DF":
-      return [...FORMATION_VARIANTS.CB, ...FORMATION_VARIANTS.FB];
-    case "MF":
-      return [
-        ...FORMATION_VARIANTS.DM,
-        ...FORMATION_VARIANTS.CM,
-        ...FORMATION_VARIANTS.AM,
-      ];
-    case "FW":
-      return [...FORMATION_VARIANTS.W, ...FORMATION_VARIANTS.ST];
-    default:
-      return expandRoleVariants(positionCode);
-  }
+  const code = positionCode.trim().toUpperCase();
+  const coarse = FJELSTUL_COARSE_PLAYABLE[code];
+  if (coarse) return coarse;
+  return expandRoleVariants(code);
 }
 
 /** Expand a position code to formation labels in the same canonical role. */
@@ -62,19 +65,16 @@ export function expandRoleVariants(position: string): readonly string[] {
 }
 
 function expandFjelstulMappedCoarse(mapped: string): readonly string[] {
-  switch (mapped.trim().toUpperCase()) {
-    case "GK":
-      return FORMATION_VARIANTS.GK;
+  const code = mapped.trim().toUpperCase();
+  const coarse = FJELSTUL_COARSE_PLAYABLE[code];
+  if (coarse) return coarse;
+  switch (code) {
     case "CB":
       return [...FORMATION_VARIANTS.CB, ...FORMATION_VARIANTS.FB];
     case "CM":
-      return [
-        ...FORMATION_VARIANTS.DM,
-        ...FORMATION_VARIANTS.CM,
-        ...FORMATION_VARIANTS.AM,
-      ];
+      return FORMATION_VARIANTS.CM;
     case "ST":
-      return [...FORMATION_VARIANTS.W, ...FORMATION_VARIANTS.ST];
+      return FORMATION_VARIANTS.ST;
     default:
       return expandRoleVariants(mapped);
   }

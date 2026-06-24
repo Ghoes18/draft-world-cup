@@ -8,6 +8,7 @@
  */
 
 import { positionCodesFromFjelstul } from "../playerPositions.js";
+import { canonicalRole } from "../chemistry.js";
 import { playerDisplayNameFromParts } from "../playerNames.js";
 import {
   scenarioIdFromTeamCup,
@@ -22,7 +23,7 @@ import {
   type PlayerAppearanceStats,
 } from "./deriveForce.js";
 import {
-  derivePlayerOverall,
+  finalizePlayerOverall,
   isFinalStage,
   isKnockoutStage,
   isSemiOrBetterStage,
@@ -80,19 +81,68 @@ function mapPositionCode(code: string): string {
   }
 }
 
+/** Collect per-match Fjelstul position_code counts per squad player. */
+export function indexAppearancePositionCounts(
+  rows: CsvRow[],
+): Map<string, Map<string, number>> {
+  const map = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    const key = squadPlayerKey(row.tournament_id!, row.team_id!, row.player_id!);
+    const code = (row.position_code ?? "MF").trim().toUpperCase();
+    const counts = map.get(key) ?? new Map<string, number>();
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+    map.set(key, counts);
+  }
+  return map;
+}
+
 /** Collect unique raw Fjelstul position codes per squad player from appearances. */
 export function indexAppearancePositions(
   rows: CsvRow[],
 ): Map<string, Set<string>> {
   const map = new Map<string, Set<string>>();
-  for (const row of rows) {
-    const key = squadPlayerKey(row.tournament_id!, row.team_id!, row.player_id!);
-    const code = (row.position_code ?? "MF").trim().toUpperCase();
-    const set = map.get(key) ?? new Set<string>();
-    set.add(code);
-    map.set(key, set);
+  for (const [key, counts] of indexAppearancePositionCounts(rows)) {
+    map.set(key, new Set(counts.keys()));
   }
   return map;
+}
+
+const COARSE_FJELSTUL_CODES = new Set(["GK", "DF", "MF", "FW"]);
+
+function isDefenderFineCode(code: string): boolean {
+  const role = canonicalRole(code);
+  return role === "CB" || role === "FB";
+}
+
+function normalizeDefenderNaturalCode(code: string): string {
+  const upper = code.trim().toUpperCase();
+  if (upper === "SW") return "CB";
+  return upper;
+}
+
+/**
+ * Pick naturalPosition for a squad-listed DF from appearance counts.
+ * Playable positions stay on the coarse DF expansion; this only labels the card.
+ */
+export function resolveDefenderNaturalPosition(
+  appearanceCounts: Map<string, number> | undefined,
+): string {
+  if (!appearanceCounts || appearanceCounts.size === 0) return "CB";
+
+  const fineEntries: { code: string; count: number }[] = [];
+  for (const [code, count] of appearanceCounts) {
+    const upper = code.trim().toUpperCase();
+    if (COARSE_FJELSTUL_CODES.has(upper)) continue;
+    if (!isDefenderFineCode(upper)) continue;
+    fineEntries.push({ code: upper, count });
+  }
+
+  if (fineEntries.length === 0) return "CB";
+
+  fineEntries.sort(
+    (a, b) => b.count - a.count || a.code.localeCompare(b.code),
+  );
+  return normalizeDefenderNaturalCode(fineEntries[0]!.code);
 }
 
 function playerDisplayName(given: string, family: string): string {
@@ -407,6 +457,7 @@ export async function buildCatalogFromFjelstul(
   const goalRows = goals.filter(inRange);
 
   const enhancedStats = buildEnhancedStats(appearanceRows, goalRows);
+  const appearancePositionCounts = indexAppearancePositionCounts(appearanceRows);
   const finalists = indexFinalists(appearanceRows);
   const tournamentYears = indexTournamentYears([
     ...squadRows,
@@ -505,7 +556,10 @@ export async function buildCatalogFromFjelstul(
 
       overalls.set(
         key,
-        derivePlayerOverall({ edition: editionInput, career: careerInput, pedigree }),
+        finalizePlayerOverall(
+          { edition: editionInput, career: careerInput, pedigree },
+          key,
+        ),
       );
     }
 
@@ -517,11 +571,15 @@ export async function buildCatalogFromFjelstul(
       const shirtNumber =
         Number.isFinite(shirtRaw) && shirtRaw > 0 ? shirtRaw : undefined;
 
-      // Fjelstul only encodes coarse roles (GK/DF/MF/FW). Expand the player's
-      // PRIMARY listed position into its role variants only — do not union every
-      // appearance code, which produced unrealistic defender+midfield sprawl.
+      // Fjelstul only encodes coarse roles (GK/DF/MF/FW). FW expands to the
+      // striker line (ST/CF), not wing slots — see positionCodesFromFjelstul.
       const primaryCode = (row.position_code ?? "MF").trim().toUpperCase();
-      const naturalPosition = mapPositionCode(primaryCode);
+      let naturalPosition = mapPositionCode(primaryCode);
+      if (primaryCode === "DF") {
+        naturalPosition = resolveDefenderNaturalPosition(
+          appearancePositionCounts.get(key),
+        );
+      }
       const positions = uniqueExpanded([
         ...positionCodesFromFjelstul(primaryCode),
       ]);

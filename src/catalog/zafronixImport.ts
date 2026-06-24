@@ -10,16 +10,16 @@ import {
   type RawCatalogExport,
   type SquadCatalog,
 } from "../catalog.js";
-import { positionCodesFromFjelstul } from "../playerPositions.js";
 import {
   appearanceMerit,
   meritsToForces,
 } from "./deriveForce.js";
 import {
-  derivePlayerOverall,
+  finalizePlayerOverall,
   type CareerOverallInput,
   type CareerPedigreeInput,
 } from "./deriveOverall.js";
+import { hashSeed } from "../rng.js";
 import {
   getZafronixTournamentMeta,
   parseZafronixTournamentTeams,
@@ -69,7 +69,19 @@ interface CareerRollup {
   everReachedSemiOrBetter: boolean;
 }
 
-const COARSE_ZAFRONIX = new Set(["GK", "DF", "MF", "FW"]);
+/**
+ * Zafronix often returns only GK/DF/MF/FW. Map to tight API lists (7a0-style:
+ * e.g. FW → ST + CF / ATA + AVC), not the full Fjelstul role expansion.
+ */
+const ZAFRONIX_COARSE_PLAYABLE: Record<
+  string,
+  { naturalPosition: string; positions: readonly string[] }
+> = {
+  GK: { naturalPosition: "GK", positions: ["GK"] },
+  DF: { naturalPosition: "CB", positions: ["CB", "LB", "RB"] },
+  MF: { naturalPosition: "CM", positions: ["CM", "CDM", "CAM"] },
+  FW: { naturalPosition: "ST", positions: ["ST", "CF"] },
+};
 
 /** Normalize team names for catalog ↔ Zafronix matching. */
 export function normalizeTeamName(name: string): string {
@@ -113,19 +125,22 @@ export function normalizeZafronixPlayerName(name: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function mapCoarseNaturalPosition(code: string): string {
-  switch (code.trim().toUpperCase()) {
-    case "GK":
-      return "GK";
-    case "DF":
-      return "CB";
-    case "MF":
-      return "CM";
-    case "FW":
-      return "ST";
-    default:
-      return code.trim().toUpperCase();
+/**
+ * Zafronix often omits `jersey` on pre-1970 squads. Using a fixed fallback (99)
+ * made every player share the same inferred starts/subs and overall.
+ */
+export function resolveRosterJersey(player: ZafronixRosterPlayer): number {
+  if (
+    typeof player.jersey === "number" &&
+    Number.isFinite(player.jersey) &&
+    player.jersey > 0
+  ) {
+    return Math.round(player.jersey);
   }
+  const name = normalizeZafronixPlayerName(
+    player.fullName ?? player.name ?? "unknown",
+  );
+  return (hashSeed(name) % 22) + 1;
 }
 
 /** Map Zafronix position codes to catalog natural + playable positions. */
@@ -135,15 +150,17 @@ export function mapZafronixPosition(position: string): {
   positionSource: "api" | "inferred";
 } {
   const code = position.trim().toUpperCase();
-  if (COARSE_ZAFRONIX.has(code)) {
-    const naturalPosition = mapCoarseNaturalPosition(code);
-    const positions = [...positionCodesFromFjelstul(code)];
-    return { naturalPosition, positions, positionSource: "inferred" };
+  const coarse = ZAFRONIX_COARSE_PLAYABLE[code];
+  if (coarse) {
+    return {
+      naturalPosition: coarse.naturalPosition,
+      positions: [...coarse.positions],
+      positionSource: "api",
+    };
   }
 
-  const naturalPosition = code;
   return {
-    naturalPosition,
+    naturalPosition: code,
     positions: [code],
     positionSource: "api",
   };
@@ -229,7 +246,7 @@ export function estimatePlayerEditionStats(
   } else if (starts === 0 && subs === 0) {
     // Zafronix roster rows often omit minutes/appearances/starter. Infer from
     // squad number: 1–11 ≈ regular XI, 12–16 rotation, 17+ bench.
-    const jersey = player.jersey ?? 99;
+    const jersey = resolveRosterJersey(player);
     if (jersey <= 11) {
       starts = Math.min(3, teamMatches);
     } else if (jersey <= 16) {
@@ -391,6 +408,7 @@ export function buildZafronixRawExport(
 
     for (const rosterPlayer of zafronixTeam.roster) {
       const displayName = rosterPlayer.fullName ?? rosterPlayer.name;
+      const jersey = resolveRosterJersey(rosterPlayer);
       const editionStats = estimatePlayerEditionStats(
         rosterPlayer,
         editionContext,
@@ -422,34 +440,38 @@ export function buildZafronixRawExport(
         everReachedSemiOrBetter: careerRollup.everReachedSemiOrBetter,
         editionStarts: editionStats.starts,
         coarsePosition,
-        shirtNumber: rosterPlayer.jersey,
+        shirtNumber: jersey,
       };
 
-      const overall = derivePlayerOverall({
-        edition: editionInput,
-        career: careerInput,
-        pedigree,
-      });
+      const spreadKey = `${scenario.id}__zfx-${jersey}-${careerKey}`;
+      const overall = finalizePlayerOverall(
+        {
+          edition: editionInput,
+          career: careerInput,
+          pedigree,
+        },
+        spreadKey,
+      );
 
-      const meritKey = `${rosterPlayer.jersey}`;
+      const meritKey = careerKey;
       merits.set(meritKey, appearanceMerit(editionStats));
 
       overlayPlayers.push({
-        id: `${scenario.id}__zfx-${rosterPlayer.jersey}`,
+        id: `${scenario.id}__zfx-${jersey}`,
         name: displayName,
         naturalPosition: pos.naturalPosition,
         positions: pos.positions,
         positionSource: pos.positionSource,
         overall,
         force: 160,
-        shirtNumber: rosterPlayer.jersey,
+        shirtNumber: jersey,
       });
       playersPatched++;
     }
 
     const forces = meritsToForces(merits, (k) => `${scenario.id}:${k}`);
     for (const player of overlayPlayers) {
-      const meritKey = `${player.shirtNumber}`;
+      const meritKey = normalizeZafronixPlayerName(player.name);
       player.force = forces.get(meritKey) ?? player.force;
     }
 

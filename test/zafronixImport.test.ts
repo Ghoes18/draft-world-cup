@@ -3,11 +3,13 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { hydrateCatalog, type SquadCatalog } from "../src/catalog.js";
 import { overlayRawExportOnCatalog } from "../src/catalog/catalogOverlay.js";
+import { canPlayInSlot } from "../src/playerPositions.js";
 import {
   buildZafronixRawExport,
   estimatePlayerEditionStats,
   mapZafronixPosition,
   normalizeZafronixPlayerName,
+  resolveRosterJersey,
   teamMatchesPlayed,
   teamNamesMatch,
 } from "../src/catalog/zafronixImport.js";
@@ -85,11 +87,18 @@ describe("zafronixImport helpers", () => {
     expect(normalizeZafronixPlayerName("Antonio Rattín")).toBe("antoniorattin");
   });
 
-  it("maps coarse Zafronix positions", () => {
+  it("maps coarse Zafronix positions to tight API lists", () => {
+    const fw = mapZafronixPosition("FW");
+    expect(fw.naturalPosition).toBe("ST");
+    expect(fw.positionSource).toBe("api");
+    expect(fw.positions).toEqual(["ST", "CF"]);
+    expect(fw.positions).not.toContain("RW");
+
     const mf = mapZafronixPosition("MF");
     expect(mf.naturalPosition).toBe("CM");
-    expect(mf.positionSource).toBe("inferred");
-    expect(mf.positions.length).toBeGreaterThan(3);
+    expect(mf.positionSource).toBe("api");
+    expect(mf.positions).toEqual(["CM", "CDM", "CAM"]);
+    expect(mf.positions).not.toContain("LW");
   });
 
   it("estimates QF exit as four team matches", () => {
@@ -122,6 +131,31 @@ describe("zafronixImport helpers", () => {
     );
     expect(stats.starts).toBe(3);
   });
+
+  it("spreads inferred minutes when Zafronix omits jersey numbers", () => {
+    const context = {
+      teamMatches: 3,
+      teamWonCup: false,
+      teamReachedFinal: false,
+      teamReachedSemiOrBetter: false,
+    };
+    const roster = [
+      { jersey: null, name: "Enrique Avalos", position: "FW", goals: 0 },
+      { jersey: null, name: "Marcial Avalos", position: "FW", goals: 0 },
+      { jersey: null, name: "Melanio Baez", position: "MF", goals: 0 },
+      { jersey: null, name: "Ángel Berni", position: "FW", goals: 0 },
+    ];
+    const overalls = roster.map((player) => {
+      const jersey = resolveRosterJersey(player);
+      expect(jersey).toBeGreaterThanOrEqual(1);
+      expect(jersey).toBeLessThanOrEqual(22);
+      return estimatePlayerEditionStats(player, context);
+    });
+    expect(new Set(overalls.map((s) => s.starts)).size).toBeGreaterThan(1);
+    expect(new Set(overalls.map((s) => `${s.starts}-${s.subs}`)).size).toBeGreaterThan(
+      1,
+    );
+  });
 });
 
 describe("buildZafronixRawExport", () => {
@@ -144,6 +178,127 @@ describe("buildZafronixRawExport", () => {
     expect(rattin.overall).toBeGreaterThan(62);
     expect(artime.overall).toBeGreaterThanOrEqual(79);
     expect(bench.overall).toBeGreaterThanOrEqual(62);
+  });
+
+  it("differentiates Paraguay 1950 when Zafronix omits jersey numbers", () => {
+    const doc = JSON.parse(
+      readFileSync(resolve("data/zafronix/tournaments_1950.json"), "utf8"),
+    ) as ZafronixTournamentDoc;
+    const tournaments = new Map<number, ZafronixTournamentDoc>([[1950, doc]]);
+    const base = hydrateCatalog({
+      scenarios: [
+        {
+          id: "paraguay-1950",
+          team: "Paraguay",
+          cup: 1950,
+          playerIds: [
+            "paraguay-1950__p-1",
+            "paraguay-1950__p-2",
+            "paraguay-1950__p-3",
+            "paraguay-1950__p-4",
+          ],
+        },
+      ],
+      players: {
+        "paraguay-1950__p-1": {
+          id: "paraguay-1950__p-1",
+          name: "Enrique Avalos",
+          team: "Paraguay",
+          cup: 1950,
+          naturalPosition: "ST",
+          force: 160,
+          overall: 62,
+        },
+        "paraguay-1950__p-2": {
+          id: "paraguay-1950__p-2",
+          name: "Marcial Avalos",
+          team: "Paraguay",
+          cup: 1950,
+          naturalPosition: "ST",
+          force: 160,
+          overall: 62,
+        },
+        "paraguay-1950__p-3": {
+          id: "paraguay-1950__p-3",
+          name: "Melanio Baez",
+          team: "Paraguay",
+          cup: 1950,
+          naturalPosition: "CM",
+          force: 160,
+          overall: 62,
+        },
+        "paraguay-1950__p-4": {
+          id: "paraguay-1950__p-4",
+          name: "Ángel Berni",
+          team: "Paraguay",
+          cup: 1950,
+          naturalPosition: "ST",
+          force: 160,
+          overall: 62,
+        },
+      },
+    });
+
+    const { raw } = buildZafronixRawExport(base, tournaments, {
+      fromYear: 1950,
+      toYear: 1950,
+    });
+    const result = overlayRawExportOnCatalog(base, [raw]);
+    const overalls = [
+      result.catalog.players["paraguay-1950__p-1"]!.overall,
+      result.catalog.players["paraguay-1950__p-2"]!.overall,
+      result.catalog.players["paraguay-1950__p-3"]!.overall,
+      result.catalog.players["paraguay-1950__p-4"]!.overall,
+    ];
+    expect(new Set(overalls).size).toBeGreaterThan(1);
+    expect(overalls.filter((ovr) => ovr === 69).length).toBeLessThan(
+      overalls.length,
+    );
+  });
+
+  it("restricts coarse FW Zafronix players to striker-line slots (Eto'o)", () => {
+    const doc = JSON.parse(
+      readFileSync(resolve("data/zafronix/tournaments_2010.json"), "utf8"),
+    ) as ZafronixTournamentDoc;
+    const tournaments = new Map<number, ZafronixTournamentDoc>([[2010, doc]]);
+    const base = hydrateCatalog({
+      scenarios: [
+        {
+          id: "cameroon-2010",
+          team: "Cameroon",
+          cup: 2010,
+          playerIds: ["cameroon-2010__eto"],
+        },
+      ],
+      players: {
+        "cameroon-2010__eto": {
+          id: "cameroon-2010__eto",
+          name: "Samuel Eto'o",
+          team: "Cameroon",
+          cup: 2010,
+          naturalPosition: "ST",
+          positions: ["RW", "LW", "ST", "CF"],
+          positionSource: "inferred",
+          force: 160,
+          overall: 62,
+        },
+      },
+    });
+
+    const { raw } = buildZafronixRawExport(base, tournaments, {
+      fromYear: 2010,
+      toYear: 2010,
+    });
+    const result = overlayRawExportOnCatalog(base, [raw]);
+    const eto = result.catalog.players["cameroon-2010__eto"]!;
+
+    expect(eto.positionSource).toBe("api");
+    expect(eto.positions).toEqual(["ST", "CF"]);
+    expect(canPlayInSlot(eto, "ST")).toBe(true);
+    expect(canPlayInSlot(eto, "CF")).toBe(true);
+    expect(canPlayInSlot(eto, "RW")).toBe(false);
+    expect(canPlayInSlot(eto, "LW")).toBe(false);
+    expect(canPlayInSlot(eto, "CAM")).toBe(false);
   });
 
   it("raises Figo-style stars when Zafronix omits starter flags (2002)", () => {

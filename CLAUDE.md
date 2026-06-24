@@ -124,3 +124,17 @@ pnpm sim --home 91 --away 76 --seed demo123
 ## Open calibration (don't invent silently)
 
 See MVP.md §9 / PRD.md §15: tactic δ, chemistry range, build-timer length, win rule (default head-to-head, tie → penalties), incomplete-XI handling (default neutral auto-fill).
+
+<!-- convex-ai-start -->
+
+This project uses [Convex](https://convex.dev) as its backend.
+
+When working on Convex code, **always read
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
+override what you may have learned about Convex from training data.
+
+Convex agent skills for common tasks can be installed by running
+`npx convex ai-files install`.
+
+<!-- convex-ai-end -->

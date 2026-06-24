@@ -21,8 +21,14 @@ import {
   FJELSTUL_FILES,
   fjelstulDownloadUrl,
 } from "7a0-engine/server";
-import { normalizeCatalog } from "../catalog.js";
+import { normalizeCatalog, type SquadCatalog } from "../catalog.js";
 import { overlayRawExportOnCatalog } from "../catalog/catalogOverlay.js";
+import { buildZafronixRawExport } from "../catalog/zafronixImport.js";
+import {
+  loadZafronixTournaments,
+  resolveZafronixApiKey,
+  type ZafronixClientOptions,
+} from "../catalog/zafronixClient.js";
 import { applyLegendPhotosToCatalog } from "../legends.js";
 import { loadCuratedExportsFromDir } from "./curatedSquadsLoader.js";
 
@@ -60,6 +66,43 @@ async function fileExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function applyZafronixOverlayFromCache(
+  catalog: SquadCatalog,
+  fromYear: number,
+  toYear: number,
+): Promise<SquadCatalog> {
+  const cacheDir = resolve("./data/zafronix");
+  const cacheMarker = `${cacheDir}/tournaments_${fromYear}.json`;
+  if (!(await fileExists(cacheMarker))) {
+    return catalog;
+  }
+
+  const clientOptions: ZafronixClientOptions = {
+    apiKey: resolveZafronixApiKey(undefined, { allowCacheOnly: true }),
+    cacheDir,
+    fetchImpl: async () => {
+      throw new Error("Zafronix cache miss during build:catalog");
+    },
+  };
+
+  const tournaments = await loadZafronixTournaments(
+    clientOptions,
+    fromYear,
+    toYear,
+  );
+  if (tournaments.size === 0) return catalog;
+
+  const { raw, stats } = buildZafronixRawExport(catalog, tournaments, {
+    fromYear,
+    toYear,
+  });
+  const result = overlayRawExportOnCatalog(catalog, [raw]);
+  console.log(
+    `Zafronix overlay (cache): ${result.patched} players patched, ${result.unmatched} unmatched; ${stats.scenariosWithData}/${stats.scenariosConsidered} scenarios`,
+  );
+  return result.catalog;
 }
 
 async function downloadFjelstul(cacheDir: string): Promise<void> {
@@ -104,6 +147,8 @@ async function main() {
     toYear: args.to,
   });
   let catalog = normalizeCatalog(raw);
+
+  catalog = await applyZafronixOverlayFromCache(catalog, args.from, args.to);
 
   const curated = await loadCuratedExportsFromDir();
   if (curated.length > 0) {

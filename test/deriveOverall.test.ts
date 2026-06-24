@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyDeterministicOverallSpread,
   careerMeritScore,
   deriveOverall,
   derivePlayerOverall,
+  finalizePlayerOverall,
   inferInternationalReputation,
   internationalReputationBoost,
   isFinalStage,
@@ -198,5 +200,59 @@ describe("inferInternationalReputation", () => {
         shirtNumber: 7,
       }),
     ).toBe(4);
+  });
+});
+
+describe("applyDeterministicOverallSpread", () => {
+  it("spreads bench-band players instead of a flat rating", () => {
+    const keys = ["a", "b", "c", "d", "e", "f"];
+    const overalls = keys.map((key) =>
+      applyDeterministicOverallSpread(62, key),
+    );
+    expect(new Set(overalls).size).toBeGreaterThan(1);
+    for (const ovr of overalls) {
+      expect(ovr).toBeGreaterThanOrEqual(62);
+      expect(ovr).toBeLessThanOrEqual(66);
+    }
+  });
+
+  it("respects reputation pedigree floors", () => {
+    expect(applyDeterministicOverallSpread(62, "bench", 78)).toBeGreaterThanOrEqual(
+      78,
+    );
+  });
+});
+
+describe("finalizePlayerOverall", () => {
+  it("differentiates Paraguay-style squads with sparse appearance rows", () => {
+    const zeroEdition = {
+      starts: 0,
+      subs: 0,
+      goals: 0,
+      knockoutGoals: 0,
+      finalGoals: 0,
+      teamWonCup: false,
+      teamReachedFinal: false,
+      worldCupsPlayed: 1,
+    };
+    const pedigree = {
+      worldCupsPlayed: 1,
+      careerStarts: 0,
+      careerGoals: 0,
+      careerKnockoutGoals: 0,
+      everWonCup: false,
+      everReachedFinal: false,
+      everReachedSemiOrBetter: false,
+      editionStarts: 0,
+      coarsePosition: "MF",
+    };
+    const keys = Array.from({ length: 12 }, (_, i) => `paraguay-1950|t|p-${i}`);
+    const overalls = keys.map((key) =>
+      finalizePlayerOverall(
+        { edition: zeroEdition, career: zeroEdition, pedigree },
+        key,
+      ),
+    );
+    expect(new Set(overalls).size).toBeGreaterThanOrEqual(4);
   });
 });

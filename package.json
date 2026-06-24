@@ -15,6 +15,7 @@
     "import:squads": "tsx src/cli/import-squads.ts",
     "import:external": "tsx src/cli/import-external.ts",
     "import:zafronix": "tsx src/cli/import-zafronix.ts",
+    "import:transfermarkt-positions": "tsx src/cli/import-transfermarkt-positions.ts",
     "import:photos": "tsx src/cli/import-photos.ts",
     "fetch:squads": "tsx src/cli/fetch-squads.ts",
     "build:catalog": "tsx src/cli/build-catalog.ts",

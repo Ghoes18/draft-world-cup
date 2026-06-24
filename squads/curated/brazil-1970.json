@@ -86,6 +86,51 @@
           "positionSource": "api",
           "overall": 91,
           "force": 236
+        },
+        {
+          "name": "Ado",
+          "naturalPosition": "GK",
+          "positions": ["GK"],
+          "positionSource": "api",
+          "overall": 85,
+          "force": 153,
+          "shirtNumber": 12
+        },
+        {
+          "name": "Edu",
+          "naturalPosition": "CM",
+          "positions": ["CM", "CDM", "CAM"],
+          "positionSource": "api",
+          "overall": 85,
+          "force": 150,
+          "shirtNumber": 19
+        },
+        {
+          "name": "Leão",
+          "naturalPosition": "GK",
+          "positions": ["GK"],
+          "positionSource": "api",
+          "overall": 85,
+          "force": 150,
+          "shirtNumber": 22
+        },
+        {
+          "name": "Caju",
+          "naturalPosition": "LW",
+          "positions": ["LW", "ST", "CF"],
+          "positionSource": "api",
+          "overall": 87,
+          "force": 150,
+          "shirtNumber": 18
+        },
+        {
+          "name": "Dario",
+          "naturalPosition": "CF",
+          "positions": ["CF", "ST"],
+          "positionSource": "api",
+          "overall": 86,
+          "force": 150,
+          "shirtNumber": 20
         }
       ]
     }

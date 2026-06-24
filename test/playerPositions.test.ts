@@ -9,6 +9,7 @@ import {
   formatPlayerPositions,
   formatPositionList,
   playerPlayablePositions,
+  positionCodesFromFjelstul,
 } from "../src/playerPositions.js";
 import { playerOverall } from "../src/playerRating.js";
 import {
@@ -62,6 +63,14 @@ describe("playerPlayablePositions", () => {
     expect(formatPlayerPositions(cat.players["df"]!)).toBe(
       "LB · RB · LCB · RCB",
     );
+  });
+
+  it("does not expand Fjelstul FW to wing slots", () => {
+    const fw = positionCodesFromFjelstul("FW");
+    expect(fw).toContain("ST");
+    expect(fw).toContain("CF");
+    expect(fw).not.toContain("RW");
+    expect(fw).not.toContain("LW");
   });
 });
 
@@ -130,6 +139,95 @@ describe("canPlayInSlot", () => {
     const df = cat.players["df"]!;
     expect(canPlayInSlot(df, "RB")).toBe(true);
     expect(canPlayInSlot(df, "RCB")).toBe(true);
+  });
+
+  it("restricts inferred Fjelstul FW to striker-line slots", () => {
+    const cat = normalizeCatalog({
+      scenarios: [
+        {
+          id: "t-2000",
+          team: "Test",
+          cup: 2000,
+          players: [
+            {
+              id: "fw",
+              name: "Striker",
+              naturalPosition: "ST",
+              positions: [...positionCodesFromFjelstul("FW")],
+              positionSource: "inferred",
+              force: 200,
+            },
+          ],
+        },
+      ],
+    });
+    const fw = cat.players["fw"]!;
+    expect(canPlayInSlot(fw, "ST")).toBe(true);
+    expect(canPlayInSlot(fw, "CF")).toBe(true);
+    expect(canPlayInSlot(fw, "RST")).toBe(true);
+    expect(canPlayInSlot(fw, "LW")).toBe(false);
+    expect(canPlayInSlot(fw, "RW")).toBe(false);
+    expect(canPlayInSlot(fw, "CAM")).toBe(false);
+  });
+});
+
+function inferredPlayer(
+  naturalPosition: string,
+  positions: readonly string[],
+): ReturnType<typeof normalizeCatalog>["players"][string] {
+  const cat = normalizeCatalog({
+    scenarios: [
+      {
+        id: "t-2000",
+        team: "Test",
+        cup: 2000,
+        players: [
+          {
+            id: "p",
+            name: "Mid",
+            naturalPosition,
+            positions: [...positions],
+            positionSource: "inferred",
+            force: 200,
+          },
+        ],
+      },
+    ],
+  });
+  return cat.players["p"]!;
+}
+
+describe("inferred Fjelstul MF sub-roles", () => {
+  it("restricts inferred CDM to defensive midfield slots only", () => {
+    const cdm = inferredPlayer("CDM", ["CDM"]);
+    expect(canPlayInSlot(cdm, "CDM")).toBe(true);
+    expect(canPlayInSlot(cdm, "RCDM")).toBe(true);
+    expect(canPlayInSlot(cdm, "CAM")).toBe(false);
+    expect(canPlayInSlot(cdm, "CM")).toBe(false);
+  });
+
+  it("restricts inferred CAM to attacking midfield slots only", () => {
+    const cam = inferredPlayer("CAM", ["CAM"]);
+    expect(canPlayInSlot(cam, "CAM")).toBe(true);
+    expect(canPlayInSlot(cam, "RAM")).toBe(true);
+    expect(canPlayInSlot(cam, "CDM")).toBe(false);
+    expect(canPlayInSlot(cam, "CM")).toBe(false);
+  });
+
+  it("restricts inferred CM to central midfield slots only", () => {
+    const cm = inferredPlayer("CM", ["CM"]);
+    expect(canPlayInSlot(cm, "CM")).toBe(true);
+    expect(canPlayInSlot(cm, "RCM")).toBe(true);
+    expect(canPlayInSlot(cm, "LCM")).toBe(true);
+    expect(canPlayInSlot(cm, "CAM")).toBe(false);
+    expect(canPlayInSlot(cm, "CDM")).toBe(false);
+  });
+
+  it("keeps coarse MF expansion when no sub-role signal exists", () => {
+    const mf = inferredPlayer("CM", [...positionCodesFromFjelstul("MF")]);
+    expect(canPlayInSlot(mf, "CDM")).toBe(true);
+    expect(canPlayInSlot(mf, "CM")).toBe(true);
+    expect(canPlayInSlot(mf, "CAM")).toBe(true);
   });
 });
 
@@ -208,7 +306,8 @@ describe("autoFillLineup with inferred catalog positions", () => {
         "repro-morocco:away",
         "away",
         "morocco-1986",
-        "433-balanced",
+        // 4-4-2 width uses RM/LM (MF), not RW/LW (W) — viable with FW = striker line only.
+        "442-balanced",
       ),
     );
     expect(isLineupComplete(filled)).toBe(true);

@@ -11,11 +11,11 @@
 
 - **Source of truth for docs:** README.md, CLAUDE.md, MVP.md, PRD.md, GAME-GUIDE-AND-RULES.md (see README documentation map). When MVP.md and PRD.md disagree, **MVP.md wins**.
 - M1 complete (engine + timeline + Fast text). Presentation is text-only — no 2D render library. Verify with `pnpm typecheck`, `pnpm test`, `pnpm sim`.
-- **MVP build order M1–M6** (no 2D renderer milestone); M2 chemistry + tactics and **M3 match statistics** are implemented; next is **M4 online 1v1 duel**.
+- **MVP build order M1–M6** (no 2D renderer milestone); M1–M3 are complete, **M4 is in progress as a server-authoritative World Cup tournament** with Convex queue/batch resolution, and M5/M6 are not started.
 - No standalone Vite/browser demo harness in this repo; text match viewer lives in `apps/web/`.
 - `.cursor/` is gitignored; do not commit local Cursor hook/editor state.
-- Catalog overlay pipeline (OVR, positions, optional photos; precedence: curated > external CSV > Wikimedia/heuristic): `pnpm build:catalog` → optional `pnpm import:photos --overlay` → optional `pnpm import:external --csv … --overlay` → optional `pnpm import:squads --dir ./squads/curated --overlay`.
+- Catalog overlay pipeline (OVR, positions, optional photos; precedence: curated > external CSV > Zafronix > Wikimedia/Fjelstul heuristic): `pnpm build:catalog` → optional `pnpm import:zafronix --from 1930 --to 1969` → optional `pnpm import:photos --overlay` → optional `pnpm import:external --csv … --overlay` → optional `pnpm import:squads --dir ./squads/curated --overlay`.
 - World Cup legend roster in `src/legends.ts`; runtime `applyLegendPhotosToCatalog` supplies headshots and golden-name styling for that list only (web app `prepareGameCatalog`).
-- Fine FIFA positions and tuned overall require curated squad JSON or external CSV; Fjelstul base only provides coarse GK/DF/MF/FW with `positionSource: "inferred"`.
+- Fine FIFA positions and tuned overall require curated squad JSON or external CSV; Fjelstul base only provides coarse GK/DF/MF/FW with `positionSource: "inferred"`, and pre-1970 Fjelstul squads need Zafronix enrichment because `player_appearances.csv` has no rows before 1970.
 - Only curated overlays may reach OVR 99; heuristic `deriveOverall` caps below curated peaks.
 - **7a0 is design inspiration only** — there is no separate live 7a0 app/repo to fetch from; this project (`draft-world-cup`) is the game being built.

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
-  demoCatalog,
   drawFormationOptions,
   initBuildState,
   isLineupComplete,
@@ -11,6 +10,7 @@ import {
   type BuildState,
   type FormationDefinition,
   type MatchTimeline,
+  type SquadCatalog,
   type TeamStrength,
 } from "7a0-engine";
 import type { FunctionReturnType } from "convex/server";
@@ -23,11 +23,37 @@ import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
 import { usePlayerId } from "../_hooks/usePlayerId";
 
-/** The tournament is played on the engine's demo catalog — identical to the
- * server's `duelCatalog`, so a replayed action log rolls the same scenarios
- * on both sides. */
-const CATALOG = demoCatalog;
 const NEUTRAL_AWAY: TeamStrength = { attack: 78, defense: 78, overall: 78 };
+
+/** The tournament is played on the full 85-nation catalog — the exact bytes
+ * the server bundles as `duelCatalog` (both read `public/catalog.json`), so a
+ * replayed action log rolls the same scenarios on both sides. We use the RAW
+ * fetched catalog (no overlays/photos), matching what the server validates
+ * against. On load failure we must NOT fall back to a different catalog — the
+ * server would reject the draft — so the duel UI stays blocked until it loads. */
+function useDuelCatalog(): { catalog: SquadCatalog | null; error: boolean } {
+  const [catalog, setCatalog] = useState<SquadCatalog | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/catalog.json")
+      .then((r) => (r.ok ? (r.json() as Promise<SquadCatalog>) : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.scenarios?.length) setCatalog(data);
+        else setError(true);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { catalog, error };
+}
 
 function newSeed(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -43,7 +69,7 @@ type TournamentState = NonNullable<FunctionReturnType<typeof api.tournament.tour
 /** Draft state lives here (not inside BuildStep) so it survives a "Cancel"
  * round-trip through `searching` — only an explicit reroll or "Search again"
  * should ever discard an in-progress squad. */
-function useDraftState() {
+function useDraftState(catalog: SquadCatalog | null) {
   const [seed, setSeedState] = useState<string>(() => newSeed());
   const [formationOptions, setFormationOptions] = useState<FormationDefinition[]>(
     () => drawFormationOptions(seed, 5),
@@ -64,9 +90,9 @@ function useDraftState() {
   }
 
   function confirmFormation() {
-    if (!pendingFormationId) return;
+    if (!pendingFormationId || !catalog) return;
     setFormationId(pendingFormationId);
-    setBuildState(initBuildState(CATALOG, seed, "home", undefined, pendingFormationId));
+    setBuildState(initBuildState(catalog, seed, "home", undefined, pendingFormationId));
   }
 
   return {
@@ -89,7 +115,8 @@ export default function DuelPage() {
 
   const [phase, setPhase] = useState<Phase>("build");
   const [tournamentId, setTournamentId] = useState<TournamentState["tournamentId"] | null>(null);
-  const draft = useDraftState();
+  const { catalog, error: catalogError } = useDuelCatalog();
+  const draft = useDraftState(catalog);
 
   return (
     <main className="shell">
@@ -98,8 +125,13 @@ export default function DuelPage() {
         <SetupHint />
       ) : !playerId ? (
         <p className="dim">Loading…</p>
+      ) : catalogError ? (
+        <CatalogError />
+      ) : !catalog ? (
+        <p className="dim">Loading squads…</p>
       ) : phase === "build" ? (
         <BuildStep
+          catalog={catalog}
           draft={draft}
           playerId={playerId}
           name={name}
@@ -148,12 +180,26 @@ function SetupHint() {
   );
 }
 
+function CatalogError() {
+  return (
+    <section className="panel" style={{ padding: "1.5rem" }}>
+      <h2 className="panel__title">Couldn’t load the squad catalog</h2>
+      <p className="dim">
+        The online World Cup needs <code>/catalog.json</code>. Run{" "}
+        <code>pnpm build:catalog</code> (root), then reload. Joining is blocked
+        until it loads — the server validates drafts against the same file.
+      </p>
+    </section>
+  );
+}
+
 /** Solo, untimed draft — identical UX to the home page's Build flow, but the
  * action log is recorded (`onAction`) so the server can replay/validate it,
  * and "Join World Cup" replaces "Simulate" as the terminal action. Draft
  * state itself lives in the parent (`useDraftState`) so a "Cancel" back out
  * of `searching` returns here with the same squad, not a fresh one. */
 function BuildStep({
+  catalog,
   draft,
   playerId,
   name,
@@ -161,6 +207,7 @@ function BuildStep({
   onQueued,
   onMatched,
 }: {
+  catalog: SquadCatalog;
   draft: ReturnType<typeof useDraftState>;
   playerId: string;
   name: string;
@@ -222,7 +269,7 @@ function BuildStep({
       ) : (
         <>
           <BuildPanel
-            catalog={CATALOG}
+            catalog={catalog}
             awayStrength={NEUTRAL_AWAY}
             buildState={buildState}
             onBuildState={setBuildState}
