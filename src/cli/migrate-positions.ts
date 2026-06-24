@@ -13,55 +13,28 @@
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expandCoarseToDetail, type PosDetail } from "../positionsDetail.js";
+import {
+  expandCoarseToDetail,
+  POSITION_DETAILS,
+  type PosDetail,
+} from "../positionsDetail.js";
 
 const SQUAD_DIR = process.argv[2] ?? "squads/curated";
 
-// ─── Heuristic formation-aware placement ────────────────────────────────────
+/** Map a coarse or detail code to a single canonical detail natural position. */
+function toNaturalDetail(position: string): PosDetail {
+  const upper = position.trim().toUpperCase();
+  if (upper in POSITION_DETAILS) return upper as PosDetail;
 
-interface SquadFormation {
-  slots: { position: string; index: number }[];
-}
+  const side = upper.match(/^(R|L)(?=[A-Z])/)?.[1] as "R" | "L" | undefined;
+  const expanded = expandCoarseToDetail(upper);
 
-/**
- * Common formations with their slot positions.
- * Used to disambiguate which player plays where when we only have coarse labels.
- */
-const COMMON_FORMATIONS: Record<string, string[]> = {
-  "4-4-2":     ["GK", "RB", "RCB", "LCB", "LB", "RM", "RCM", "LCM", "LM", "RST", "LST"],
-  "4-3-3":     ["GK", "RB", "RCB", "LCB", "LB", "RCM", "CM", "LCM", "RW", "ST", "LW"],
-  "4-2-3-1":   ["GK", "RB", "RCB", "LCB", "LB", "RCDM", "LCDM", "RAM", "CAM", "LAM", "ST"],
-  "4-3-1-2":   ["GK", "RB", "RCB", "LCB", "LB", "RCM", "CM", "LCM", "CAM", "RST", "LST"],
-  "3-5-2":     ["GK", "RCB", "CB", "LCB", "RWB", "RCM", "CM", "LCM", "LWB", "RST", "LST"],
-  "5-3-2":     ["GK", "RCB", "CB", "LCB", "RWB", "RCM", "LCM", "LWB", "RST", "LST"],
-  "4-5-1":     ["GK", "RB", "RCB", "LCB", "LB", "RM", "RCM", "CM", "LCM", "LM", "ST"],
-  "4-1-4-1":   ["GK", "RB", "RCB", "LCB", "LB", "CDM", "RM", "RCM", "LCM", "LM", "ST"],
-  "3-4-3":     ["GK", "RCB", "CB", "LCB", "RM", "RCM", "LCM", "LM", "RW", "ST", "LW"],
-  "4-3-2-1":   ["GK", "RB", "RCB", "LCB", "LB", "RCM", "CM", "LCM", "RAM", "LAM", "ST"],
-  "4-4-1-1":   ["GK", "RB", "RCB", "LCB", "LB", "RM", "RCM", "LCM", "LM", "CAM", "ST"],
-  "3-4-1-2":   ["GK", "RCB", "CB", "LCB", "RM", "RCM", "LCM", "LM", "CAM", "RST", "LST"],
-  "5-4-1":     ["GK", "RCB", "CB", "LCB", "RWB", "LWB", "RCM", "LCM", "CAM", "ST"],
-  "4-2-4":     ["GK", "RB", "RCB", "LCB", "LB", "RCM", "LCM", "RW", "RST", "LST", "LW"],
-};
+  if (side) {
+    const sideMatch = expanded.find((code) => POSITION_DETAILS[code].side === side);
+    if (sideMatch) return sideMatch;
+  }
 
-/**
- * Given a coarse position and the formation context, pick the most likely
- * detail position for a player. Uses the player's index in the squad list
- * (which typically follows the formation order: GK, DEF, MID, FWD).
- */
-function assignDetailFromFormation(
-  coarse: string,
-  playerIndex: number,
-  totalPlayers: number,
-  formation: string,
-): PosDetail {
-  const slots = COMMON_FORMATIONS[formation] ?? COMMON_FORMATIONS["4-4-2"]!;
-
-  // The slot at this index tells us the precise position
-  const slot = slots[playerIndex] ?? slots[Math.min(playerIndex, slots.length - 1)]!;
-
-  // Map slot to detail
-  return slot as PosDetail;
+  return expanded[0]!;
 }
 
 // ─── Main migration ──────────────────────────────────────────────────────────
@@ -91,27 +64,19 @@ function migrateSquad(filePath: string): { changed: number; total: number } {
   let total = 0;
 
   for (const scenario of data.scenarios) {
-    // Detect formation from squad size and player order
-    const formation = detectFormation(scenario.players);
-
-    scenario.players.forEach((player, idx) => {
+    scenario.players.forEach((player) => {
       total++;
       const oldNatural = player.naturalPosition;
       const oldPositions = player.positions ?? [oldNatural];
 
-      // Assign detail positions based on formation context
-      const naturalDetail = assignDetailFromFormation(oldNatural, idx, scenario.players.length, formation);
+      const naturalDetail = toNaturalDetail(oldNatural);
 
-      // Expand all listed positions to detail variants
       const detailPositions: PosDetail[] = [];
       for (const pos of oldPositions) {
-        const details = expandCoarseToDetail(pos);
-        detailPositions.push(...details);
+        detailPositions.push(...expandCoarseToDetail(pos));
       }
-      // Deduplicate
       const uniqueDetail = [...new Set(detailPositions)] as PosDetail[];
 
-      // Update player
       player.naturalPosition = naturalDetail;
       player.positions = uniqueDetail;
 
@@ -123,39 +88,6 @@ function migrateSquad(filePath: string): { changed: number; total: number } {
 
   writeFileSync(filePath, JSON.stringify(data, null, 2));
   return { changed, total };
-}
-
-/** Detect the most likely formation from player count and positions. */
-function detectFormation(players: Array<{ naturalPosition: string }>): string {
-  const count = players.length;
-  if (count < 10) return "4-4-2"; // minimum playable
-
-  // Count defenders, midfielders, forwards
-  const gk = players.filter((p) => p.naturalPosition === "GK").length;
-  const def = players.filter((p) =>
-    ["RB", "LB", "RCB", "LCB", "CB", "RWB", "LWB", "SW"].includes(p.naturalPosition)
-  ).length;
-  const mid = players.filter((p) =>
-    ["CDM", "CM", "RCM", "LCM", "CAM", "RAM", "LAM", "RM", "LM", "AM", "DM", "MF"].includes(p.naturalPosition)
-  ).length;
-  const fwd = count - gk - def - mid;
-
-  // Match to common formation
-  if (def === 3 && mid === 5 && fwd === 2) return "3-5-2";
-  if (def === 5 && mid === 3 && fwd === 2) return "5-3-2";
-  if (def === 5 && mid === 4 && fwd === 1) return "5-4-1";
-  if (def === 4 && mid === 5 && fwd === 1) return "4-5-1";
-  if (def === 4 && mid === 4 && fwd === 2) return "4-4-2";
-  if (def === 4 && mid === 3 && fwd === 3) return "4-3-3";
-  if (def === 4 && mid === 2 && fwd === 4) return "4-2-4";
-  if (def === 3 && mid === 4 && fwd === 3) return "3-4-3";
-  if (def === 4 && mid === 6 && fwd === 1) return "4-1-4-1";
-  if (def === 4 && mid === 1 && mid + fwd === 6) return "4-1-4-1";
-
-  // Default based on defender count
-  if (def === 3) return "3-5-2";
-  if (def === 5) return "5-3-2";
-  return "4-4-2";
 }
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────

@@ -112,7 +112,9 @@
             "CF_SUPPORT",
             "CAM",
             "RAM",
-            "LAM"
+            "LAM",
+            "CAM_RIGHT",
+            "CAM_LEFT"
           ],
           "positionSource": "api",
           "overall": 99,
@@ -128,7 +130,9 @@
             "CM_LEFT",
             "CAM",
             "RAM",
-            "LAM"
+            "LAM",
+            "CAM_RIGHT",
+            "CAM_LEFT"
           ],
           "positionSource": "api",
           "overall": 90,
@@ -175,7 +179,9 @@
             "CDM_DEEP",
             "CAM",
             "RAM",
-            "LAM"
+            "LAM",
+            "CAM_RIGHT",
+            "CAM_LEFT"
           ],
           "positionSource": "api",
           "overall": 85,
