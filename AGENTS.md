@@ -9,12 +9,14 @@
 - Draft roll labels: national flag emoji + full World Cup year (e.g. `🇫🇷 France · 2014`), not abbreviated `'14`.
 - Clicking an empty pitch slot should open a connected popover listing squad players eligible for that position (slot-first pick flow).
 - Online duel (`/duel`) draft setup is a 3-step wizard: name → formation → build XI.
+- Reject placement-based squad chemistry (natural-vs-slot fit meter and strength bonus); only inter-player links like FIFA would be acceptable as a future chemistry feature.
+- Solo/offline play: hide the lobby hero, header, and objectives strip once draft begins; keep New draft / Kick off in a compact action bar during the XI build.
 
 ## Learned Workspace Facts
 
 - **Source of truth for docs:** README.md, CLAUDE.md, MVP.md, PRD.md, GAME-GUIDE-AND-RULES.md (see README documentation map). When MVP.md and PRD.md disagree, **MVP.md wins**.
 - M1 complete (engine + timeline + Fast text). Presentation is text-only — no 2D render library. Verify with `pnpm typecheck`, `pnpm test`, `pnpm sim`.
-- **MVP build order M1–M6** (no 2D renderer milestone); M1–M3 are complete, **M4 is in progress as a server-authoritative World Cup tournament** with Convex queue/batch resolution, and M5/M6 are not started.
+- **MVP build order M1–M6** (no 2D renderer milestone); M1–M3 are complete, **M4 is in progress as a server-authoritative World Cup tournament** with Convex queue/batch resolution, shared `src/tournament.ts` for online and instant offline solo, and M5/M6 are not started.
 - No standalone Vite/browser demo harness in this repo; text match viewer lives in `apps/web/`.
 - `.cursor/` is gitignored; do not commit local Cursor hook/editor state.
 - Catalog overlay pipeline (OVR, positions, optional photos; precedence: curated > external CSV > Zafronix > Wikimedia/Fjelstul heuristic): `pnpm build:catalog` → optional `pnpm import:zafronix --from 1930 --to 1969` → optional `pnpm import:photos --overlay` → optional `pnpm import:external --csv … --overlay` → optional `pnpm import:squads --dir ./squads/curated --overlay`.
@@ -23,3 +25,4 @@
 - Convex (`apps/web/convex`) imports `7a0-engine/dist` and bundled `public/catalog.json`; the Next.js duel client uses live `7a0-engine` src. After engine or catalog changes run `pnpm build` and restart `npx convex dev`; keep client and `duelCatalog` on the same `hydrateCatalog()` pass.
 - Only curated overlays may reach OVR 99; heuristic `deriveOverall` caps below curated peaks.
 - **7a0 is design inspiration only** — there is no separate live 7a0 app/repo to fetch from; this project (`draft-world-cup`) is the game being built.
+- Placement-based squad chemistry was removed; team strength is lineup weights + tactics only (`effectiveStrength`). `src/chemistry.ts` keeps position-role utilities for slot eligibility — not a chemistry meter or strength bonus.

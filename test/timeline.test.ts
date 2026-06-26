@@ -5,8 +5,8 @@ import { generateTimeline } from "../src/timeline/generate.js";
 import { toFastText } from "../src/consumers/fastText.js";
 import type { MatchEvent, MatchTimeline, Side } from "../src/types.js";
 
-const STRONG: TeamStrength = { attack: 91, defense: 91, overall: 91 };
-const WEAK: TeamStrength = { attack: 68, defense: 68, overall: 68 };
+const STRONG: TeamStrength = { attack: 91, midfield: 91, defense: 91, overall: 91 };
+const WEAK: TeamStrength = { attack: 68, midfield: 68, defense: 68, overall: 68 };
 
 function build(seed: string, knockout = false): MatchTimeline {
   const result = simulateMatch({ home: STRONG, away: WEAK, seed, knockout });
@@ -100,7 +100,7 @@ describe("generateTimeline", () => {
 });
 
 describe("generateTimeline — extra time", () => {
-  const EVEN: TeamStrength = { attack: 80, defense: 80, overall: 80 };
+  const EVEN: TeamStrength = { attack: 80, midfield: 80, defense: 80, overall: 80 };
 
   function buildET(seed: string) {
     const result = simulateMatch({ home: EVEN, away: EVEN, seed, knockout: true });

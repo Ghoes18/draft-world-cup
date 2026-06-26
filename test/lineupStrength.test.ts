@@ -58,6 +58,7 @@ describe("lineupToTeamStrength", () => {
     const s = lineupToTeamStrength(cat, lineup);
     expect(s.overall).toBeGreaterThan(70);
     expect(s.attack).toBeGreaterThan(0);
+    expect(s.midfield).toBeGreaterThan(0);
     expect(s.defense).toBeGreaterThan(0);
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
   drawFormationOptions,
@@ -20,15 +20,13 @@ import { api } from "../../convex/_generated/api";
 import { BuildPanel } from "../_components/BuildPanel";
 import { DraftSetupWizard, NameSetupStep } from "../_components/DraftSetupWizard";
 import { FormationPicker } from "../_components/FormationPicker";
-import { MatchView } from "../_components/MatchView";
-import { StatsPanel } from "../_components/StatsPanel";
-import { ShareHighlight } from "../_components/ShareHighlight";
 import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
+import { TournamentReveal } from "../_components/TournamentReveal";
 import { usePlayerId } from "../_hooks/usePlayerId";
 import { STRINGS as S } from "../_data/strings";
 
-const NEUTRAL_AWAY: TeamStrength = { attack: 78, defense: 78, overall: 78 };
+const NEUTRAL_AWAY: TeamStrength = { attack: 78, midfield: 78, defense: 78, overall: 78 };
 
 /** Tournament catalog — same JSON + `hydrateCatalog` pass as `convex/duelCatalog`. */
 function useDuelCatalog(): { catalog: SquadCatalog | null; error: boolean } {
@@ -362,24 +360,6 @@ function SearchingStep({
   );
 }
 
-function slotName(participants: TournamentState["participants"], slot: number): string {
-  return participants.find((p) => p.slot === slot)?.name ?? `Slot ${slot}`;
-}
-
-function myJourney(state: TournamentState, mySlot: number): string {
-  const myGroup = state.participants.find((p) => p.slot === mySlot)?.groupIndex;
-  const final = state.matches.find((m) => m.stage === "final");
-  const semis = state.matches.filter((m) => m.stage === "semi");
-  if (state.championSlot === mySlot) return "🏆 Champion!";
-  if (final && (final.homeSlot === mySlot || final.awaySlot === mySlot)) return "Runner-up";
-  const mySemi = semis.find((m) => m.homeSlot === mySlot || m.awaySlot === mySlot);
-  if (mySemi) return "Eliminated in the semifinal";
-  const standing = state.standings.find((s) => s.groupIndex === myGroup);
-  const rank = standing?.table.findIndex((t) => t.slot === mySlot) ?? -1;
-  if (rank >= 0 && rank < 2) return "Advanced from the group — eliminated before the semifinal";
-  return "Eliminated in the group stage";
-}
-
 function RevealStep({
   tournamentId,
   playerId,
@@ -391,20 +371,7 @@ function RevealStep({
 }) {
   const state = useQuery(api.tournament.tournamentState, { tournamentId });
   const leaveQueue = useMutation(api.tournament.leaveQueue);
-  const [expanded, setExpanded] = useState<number | null>(null);
-  // Hold back every result (champion, standings, fixtures, bracket) until the
-  // player has watched their own campaign to the end — otherwise the page
-  // spoils the whole tournament before a single match has been played.
-  const [campaignDone, setCampaignDone] = useState(false);
-  const handleCampaignDone = useCallback(() => setCampaignDone(true), []);
 
-  const mySlot = useMemo(
-    () => state?.participants.find((p) => p.playerId === playerId)?.slot,
-    [state, playerId],
-  );
-
-  // The player's queue seat is fully consumed once the tournament is read —
-  // clear it so it never lingers and gets miscounted by a future pool.
   useEffect(() => {
     leaveQueue({ playerId }).catch(() => {});
   }, [playerId, leaveQueue]);
@@ -412,250 +379,30 @@ function RevealStep({
   if (state === undefined) return <p className="dim">Loading tournament…</p>;
   if (state === null) return <p className="dim">Tournament not found.</p>;
 
-  const myMatches = state.matches.filter(
-    (m) => mySlot !== undefined && (m.homeSlot === mySlot || m.awaySlot === mySlot),
-  );
-  const semis = state.matches.filter((m) => m.stage === "semi");
-  const final = state.matches.find((m) => m.stage === "final");
-
-  // The player's campaign in chronological order (group fixtures, then their
-  // semifinal and final if they advanced) — `state.matches` is already stored
-  // in that order, so the filtered list is the play sequence.
-  let groupNo = 0;
-  const campaign: CampaignFixture[] = myMatches.map((m) => {
-    const header =
-      m.stage === "group"
-        ? S.campaign.groupGame(++groupNo, 3)
-        : m.stage === "semi"
-          ? S.campaign.semifinal
-          : S.campaign.final;
-    return {
-      timeline: m.timeline as MatchTimeline,
-      home: slotName(state.participants, m.homeSlot),
-      away: slotName(state.participants, m.awaySlot),
-      header,
-    };
-  });
-
-  // Spectators (no campaign of their own) see everything straight away; a
-  // player only after they've watched their campaign through.
-  const showResults = campaignDone || campaign.length === 0;
+  const mySlot = state.participants.find((p) => p.playerId === playerId)?.slot;
 
   return (
-    <>
-      {campaign.length > 0 && (
-        <CampaignPlayer sequence={campaign} onAllDone={handleCampaignDone} />
-      )}
-
-      {showResults && (
-        <>
-      <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
-        <h2 className="panel__title">
-          {mySlot !== undefined ? myJourney(state, mySlot) : "Tournament complete"}
-        </h2>
-        <p className="mono dim">Champion: {slotName(state.participants, state.championSlot)}</p>
-      </section>
-
-      <section className="panel" style={{ padding: "1rem", display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-        {state.standings.map((group) => (
-          <div key={group.groupIndex} style={{ flex: "1 1 280px" }}>
-            <h3 className="panel__title">Group {group.groupIndex === 0 ? "A" : "B"}</h3>
-            <table className="mono" style={{ width: "100%", fontSize: "0.85rem" }}>
-              <thead>
-                <tr>
-                  <th align="left">Team</th>
-                  <th>P</th>
-                  <th>GD</th>
-                  <th>Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {group.table.map((row) => (
-                  <tr
-                    key={row.slot}
-                    style={row.slot === mySlot ? { fontWeight: "bold" } : undefined}
-                  >
-                    <td>{slotName(state.participants, row.slot)}</td>
-                    <td align="center">{row.played}</td>
-                    <td align="center">{row.gd}</td>
-                    <td align="center">{row.points}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </section>
-
-      {mySlot !== undefined && (
-        <section className="panel" style={{ padding: "1rem" }}>
-          <h3 className="panel__title">Your group fixtures</h3>
-          {myMatches
-            .filter((m) => m.stage === "group")
-            .map((m, i) => {
-              const home = slotName(state.participants, m.homeSlot);
-              const away = slotName(state.participants, m.awaySlot);
-              const key = state.matches.indexOf(m);
-              return (
-                <div key={i} style={{ marginBottom: "0.5rem" }}>
-                  <button
-                    className="mono"
-                    onClick={() => setExpanded(expanded === key ? null : key)}
-                    style={{ width: "100%", textAlign: "left" }}
-                  >
-                    {home} {m.gf}–{m.ga} {away}
-                  </button>
-                  {expanded === key && (
-                    <FixtureDetail timeline={m.timeline as MatchTimeline} home={home} away={away} />
-                  )}
-                </div>
-              );
-            })}
-        </section>
-      )}
-
-      <section className="panel" style={{ padding: "1rem" }}>
-        <h3 className="panel__title">Knockout bracket</h3>
-        {semis.map((m, i) => {
-          const home = slotName(state.participants, m.homeSlot);
-          const away = slotName(state.participants, m.awaySlot);
-          const key = state.matches.indexOf(m);
-          return (
-            <div key={`sf-${i}`} style={{ marginBottom: "0.5rem" }}>
-              <button
-                className="mono"
-                onClick={() => setExpanded(expanded === key ? null : key)}
-                style={{ width: "100%", textAlign: "left" }}
-              >
-                Semifinal {i + 1}: {home} {m.gf}–{m.ga} {away}
-              </button>
-              {expanded === key && (
-                <FixtureDetail timeline={m.timeline as MatchTimeline} home={home} away={away} />
-              )}
-            </div>
-          );
-        })}
-        {final && (
-          <div>
-            <button
-              className="mono"
-              onClick={() =>
-                setExpanded(expanded === state.matches.indexOf(final) ? null : state.matches.indexOf(final))
-              }
-              style={{ width: "100%", textAlign: "left" }}
-            >
-              Final: {slotName(state.participants, final.homeSlot)} {final.gf}–{final.ga}{" "}
-              {slotName(state.participants, final.awaySlot)}
-            </button>
-            {expanded === state.matches.indexOf(final) && (
-              <FixtureDetail
-                timeline={final.timeline as MatchTimeline}
-                home={slotName(state.participants, final.homeSlot)}
-                away={slotName(state.participants, final.awaySlot)}
-              />
-            )}
-          </div>
-        )}
-      </section>
-        </>
-      )}
-
-      <section className="hero__cta" style={{ padding: "1rem", textAlign: "center" }}>
-        <button className="btn-kick" onClick={onSearchAgain}>
-          Search again with a new squad
-        </button>
-      </section>
-    </>
-  );
-}
-
-function FixtureDetail({
-  timeline,
-  home,
-  away,
-}: {
-  timeline: MatchTimeline;
-  home: string;
-  away: string;
-}) {
-  const labels = { home, away };
-  const [done, setDone] = useState(false);
-  return (
-    <>
-      <MatchView
-        key={timeline.seed}
-        timeline={timeline}
-        labels={labels}
-        onDone={() => setDone(true)}
-      />
-      {/* Stats describe the final result — hold them back until the match ends
-          so nothing is spoiled while the ticker is still playing. */}
-      {done && <StatsPanel timeline={timeline} labels={labels} />}
-    </>
-  );
-}
-
-interface CampaignFixture {
-  timeline: MatchTimeline;
-  home: string;
-  away: string;
-  header: string;
-}
-
-/**
- * Plays the player's own campaign one match at a time: their group fixtures in
- * order, then the semifinal and final if they advanced. Each match runs on the
- * live clock; "Next match" (surfaced by MatchView when a match ends) advances.
- */
-function CampaignPlayer({
-  sequence,
-  onAllDone,
-}: {
-  sequence: CampaignFixture[];
-  /** Fires once the player has watched their whole campaign to the end. */
-  onAllDone: () => void;
-}) {
-  const [index, setIndex] = useState(0);
-  // Whether the current match has settled — its stats stay hidden until then.
-  const [matchDone, setMatchDone] = useState(false);
-
-  const allDone = index >= sequence.length;
-  useEffect(() => {
-    if (allDone) onAllDone();
-  }, [allDone, onAllDone]);
-
-  if (sequence.length === 0) return null;
-  if (allDone) {
-    return (
-      <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
-        <div className="eyebrow">{S.campaign.kicker}</div>
-        <h3 className="panel__title">{S.campaign.done}</h3>
-        <p className="dim">{S.campaign.watchAgain}</p>
-      </section>
-    );
-  }
-
-  const cur = sequence[index]!;
-  const labels = { home: cur.home, away: cur.away };
-  return (
-    <>
-      <MatchView
-        key={cur.timeline.seed}
-        timeline={cur.timeline}
-        labels={labels}
-        header={cur.header}
-        onDone={() => setMatchDone(true)}
-        onComplete={() => {
-          setMatchDone(false);
-          setIndex((i) => i + 1);
-        }}
-      />
-      {/* This match's stats appear only once it has finished — not while the
-          ticker is still revealing the result. */}
-      {matchDone && <StatsPanel timeline={cur.timeline} labels={labels} />}
-      {matchDone && (
-        <ShareHighlight timeline={cur.timeline} homeLabel={cur.home} awayLabel={cur.away} />
-      )}
-    </>
+    <TournamentReveal
+      state={{
+        seed: state.tournamentId,
+        championSlot: state.championSlot,
+        participants: state.participants,
+        matches: state.matches.map((m) => ({
+          stage: m.stage,
+          homeSlot: m.homeSlot,
+          awaySlot: m.awaySlot,
+          seed: m.seed,
+          gf: m.gf,
+          ga: m.ga,
+          timeline: m.timeline as MatchTimeline,
+          ...(m.groupIndex !== undefined ? { groupIndex: m.groupIndex } : {}),
+          ...(m.winnerSlot !== undefined ? { winnerSlot: m.winnerSlot } : {}),
+        })),
+        standings: state.standings,
+        tournamentId: state.tournamentId,
+      }}
+      mySlot={mySlot}
+      onPlayAgain={onSearchAgain}
+    />
   );
 }

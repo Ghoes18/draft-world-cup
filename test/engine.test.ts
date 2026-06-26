@@ -8,8 +8,8 @@ import {
 } from "../src/engine.js";
 import { mulberry32 } from "../src/rng.js";
 
-const STRONG: TeamStrength = { attack: 91, defense: 91, overall: 91 };
-const WEAK: TeamStrength = { attack: 68, defense: 68, overall: 68 };
+const STRONG: TeamStrength = { attack: 91, midfield: 91, defense: 91, overall: 91 };
+const WEAK: TeamStrength = { attack: 68, midfield: 68, defense: 68, overall: 68 };
 
 describe("expectedGoals", () => {
   it("equals base lambda for evenly matched teams", () => {
@@ -23,6 +23,14 @@ describe("expectedGoals", () => {
   it("clamps to [0.15, 5]", () => {
     expect(expectedGoals(0, 200)).toBe(0.15); // huge negative gap
     expect(expectedGoals(200, 0)).toBe(5); // huge positive gap
+  });
+
+  it("adds 0.04 per point of midfield edge", () => {
+    expect(expectedGoals(80, 80, 90, 80)).toBeCloseTo(1.4 + 10 * 0.04, 10);
+  });
+
+  it("is unchanged when midfields are equal (live-game parity)", () => {
+    expect(expectedGoals(85, 80, 75, 75)).toBeCloseTo(expectedGoals(85, 80), 10);
   });
 });
 
@@ -88,7 +96,7 @@ describe("simulateMatch", () => {
 });
 
 describe("extra time (knockout)", () => {
-  const EVEN: TeamStrength = { attack: 80, defense: 80, overall: 80 };
+  const EVEN: TeamStrength = { attack: 80, midfield: 80, defense: 80, overall: 80 };
 
   it("regulation equals the final score and no ET for non-knockout matches", () => {
     for (let i = 0; i < 100; i++) {

@@ -2,12 +2,12 @@
  * Derive team attack/defense/overall from the chosen XI — live 7a0 model.
  *
  * Each player contributes their API `overall`; fielded position sets attack/defense
- * weights. Chemistry and tactics apply afterward via `effectiveStrength`.
+ * weights. Tactics apply afterward via `effectiveStrength`.
  */
 
 import { getPlayer, type SquadCatalog } from "./catalog.js";
 import type { TeamStrength } from "./engine.js";
-import { attackWeight, defenseWeight } from "./positions.js";
+import { attackWeight, defenseWeight, midfieldWeight } from "./positions.js";
 import { playerOverall, forceToRating } from "./playerRating.js";
 import { buildStateToLineup, type BuildState } from "./roll.js";
 import type { LineupSlot } from "./types.js";
@@ -44,6 +44,7 @@ export function lineupToTeamStrength(
 
   const ratings: number[] = [];
   const atkWeights: number[] = [];
+  const midWeights: number[] = [];
   const defWeights: number[] = [];
 
   for (const slot of lineup) {
@@ -51,17 +52,20 @@ export function lineupToTeamStrength(
     const rating = playerOverall(player);
     ratings.push(rating);
     atkWeights.push(attackWeight(slot.position));
+    midWeights.push(midfieldWeight(slot.position));
     defWeights.push(defenseWeight(slot.position));
   }
 
   const overall =
     ratings.reduce((a, b) => a + b, 0) / ratings.length;
   const attack = weightedAverage(ratings, atkWeights);
+  const midfield = weightedAverage(ratings, midWeights);
   const defense = weightedAverage(ratings, defWeights);
 
   return {
     overall: Math.round(overall),
     attack: Math.round(attack || overall),
+    midfield: Math.round(midfield || overall),
     defense: Math.round(defense || overall),
   };
 }
@@ -81,6 +85,7 @@ export function partialBuildToTeamStrength(
 ): TeamStrength | null {
   const ratings: number[] = [];
   const atkWeights: number[] = [];
+  const midWeights: number[] = [];
   const defWeights: number[] = [];
 
   for (const slot of state.slots) {
@@ -89,6 +94,7 @@ export function partialBuildToTeamStrength(
     const rating = playerOverall(player);
     ratings.push(rating);
     atkWeights.push(attackWeight(slot.position));
+    midWeights.push(midfieldWeight(slot.position));
     defWeights.push(defenseWeight(slot.position));
   }
 
@@ -96,11 +102,13 @@ export function partialBuildToTeamStrength(
 
   const overall = ratings.reduce((a, b) => a + b, 0) / ratings.length;
   const attack = weightedAverage(ratings, atkWeights);
+  const midfield = weightedAverage(ratings, midWeights);
   const defense = weightedAverage(ratings, defWeights);
 
   return {
     overall: Math.round(overall),
     attack: Math.round(attack || overall),
+    midfield: Math.round(midfield || overall),
     defense: Math.round(defense || overall),
   };
 }

@@ -1,15 +1,8 @@
 /**
- * Squad chemistry — a placement-quality signal (0–100%) derived purely from
- * where each player is fielded versus their natural position (GAME-GUIDE §6,
- * MVP §4.5). Pure and deterministic; the resulting % feeds `effectiveStrength`
- * (`src/strength.ts`) as a −3…+3 rating bonus.
- *
- * Scoring follows the rules verbatim: full credit for the exact role, partial
- * for an adjacent role, little for an unrelated one. Chemistry % is the mean
- * fit across the XI, scaled to 0–100.
- *
- * Supports both coarse role codes (CB, CM, ST) and detail positions (RCB, LCM, RST).
- * When detail positions are available, fit scoring is side-aware and more granular.
+ * Position role normalization and fit scoring for slot eligibility
+ * (`src/playerPositions.ts`). Supports coarse role codes (CB, CM, ST) and detail
+ * positions (RCB, LCM, RST); detail scoring is side-aware when both codes are
+ * detail positions.
  */
 
 import { FIT_ADJACENT, FIT_EXACT, FIT_UNRELATED } from "./constants.js";
@@ -91,19 +84,4 @@ export function anyPositionRole(position: string): Role | null {
     return detailToRole(upper as PosDetail);
   }
   return canonicalRole(position);
-}
-
-/**
- * Chemistry % for a lineup: the mean position-fit across all placements, scaled
- * to 0–100. A perfectly-placed XI → 100; an empty lineup → 0.
- */
-export function chemistryPercent(
-  placements: { natural: string; assigned: string }[],
-): number {
-  if (placements.length === 0) return 0;
-  const total = placements.reduce(
-    (sum, p) => sum + positionFit(p.natural, p.assigned),
-    0,
-  );
-  return (total / placements.length) * 100;
 }

@@ -57,7 +57,7 @@ export interface PlayerCard {
   name: string;
   team: string;
   cup: number;
-  /** Primary natural position — drives chemistry scoring. */
+  /** Primary natural position — used for slot eligibility and fit scoring. */
   naturalPosition: string;
   /**
    * Playable positions from the API for that Cup (e.g. Maradona: AM, CF, LW).

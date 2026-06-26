@@ -3,14 +3,15 @@ import { mutation, query, internalMutation, type MutationCtx } from "./_generate
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import {
-  autoFillLineup,
-  initBuildState,
+  pickBotEntries,
   replayAndValidate,
-  resolveDuel,
+  resolveWorldCup,
+  computeStandings,
   type BuildAction,
   type ResolvedSide,
   type Side,
   type Tactic,
+  type TournamentEntry,
 } from "7a0-engine/dist";
 import { duelCatalog } from "./duelCatalog";
 
@@ -18,14 +19,6 @@ const STALE_MS = 30_000; // heartbeat is every ~10s; 3x that is comfortably stal
 const FILL_TIMEOUT_MS = 60_000; // how long a stalled pool waits before CPU bot-fill
 const QUEUE_SCAN_LIMIT = 20;
 const POOL_SIZE = 8;
-const GROUP_PAIRS: readonly [number, number][] = [
-  [0, 1],
-  [0, 2],
-  [0, 3],
-  [1, 2],
-  [1, 3],
-  [2, 3],
-];
 
 const tacticValidator = v.union(
   v.literal("offensive"),
@@ -41,15 +34,6 @@ const participantKindValidator = v.union(v.literal("human"), v.literal("cpu"));
 
 function randomSeed(): string {
   return Math.random().toString(36).slice(2, 10);
-}
-
-function shuffled<T>(items: readonly T[]): T[] {
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
 }
 
 /**
@@ -91,182 +75,95 @@ type Entry =
   | { kind: "human"; row: Doc<"queue"> }
   | { kind: "cpu"; scenarioId: string; name: string; seed: string };
 
-/** Resolve one entry's authoritative Build state for a specific fixture's side. */
-function resolveEntrySide(entry: Entry, side: Side): ResolvedSide {
-  if (entry.kind === "cpu") {
-    const state = autoFillLineup(
-      duelCatalog,
-      initBuildState(duelCatalog, entry.seed, side, entry.scenarioId),
-    );
-    return { buildState: state, tactic: "balanced" };
-  }
-  const actions = JSON.parse(entry.row.actionsJson) as BuildAction[];
+function resolveHumanRowSide(row: Doc<"queue">, side: Side): ResolvedSide {
+  const actions = JSON.parse(row.actionsJson) as BuildAction[];
   const replay = replayAndValidate(duelCatalog, {
-    seed: entry.row.seed,
+    seed: row.seed,
     side,
-    formationId: entry.row.formationId,
+    formationId: row.formationId,
     actions,
-    tactic: entry.row.tactic,
+    tactic: row.tactic,
   });
-  if (replay.ok) return { buildState: replay.state, tactic: entry.row.tactic };
-  // Re-validated at joinQueue time for each player individually; this only
-  // guards a corrupted row by falling back to an auto-filled empty draft.
+  if (replay.ok) return { buildState: replay.state, tactic: row.tactic };
   const fallback = replayAndValidate(duelCatalog, {
-    seed: entry.row.seed,
+    seed: row.seed,
     side,
-    formationId: entry.row.formationId,
+    formationId: row.formationId,
     actions: [],
-    tactic: entry.row.tactic,
+    tactic: row.tactic,
   });
   if (!fallback.ok) throw new Error("could not reconstruct lineup");
-  return { buildState: fallback.state, tactic: entry.row.tactic };
+  return { buildState: fallback.state, tactic: row.tactic };
 }
 
-/** Pick `n` distinct real historical squads for CPU bot-fill. */
-function pickBotEntries(n: number): Entry[] {
-  return shuffled(duelCatalog.scenarios)
-    .slice(0, n)
-    .map((scenario, i) => ({
-      kind: "cpu" as const,
-      scenarioId: scenario.id,
-      name: `${scenario.team} ${scenario.cup}`,
-      seed: `bot:${scenario.id}:${Date.now()}:${i}`,
-    }));
-}
-
-interface MatchRow {
-  stage: "group" | "semi" | "final";
-  groupIndex?: number;
-  homeSlot: number;
-  awaySlot: number;
-  seed: string;
-  timelineJson: string;
-  gf: number;
-  ga: number;
-  winnerSlot?: number;
-}
-
-/** Standings table for one group from its (already-played) fixtures. */
-function computeStandings(
-  groupIndex: number,
-  matches: readonly Pick<MatchRow, "groupIndex" | "homeSlot" | "awaySlot" | "gf" | "ga" | "winnerSlot">[],
-): { slot: number; points: number; gf: number; ga: number; gd: number; played: number }[] {
-  const base = groupIndex * 4;
-  const table = new Map<number, { points: number; gf: number; ga: number; played: number }>();
-  for (let i = 0; i < 4; i++) table.set(base + i, { points: 0, gf: 0, ga: 0, played: 0 });
-  for (const m of matches) {
-    if (m.groupIndex !== groupIndex) continue;
-    const home = table.get(m.homeSlot)!;
-    const away = table.get(m.awaySlot)!;
-    home.gf += m.gf;
-    home.ga += m.ga;
-    home.played += 1;
-    away.gf += m.ga;
-    away.ga += m.gf;
-    away.played += 1;
-    if (m.winnerSlot === undefined) {
-      home.points += 1;
-      away.points += 1;
-    } else if (m.winnerSlot === m.homeSlot) {
-      home.points += 3;
-    } else {
-      away.points += 3;
-    }
+function toTournamentEntry(entry: Entry): TournamentEntry {
+  if (entry.kind === "cpu") {
+    return {
+      kind: "cpu",
+      scenarioId: entry.scenarioId,
+      name: entry.name,
+      seed: entry.seed,
+    };
   }
-  return [...table.entries()]
-    .map(([slot, t]) => ({ slot, ...t, gd: t.gf - t.ga }))
-    .sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
+  return {
+    kind: "human",
+    name: entry.row.name,
+    playerId: entry.row.playerId,
+    resolve: (side: Side) => resolveHumanRowSide(entry.row, side),
+  };
 }
 
 /**
  * Resolve a full 8-player World Cup from exactly 8 entries (human and/or CPU
- * bot): shuffle into 2 groups of 4, play every group fixture, seed the
- * knockout bracket from the standings, play the semis and final. Everything
- * is decided and stored in this one mutation — no live timers.
+ * bot) and persist every fixture to Convex.
  */
 async function startTournament(ctx: MutationCtx, entries: readonly Entry[]): Promise<Id<"tournaments">> {
-  const seats = shuffled(entries);
   const tournamentSeed = randomSeed();
+  const resolved = resolveWorldCup(
+    duelCatalog,
+    entries.map(toTournamentEntry),
+    tournamentSeed,
+  );
+
   const tournamentId = await ctx.db.insert("tournaments", {
-    seed: tournamentSeed,
+    seed: resolved.seed,
     createdAt: Date.now(),
-    championSlot: -1,
+    championSlot: resolved.championSlot,
   });
 
-  for (let slot = 0; slot < seats.length; slot++) {
-    const entry = seats[slot]!;
+  for (const p of resolved.participants) {
     await ctx.db.insert("participants", {
       tournamentId,
-      slot,
-      groupIndex: slot < 4 ? 0 : 1,
-      kind: entry.kind,
-      playerId: entry.kind === "human" ? entry.row.playerId : undefined,
-      name: entry.kind === "human" ? entry.row.name : entry.name,
-      scenarioId: entry.kind === "cpu" ? entry.scenarioId : undefined,
+      slot: p.slot,
+      groupIndex: p.groupIndex,
+      kind: p.kind,
+      playerId: p.playerId,
+      name: p.name,
+      scenarioId: p.scenarioId,
     });
   }
 
-  async function playMatch(
-    homeSlot: number,
-    awaySlot: number,
-    stage: MatchRow["stage"],
-    groupIndex: number | undefined,
-    fixtureTag: string,
-    knockout: boolean,
-  ): Promise<MatchRow> {
-    const home = resolveEntrySide(seats[homeSlot]!, "home");
-    const away = resolveEntrySide(seats[awaySlot]!, "away");
-    const fixtureSeed = `${tournamentSeed}:${fixtureTag}`;
-    const { result, timeline } = resolveDuel(duelCatalog, {
-      seed: fixtureSeed,
-      home,
-      away,
-      knockout,
+  for (const m of resolved.matches) {
+    await ctx.db.insert("matches", {
+      tournamentId,
+      createdAt: Date.now(),
+      stage: m.stage,
+      groupIndex: m.groupIndex,
+      homeSlot: m.homeSlot,
+      awaySlot: m.awaySlot,
+      seed: m.seed,
+      timelineJson: JSON.stringify(m.timeline),
+      gf: m.gf,
+      ga: m.ga,
+      winnerSlot: m.winnerSlot,
     });
-    const [hg, ag] = result.score;
-    let winnerSlot: number | undefined;
-    if (result.winner === "draw") {
-      if (knockout) throw new Error("knockout fixture resolved to an unresolved draw");
-    } else {
-      winnerSlot = result.winner === "home" ? homeSlot : awaySlot;
-    }
-    const row: MatchRow = {
-      stage,
-      groupIndex,
-      homeSlot,
-      awaySlot,
-      seed: fixtureSeed,
-      timelineJson: JSON.stringify(timeline),
-      gf: hg,
-      ga: ag,
-      winnerSlot,
-    };
-    await ctx.db.insert("matches", { tournamentId, createdAt: Date.now(), ...row });
-    return row;
   }
 
-  const groupMatches: MatchRow[] = [];
-  for (let g = 0; g < 2; g++) {
-    const base = g * 4;
-    for (const [a, b] of GROUP_PAIRS) {
-      const row = await playMatch(base + a, base + b, "group", g, `g${g}:${a}-${b}`, false);
-      groupMatches.push(row);
-    }
-  }
-
-  const standingsA = computeStandings(0, groupMatches);
-  const standingsB = computeStandings(1, groupMatches);
-
-  const sf1 = await playMatch(standingsA[0]!.slot, standingsB[1]!.slot, "semi", undefined, "sf1", true);
-  const sf2 = await playMatch(standingsB[0]!.slot, standingsA[1]!.slot, "semi", undefined, "sf2", true);
-  const final = await playMatch(sf1.winnerSlot!, sf2.winnerSlot!, "final", undefined, "final", true);
-
-  for (const entry of seats) {
+  for (const entry of entries) {
     if (entry.kind === "human") {
       await ctx.db.patch(entry.row._id, { tournamentId });
     }
   }
-  await ctx.db.patch(tournamentId, { championSlot: final.winnerSlot! });
 
   return tournamentId;
 }
@@ -290,12 +187,8 @@ export const joinQueue = mutation({
     v.object({ status: v.literal("matched"), tournamentId: v.id("tournaments") }),
   ),
   handler: async (ctx, args) => {
-    // Throws (and aborts the mutation) on a tampered/illegal log — the
-    // player is still present, so just reject and let them fix the draft.
     validateSubmission(args);
 
-    // Clear out any leftover row from a previous session (re-entry safety)
-    // before scanning, so we never count ourselves twice.
     const mine = await ctx.db
       .query("queue")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
@@ -309,16 +202,11 @@ export const joinQueue = mutation({
       .order("asc")
       .take(QUEUE_SCAN_LIMIT);
 
-    // A resolved tournament's row is patched with `tournamentId`, not
-    // deleted (the client cleans it up once it reaches reveal) — it must
-    // not count as "still waiting", or it can wrongly mask an empty pool
-    // and skip scheduling the bot-fill backstop for the next one.
     const live: Doc<"queue">[] = [];
     for (const row of waiting) {
       if (row.tournamentId) continue;
       const stale = now - row.lastSeen > STALE_MS;
       if (stale) {
-        // Opportunistic cleanup of abandoned entries encountered in the scan.
         await ctx.db.delete(row._id);
         continue;
       }
@@ -358,8 +246,7 @@ export const joinQueue = mutation({
 /**
  * Scheduled backstop: if a pool has stalled (1-7 live players, oldest has
  * been waiting at least `FILL_TIMEOUT_MS`), top it up with CPU bots drafted
- * from real historical squads and resolve the tournament. Idempotent and
- * safe to fire redundantly — it only acts when the timeout has elapsed.
+ * from real historical squads and resolve the tournament.
  */
 export const tryStartTournament = internalMutation({
   args: {},
@@ -374,7 +261,7 @@ export const tryStartTournament = internalMutation({
 
     const live: Doc<"queue">[] = [];
     for (const row of waiting) {
-      if (row.tournamentId) continue; // already resolved, awaiting client cleanup
+      if (row.tournamentId) continue;
       if (now - row.lastSeen > STALE_MS) {
         await ctx.db.delete(row._id);
         continue;
@@ -391,11 +278,20 @@ export const tryStartTournament = internalMutation({
     }
 
     const oldest = live[0]!;
-    if (now - oldest.joinedAt < FILL_TIMEOUT_MS) return null; // not timed out yet
+    if (now - oldest.joinedAt < FILL_TIMEOUT_MS) return null;
 
+    const tournamentSeed = randomSeed();
+    const botEntries: Entry[] = pickBotEntries(duelCatalog, POOL_SIZE - live.length, tournamentSeed)
+      .filter((b): b is Extract<TournamentEntry, { kind: "cpu" }> => b.kind === "cpu")
+      .map((b) => ({
+        kind: "cpu" as const,
+        scenarioId: b.scenarioId,
+        name: b.name,
+        seed: b.seed,
+      }));
     const entries: Entry[] = [
       ...live.map((row): Entry => ({ kind: "human", row })),
-      ...pickBotEntries(POOL_SIZE - live.length),
+      ...botEntries,
     ];
     await startTournament(ctx, entries);
     return null;
@@ -493,6 +389,7 @@ export const tournamentState = query({
           groupIndex: v.optional(v.number()),
           homeSlot: v.number(),
           awaySlot: v.number(),
+          seed: v.string(),
           gf: v.number(),
           ga: v.number(),
           winnerSlot: v.optional(v.number()),
@@ -553,6 +450,7 @@ export const tournamentState = query({
         groupIndex: m.groupIndex,
         homeSlot: m.homeSlot,
         awaySlot: m.awaySlot,
+        seed: m.seed,
         gf: m.gf,
         ga: m.ga,
         winnerSlot: m.winnerSlot,

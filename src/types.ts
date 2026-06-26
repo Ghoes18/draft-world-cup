@@ -29,7 +29,7 @@ export interface LineupSlot {
   /** Position code where the player is fielded (e.g. "GK", "CB", "CM", "ST"). */
   position: string;
   /**
-   * Player's natural position, used to score squad chemistry (`src/chemistry.ts`).
+   * Player's natural position, used for slot eligibility (`src/chemistry.ts`).
    * Omitted means "fielded in position" — treated as a perfect fit.
    */
   naturalPosition?: string;

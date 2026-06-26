@@ -5,8 +5,10 @@ import { useMutation, useQuery } from "convex/react";
 import {
   autoFillLineup,
   bossSeed,
+  buildStateSynergy,
   buildStateToTeamStrength,
   drawFormationOptions,
+  effectiveStrength,
   drawScenario,
   initBuildState,
   isLineupComplete,
@@ -33,7 +35,7 @@ import { usePlayerId } from "../_hooks/usePlayerId";
 import { useGameCatalog } from "../_hooks/useGameCatalog";
 import { STRINGS as S } from "../_data/strings";
 
-const NEUTRAL_AWAY: TeamStrength = { attack: 80, defense: 80, overall: 80 };
+const NEUTRAL_AWAY: TeamStrength = { attack: 80, midfield: 80, defense: 80, overall: 80 };
 
 function newSeed(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -268,7 +270,11 @@ function BossBuild({
         catalog,
         initBuildState(catalog, bossSeed(weekKey), "away", scenario.id),
       );
-      return buildStateToTeamStrength(catalog, xi);
+      const synergy = buildStateSynergy(catalog, xi);
+      return effectiveStrength(buildStateToTeamStrength(catalog, xi), {
+        chemistryBonus: synergy.chemistryBonus,
+        legendBonus: synergy.legendBonus,
+      });
     } catch {
       return NEUTRAL_AWAY;
     }

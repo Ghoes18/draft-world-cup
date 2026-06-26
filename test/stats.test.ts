@@ -5,8 +5,8 @@ import { generateTimeline } from "../src/timeline/generate.js";
 import { computeMatchStats } from "../src/consumers/stats.js";
 import type { MatchTimeline } from "../src/types.js";
 
-const STRONG: TeamStrength = { attack: 91, defense: 91, overall: 91 };
-const WEAK: TeamStrength = { attack: 68, defense: 68, overall: 68 };
+const STRONG: TeamStrength = { attack: 91, midfield: 91, defense: 91, overall: 91 };
+const WEAK: TeamStrength = { attack: 68, midfield: 68, defense: 68, overall: 68 };
 
 function build(seed: string, knockout = false): MatchTimeline {
   const result = simulateMatch({ home: STRONG, away: WEAK, seed, knockout });

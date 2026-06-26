@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import {
-  buildChemistryPercent,
+  buildStateSynergy,
   buildStateToTeamStrength,
   currentSquadPlayers,
   effectiveStrength,
@@ -60,21 +60,38 @@ export function BuildPanel({
   const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
-  const chem = Math.round(buildChemistryPercent(catalog, buildState));
   const complete = isLineupComplete(buildState);
   const homeBase = complete
     ? buildStateToTeamStrength(catalog, buildState)
     : partialBuildToTeamStrength(catalog, buildState);
+  const synergy = useMemo(
+    () => buildStateSynergy(catalog, buildState),
+    [catalog, buildState],
+  );
   const homeEff = homeBase
-    ? effectiveStrength(homeBase, { chemistryPct: chem, tactic: BUILD_TACTIC })
+    ? effectiveStrength(homeBase, {
+        tactic: BUILD_TACTIC,
+        chemistryBonus: synergy.chemistryBonus,
+        legendBonus: synergy.legendBonus,
+      })
     : null;
   const lambdaHome =
     homeEff != null
-      ? expectedGoals(homeEff.attack, awayStrength.defense)
+      ? expectedGoals(
+          homeEff.attack,
+          awayStrength.defense,
+          homeEff.midfield,
+          awayStrength.midfield,
+        )
       : null;
   const lambdaAway =
     homeEff != null
-      ? expectedGoals(awayStrength.attack, homeEff.defense)
+      ? expectedGoals(
+          awayStrength.attack,
+          homeEff.defense,
+          awayStrength.midfield,
+          homeEff.midfield,
+        )
       : null;
 
   const currentScenario = getScenario(catalog, buildState.currentScenarioId);
@@ -101,7 +118,6 @@ export function BuildPanel({
   const rerollsLeft = buildState.globalRerollsRemaining;
   const turnIndex = buildState.turnIndex;
   const filledSlots = buildState.slots.filter((s) => s.selectedPlayerId).length;
-  const chemClamped = Math.max(0, Math.min(100, chem));
 
   const pendingPlayer = pendingPlayerId
     ? (squadPool.find((p) => p.id === pendingPlayerId) ?? null)
@@ -237,36 +253,87 @@ export function BuildPanel({
           )}
 
           <div className="build__meta">
-            <div className="build__chem">
-              <div className="build__chem-head">
-                <span className="label">{S.build.chemistry}</span>
-                <span className="mono build__chem-val">
-                  <strong>{chem}%</strong>
-                  {!complete && (
-                    <span className="dim"> · {S.build.incomplete}</span>
-                  )}
-                </span>
-              </div>
-              <div
-                className="meter meter--chem"
-                role="meter"
-                aria-valuenow={chemClamped}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={S.build.chemistry}
-              >
-                <div
-                  className="meter__fill"
-                  style={{ width: `${chemClamped}%` }}
-                />
-              </div>
-            </div>
-
             {homeBase && homeEff && (
-              <div className="build-stats" aria-label={S.build.effective}>
-                <Stat label={S.build.atk} base={homeBase.attack} eff={homeEff.attack} />
-                <Stat label={S.build.def} base={homeBase.defense} eff={homeEff.defense} />
-                <Stat label={S.build.ovr} base={homeBase.overall} eff={homeEff.overall} />
+              <div className="team-sheet" aria-label={S.build.effective}>
+                <div className="team-sheet__head">
+                  <span className="label">{S.build.effective}</span>
+                </div>
+                <div className="team-sheet__body">
+                  <div className="team-sheet__zones" role="group">
+                    <TeamStat
+                      label={S.build.atk}
+                      base={homeBase.attack}
+                      eff={homeEff.attack}
+                      zone="atk"
+                    />
+                    <TeamStat
+                      label={S.build.mid}
+                      base={homeBase.midfield}
+                      eff={homeEff.midfield}
+                      zone="mid"
+                    />
+                    <TeamStat
+                      label={S.build.def}
+                      base={homeBase.defense}
+                      eff={homeEff.defense}
+                      zone="def"
+                    />
+                  </div>
+                  <div className="team-sheet__ovr">
+                    <TeamStat
+                      label={S.build.ovr}
+                      base={homeBase.overall}
+                      eff={homeEff.overall}
+                      zone="ovr"
+                      highlight
+                    />
+                  </div>
+                </div>
+                <div className="team-sheet__footer" aria-label={S.build.synergy}>
+                  <div className="team-sheet__badge team-sheet__badge--chem">
+                    <span className="label">{S.build.chemistry}</span>
+                    <span
+                      className="team-sheet__chem-track"
+                      role="presentation"
+                      aria-hidden
+                    >
+                      <span
+                        className="team-sheet__chem-fill"
+                        style={{
+                          width: `${Math.round(synergy.chemistryPercent)}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="team-sheet__badge-val mono">
+                      {Math.round(synergy.chemistryPercent)}%
+                      {synergy.chemistryBonus > 0 && (
+                        <span className="team-sheet__delta up">
+                          +{synergy.chemistryBonus}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div
+                    className={[
+                      "team-sheet__badge",
+                      synergy.legendCount > 0
+                        ? "team-sheet__badge--legends"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <span className="label">{S.build.legends}</span>
+                    <span className="team-sheet__badge-val mono">
+                      {synergy.legendCount}
+                      {synergy.legendBonus > 0 && (
+                        <span className="team-sheet__delta up">
+                          +{synergy.legendBonus}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -283,6 +350,9 @@ export function BuildPanel({
                   {S.build.squadPool} · {squadPool.length}
                 </span>
               </div>
+              <p className="draft-pool__ovr-note dim">
+                {S.build.ovrNote(displayScenario.cup)}
+              </p>
               {pendingPickable && pendingPlayer && (
                 <p className="draft-pool__hint" role="status">
                   {S.build.hintPlace}
@@ -386,24 +456,36 @@ function DraftProgress({
   );
 }
 
-function Stat({
+function TeamStat({
   label,
   base,
   eff,
+  zone,
+  highlight = false,
 }: {
   label: string;
   base: number;
   eff: number;
+  zone: "atk" | "mid" | "def" | "ovr";
+  highlight?: boolean;
 }) {
   const delta = eff - base;
   const sign = delta > 0 ? "+" : "";
   return (
-    <div className="build-stats__item">
-      <span className="label">{label}</span>
-      <span className="build-stats__num">
+    <div
+      className={[
+        "team-sheet__stat",
+        `team-sheet__stat--${zone}`,
+        highlight ? "team-sheet__stat--hero" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span className="team-sheet__stat-label">{label}</span>
+      <span className="team-sheet__stat-val mono">
         {eff}
         {delta !== 0 && (
-          <span className={`build-stats__delta ${delta > 0 ? "up" : "down"}`}>
+          <span className={`team-sheet__delta ${delta > 0 ? "up" : "down"}`}>
             {sign}
             {delta}
           </span>
@@ -456,7 +538,11 @@ function PlayerPickRow({
         onClick={pickable ? onSelect : undefined}
       >
         <PlayerAvatar player={player} size="md" selected={selected} />
-        <span className="player-card__ovr" aria-label={`${S.build.playerOvr} ${ovr}`}>
+        <span
+          className="player-card__ovr"
+          aria-label={`${S.build.playerOvr} ${ovr} — ${S.build.ovrTooltip(player.cup)}`}
+          title={S.build.ovrTooltip(player.cup)}
+        >
           {ovr}
         </span>
         <span className="player-card__body">
