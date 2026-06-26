@@ -11,7 +11,7 @@ Ship the **smallest version worth launching**: a readable **text simulation** (l
 1. ✅ **Simulation** — the existing Poisson engine + an **event timeline** + two speed tiers (Fast text, Ultra Fast instant). Reused everywhere. *(M1)*
 2. ✅ **Text presentation only** — minute-by-minute ticker (Fast) and instant result (Ultra Fast); no animated match view. *(M1 — `apps/web`)*
 3. ✅ **Online (World Cup Tournament)** — server-authoritative, untimed solo draft → join a pool of 8 → the moment the pool fills (or a stalled pool times out and is topped up with CPU bots drafted from real historical squads), the server resolves 2 round-robin groups → semifinals → final in one mutation. *(M4 — Convex backend + `/duel` UI)*
-4. ⏳ **Shareable highlights** — a link that **replays the goals** as text commentary (seed + lineups + tactics encoded; shortened via `/api/shorten`). *(M5)*
+4. ✅ **Shareable highlights** — a link that **replays the goals** as text commentary (self-contained payload encoded in the URL; no login or catalog needed to view). *(M5)*
 5. ✅ **Match statistics** — possession, shots, on-target, corners, penalties, xG, passes. *(M3)*
 6. ✅ **Squad chemistry** — a lineup bonus/penalty that nudges team strength. *(M2)*
 7. ✅ **Tactical choice** — Offensive / Balanced / Defensive, biasing the goal model. *(M2)*
@@ -52,10 +52,10 @@ Reuse existing routes: `/api/match/record` (results), `/api/shorten` (highlight/
 | Chemistry + tactics | ✅ M2 | `src/chemistry.ts`, `src/strength.ts`; Build panel + formation picker in `apps/web` |
 | Match statistics | ✅ M3 | `src/consumers/stats.ts`; `StatsPanel` in `apps/web` |
 | Online World Cup tournament | ✅ M4 | `apps/web/convex/tournament.ts`, `apps/web/app/duel/`; `src/online.ts` (replay validation + `resolveDuel`) |
-| Shareable highlights | ⏳ M5 | Spec §4.3; `/api/shorten` in main app (not wired here) |
+| Shareable highlights | ✅ M5 | `src/highlight.ts` (codec + badges + commentary); `apps/web/app/h/[code]/` viewer + OG image; `ShareHighlight` in `ResultCard`/`TournamentReveal` |
 | Missions & Weekly Boss | ✅ M6 | `src/period.ts`, `src/missions.ts`; `apps/web/convex/{missions,solo,boss}.ts`; `apps/web/app/missions/` |
 
-Public export (`src/index.ts`) = engine + timeline + Fast text + stats + chemistry/tactics + online replay helpers (server-safe bundle).
+Public export (`src/index.ts`) = engine + timeline + Fast text + stats + chemistry/tactics + online replay helpers + highlight codec (server-safe bundle).
 
 ---
 
@@ -89,7 +89,7 @@ Public export (`src/index.ts`) = engine + timeline + Fast text + stats + chemist
 
 ### 4.3 Shareable highlights
 
-- A highlight is a **link** that, when opened, **replays the goals** as text commentary (seed + lineups + tactics encoded; shortened via `/api/shorten`).
+- A highlight is a **link** that, when opened, **replays the goals** as text commentary. The payload is **self-contained** (scenario, score, goals with scorer/assist names, shootout kicks) and base64url-encoded in the path (`/h/[code]`), so it reproduces exactly with no dependency on the catalog version and works for solo and online matches alike. Optionally shortenable via `/api/shorten` in the main app.
 - Includes a simple **share card**: scoreline, team/Cup, and badges (Open Graph image so links preview nicely).
 - Viewer reads the goals in **Fast text** or sees the **instant result** in Ultra Fast; **no login required** to view.
 
@@ -200,7 +200,7 @@ Boss build flow); solo matches report via `solo.recordMatch`.
 2. ~~**M2 — Chemistry + Tactics** wired into the engine and surfaced in Build (live chemistry meter, tactic picker).~~ ✅
 3. ~~**M3 — Match statistics** screen (derived from timeline).~~ ✅
 4. **M4 — Online World Cup Tournament** (untimed solo draft, 8-player pool, instant batch resolution of 2 groups → semis → final, CPU bot-fill on a stalled pool). ✅ *Convex + `/duel` implemented.*
-5. **M5 — Shareable highlights** (text goal replay link + share card). ⏳
+5. **M5 — Shareable highlights** (text goal replay link + share card). ✅ *`src/highlight.ts` codec + `/h/[code]` viewer with OG image; share button in result & tournament screens.*
 6. **M6 — Missions & Weekly Boss** (daily + career objectives credited from any match; weekly Boss squad, one attempt/day; server-authoritative). ✅ *Convex + `/missions` implemented.*
 
 ---
@@ -210,7 +210,7 @@ Boss build flow); solo matches report via `solo.recordMatch`.
 - ✅ A solo match can be read in **Fast** or resolved in **Ultra Fast**, all from one timeline, with **skip** working in Fast.
 - ✅ **Chemistry** and **tactics** measurably change λ and the result, and are visible in Build and stats.
 - ✅ Up to 8 players on **different devices** join the pool, see the **same** server-resolved group standings, bracket, and champion the instant the tournament resolves, and can **search again with a new squad**; outcome is fully **server-decided**.
-- ⏳ A finished match produces a **working highlight link** (replays goals as text, previews with a share card) and a **stats** breakdown. *(Stats ✅; highlight link ⏳ M5.)*
+- ✅ A finished match produces a **working highlight link** (replays goals as text, previews with a share card) and a **stats** breakdown.
 - ✅ **Missions** (daily + career) are credited from any match the player plays, server-side; the **Weekly Boss** is the same squad for everyone all week and enforces one attempt per day.
 - ✅ **Fast text** and **Ultra Fast** are always available on all devices.
 

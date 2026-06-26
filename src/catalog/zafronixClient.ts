@@ -17,7 +17,8 @@ export interface ZafronixClientOptions {
 }
 
 export interface ZafronixRosterPlayer {
-  jersey: number;
+  /** Squad number, or null when the source omits it (resolveRosterJersey infers one). */
+  jersey: number | null;
   name: string;
   fullName?: string;
   position: string;

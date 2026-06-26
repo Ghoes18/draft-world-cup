@@ -99,6 +99,7 @@ describe("formatEligibleFormationSlots", () => {
       positions: ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
       positionSource: "api" as const,
       force: 200,
+      overall: 85,
     };
     const formation433 = [
       { position: "GK" },
@@ -174,6 +175,7 @@ describe("canPlayInSlot", () => {
       positions: ["RB"],
       positionSource: "api" as const,
       force: 200,
+      overall: 85,
     };
 
     expect(canPlayInSlot(rb, "RB")).toBe(true);
@@ -227,6 +229,7 @@ describe("canPlayInSlot", () => {
       ],
       positionSource: "api" as const,
       force: 200,
+      overall: 85,
     };
 
     expect(canPlayInSlot(broadMid, "CDM")).toBe(true);
@@ -245,6 +248,7 @@ describe("canPlayInSlot", () => {
       positions: ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
       positionSource: "api" as const,
       force: 200,
+      overall: 85,
     };
 
     expect(canPlayInSlot(broadForward, "RW")).toBe(true);
@@ -262,6 +266,7 @@ describe("canPlayInSlot", () => {
       positions: ["CF"],
       positionSource: "api" as const,
       force: 220,
+      overall: 88,
     };
 
     expect(canPlayInSlot(leftStriker, "LW")).toBe(true);
@@ -279,6 +284,7 @@ describe("canPlayInSlot", () => {
       positions: ["RW"],
       positionSource: "api" as const,
       force: 200,
+      overall: 85,
     };
 
     expect(canPlayInSlot(rw, "RW")).toBe(true);
@@ -296,6 +302,7 @@ describe("canPlayInSlot", () => {
       positions: ["CAM"],
       positionSource: "api" as const,
       force: 200,
+      overall: 85,
     };
 
     expect(canPlayInSlot(cam, "CAM")).toBe(true);
