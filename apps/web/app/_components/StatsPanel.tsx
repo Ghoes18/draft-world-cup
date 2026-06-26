@@ -40,6 +40,13 @@ export function StatsPanel({
       away: `${stats.away.penalties}`,
     },
     { label: S.stats.passes, home: `${stats.home.passes}`, away: `${stats.away.passes}` },
+    { label: S.stats.fouls, home: `${stats.home.fouls}`, away: `${stats.away.fouls}` },
+    {
+      label: S.stats.cards,
+      home: `${stats.home.yellowCards}/${stats.home.redCards}`,
+      away: `${stats.away.yellowCards}/${stats.away.redCards}`,
+    },
+    { label: S.stats.offsides, home: `${stats.home.offsides}`, away: `${stats.away.offsides}` },
     { label: S.stats.xg, home: stats.home.xg.toFixed(1), away: stats.away.xg.toFixed(1) },
   ];
 

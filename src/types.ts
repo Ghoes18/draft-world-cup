@@ -18,6 +18,12 @@ export type Side = "home" | "away";
 export interface LineupSlot {
   /** Stable player id (eligibility validated server-side; not checked in M1). */
   playerId: string;
+  /**
+   * Player display name. Carried on the timeline so presentation is fully
+   * self-describing (the ticker names everyone without the catalog). Omitted
+   * for the neutral M1/CLI fallback XI, where consumers fall back to `#number`.
+   */
+  name?: string;
   /** Shirt number shown on the token. */
   number: number;
   /** Position code where the player is fielded (e.g. "GK", "CB", "CM", "ST"). */
@@ -47,6 +53,12 @@ export interface ShootoutKick {
   scored: boolean;
 }
 
+/** Disciplinary card colour. */
+export type CardColour = "yellow" | "red";
+
+/** Period markers the live clock uses to label half-time and extra time. */
+export type ExtraTimeMark = "start" | "ht" | "end";
+
 export type MatchEvent =
   | { t: number; type: "kickoff"; team: Side }
   | { t: number; type: "possession"; team: Side; passes: PassHop[] }
@@ -62,6 +74,33 @@ export type MatchEvent =
   | { t: number; type: "corner"; team: Side; side: "L" | "R" }
   | { t: number; type: "freekick"; team: Side; from: Vec2 }
   | { t: number; type: "penalty"; team: Side; outcome: PenaltyOutcome }
+  | { t: number; type: "foul"; team: Side; byId: string }
+  | {
+      t: number;
+      type: "card";
+      team: Side;
+      playerId: string;
+      card: CardColour;
+      /** A red that came from a second bookable (yellow→yellow), not a straight red. */
+      secondYellow?: boolean;
+    }
+  | {
+      t: number;
+      type: "substitution";
+      team: Side;
+      /** Player coming off (a real on-pitch lineup id). */
+      outId: string;
+      /**
+       * Shirt number of the player coming on. Squads are 11-strong with no
+       * bench in the data model, so this is a synthetic bench number (12–23)
+       * for cosmetic ticker context only.
+       */
+      inNumber: number;
+    }
+  | { t: number; type: "offside"; team: Side }
+  | { t: number; type: "throwin"; team: Side; side: "L" | "R" }
+  | { t: number; type: "halftime" }
+  | { t: number; type: "extratime"; mark: ExtraTimeMark }
   | { t: number; type: "fulltime"; score: [number, number] }
   | { t: number; type: "shootout"; kicks: ShootoutKick[]; winner: Side };
 

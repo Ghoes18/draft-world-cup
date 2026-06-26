@@ -13,6 +13,7 @@
 import {
   BASE_LAMBDA,
   CAMPAIGN_OPPONENT_OVERALL,
+  EXTRA_TIME_LAMBDA_SCALE,
   KNOCKOUT_PHASES,
   LAMBDA_SLOPE,
   MAX_LAMBDA,
@@ -53,13 +54,18 @@ export interface Shootout {
 }
 
 export interface MatchResult {
+  /** Final score: regulation, plus any extra-time goals (knockout ties only). */
   score: [number, number];
+  /** Score at the 90' whistle. Equals `score` unless extra time was played. */
+  regulation: [number, number];
+  /** True iff a knockout tie was level at 90' and played extra time. */
+  extraTime?: boolean;
   /** Expected goals used for each side, post-clamp (also feeds filler density). */
   lambda: [number, number];
   knockout: boolean;
   /** 'draw' only ever appears for non-knockout matches. */
   winner: Side | "draw";
-  /** Present iff a knockout draw went to penalties. */
+  /** Present iff a knockout tie was still level after extra time. */
   shootout?: Shootout;
   /** Shootout tally, mirrored into the timeline schema's `penalties`. */
   penalties?: [number, number];
@@ -148,19 +154,39 @@ export function simulateMatch(input: SimulateMatchInput): MatchResult {
   const homeGoals = poissonKnuth(lambdaHome, rng);
   const awayGoals = poissonKnuth(lambdaAway, rng);
 
+  // Score running totals; extra time may add to these for a knockout tie.
+  let homeScore = homeGoals;
+  let awayScore = awayGoals;
+
   const result: MatchResult = {
-    score: [homeGoals, awayGoals],
+    score: [homeScore, awayScore],
+    regulation: [homeGoals, awayGoals],
     lambda: [lambdaHome, lambdaAway],
     knockout,
     winner:
-      homeGoals > awayGoals ? "home" : awayGoals > homeGoals ? "away" : "draw",
+      homeScore > awayScore ? "home" : awayScore > homeScore ? "away" : "draw",
   };
 
+  // Knockout tie: play extra time (it can produce goals), and only a still-level
+  // tie after ET goes to penalties. The live game goes straight to penalties on
+  // a draw; this ET stage is a deliberate, user-requested deviation. It is
+  // additive — regulation draws above are untouched, so decisive results and all
+  // non-knockout seeds reproduce identically; only knockout-tie seeds (which
+  // previously called `simulateShootout` here) see a changed RNG sequence.
   if (knockout && homeGoals === awayGoals) {
-    const shootout = simulateShootout(home, away, rng);
-    result.shootout = shootout;
-    result.penalties = shootout.tally;
-    result.winner = shootout.winner;
+    homeScore += poissonKnuth(lambdaHome * EXTRA_TIME_LAMBDA_SCALE, rng);
+    awayScore += poissonKnuth(lambdaAway * EXTRA_TIME_LAMBDA_SCALE, rng);
+    result.extraTime = true;
+    result.score = [homeScore, awayScore];
+    result.winner =
+      homeScore > awayScore ? "home" : awayScore > homeScore ? "away" : "draw";
+
+    if (homeScore === awayScore) {
+      const shootout = simulateShootout(home, away, rng);
+      result.shootout = shootout;
+      result.penalties = shootout.tally;
+      result.winner = shootout.winner;
+    }
   }
 
   return result;

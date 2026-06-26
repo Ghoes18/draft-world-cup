@@ -2,6 +2,7 @@
 
 import type { MatchTimeline } from "7a0-engine";
 import { Scorebug } from "./Scoreboard";
+import { ShareHighlight } from "./ShareHighlight";
 import { STRINGS as S } from "../_data/strings";
 
 export function ResultCard({
@@ -67,6 +68,13 @@ export function ResultCard({
           {S.result.again}
         </button>
       </div>
+
+      <ShareHighlight
+        timeline={timeline}
+        homeLabel={homeLabel}
+        awayLabel={awayLabel}
+        awayTag={awayTag}
+      />
     </article>
   );
 }

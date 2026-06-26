@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import {
   getPlayer,
   isLegendPlayer,
+  playerOverall,
   type BuildState,
+  type PlayerCard,
   type SquadCatalog,
   type Vec2,
 } from "7a0-engine";
@@ -47,6 +49,10 @@ function normToCss(norm: Vec2): { left: string; top: string } {
     left: `${norm.x * 100}%`,
     top: `${norm.y * 100}%`,
   };
+}
+
+function popoverPlacement(norm: Vec2): "above" | "below" {
+  return norm.y < 0.42 ? "below" : "above";
 }
 
 /** Nudge overlapping tokens apart for legibility — display only, not engine anchors. */
@@ -241,6 +247,70 @@ function PitchMarkings() {
   );
 }
 
+function SlotPlayerPicker({
+  position,
+  players,
+  placement,
+  onPick,
+}: {
+  position: string;
+  players: readonly PlayerCard[];
+  placement: "above" | "below";
+  onPick: (playerId: string) => void;
+}) {
+  return (
+    <div
+      className={[
+        "pitch__popover",
+        `pitch__popover--${placement}`,
+      ].join(" ")}
+      role="dialog"
+      aria-label={S.build.slotPickerTitle(posLabel(position))}
+    >
+      <div className="pitch__popover-connector" aria-hidden />
+      <header className="pitch__popover-head">
+        <span className="pitch__popover-title">
+          {S.build.slotPickerTitle(posLabel(position))}
+        </span>
+        <span className="pitch__popover-hint dim">{S.build.slotPickerHint}</span>
+      </header>
+      {players.length === 0 ? (
+        <p className="pitch__popover-empty dim">{S.build.slotPickerEmpty}</p>
+      ) : (
+        <ul className="pitch__popover-list">
+          {players.map((player) => (
+            <li key={player.id}>
+              <button
+                type="button"
+                className="pitch__popover-row"
+                onClick={() => onPick(player.id)}
+              >
+                <PlayerAvatar player={player} size="sm" />
+                <span
+                  className="pitch__popover-ovr mono"
+                  aria-label={`${S.build.playerOvr} ${playerOverall(player)}`}
+                >
+                  {playerOverall(player)}
+                </span>
+                <span
+                  className={[
+                    "pitch__popover-name",
+                    isLegendPlayer(player.name) ? "player-name--legend" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {player.name}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /**
  * Pitch — text-only formation view with absolutely positioned slots (breakdown §/play).
  * Uses engine anchor coordinates; no canvas or WebGL.
@@ -249,25 +319,48 @@ export function Pitch({
   catalog,
   buildState,
   compatibleSlotIds,
-  highlightSlotId,
+  activeSlotId,
+  playersForActiveSlot,
   onSlotPick,
+  onPickFromSlot,
+  onCloseSlotPopover,
 }: {
   catalog: SquadCatalog;
   buildState: BuildState;
   /** Empty slots where the pending player may be placed. */
   compatibleSlotIds?: readonly string[];
-  highlightSlotId?: string;
+  /** Empty slot with an open squad picker popover. */
+  activeSlotId?: string;
+  playersForActiveSlot?: readonly PlayerCard[];
   onSlotPick?: (slotId: string) => void;
+  onPickFromSlot?: (slotId: string, playerId: string) => void;
+  onCloseSlotPopover?: () => void;
 }) {
+  const pitchRef = useRef<HTMLDivElement>(null);
   const compatible = new Set(compatibleSlotIds ?? []);
   const screenPositions = useMemo(
     () => spreadTokenPositions(buildState.slots),
     [buildState.slots],
   );
   const filledCount = buildState.slots.filter((s) => s.selectedPlayerId).length;
+  const activePlayers = playersForActiveSlot ?? [];
+
+  useEffect(() => {
+    if (!activeSlotId || !onCloseSlotPopover) return;
+
+    function onPointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (pitchRef.current?.contains(target)) return;
+      onCloseSlotPopover();
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [activeSlotId, onCloseSlotPopover]);
 
   return (
-    <div className="pitch" aria-label={S.build.lineup}>
+    <div className="pitch" ref={pitchRef} aria-label={S.build.lineup}>
       <div className="pitch__mark">
         <PitchMarkings />
       </div>
@@ -280,14 +373,17 @@ export function Pitch({
           : null;
         const filled = Boolean(player);
         const isCompatible = !filled && compatible.has(slot.slotId);
+        const isActive = activeSlotId === slot.slotId;
         const highlight =
-          highlightSlotId === slot.slotId ||
-          (isCompatible && compatible.size > 0);
+          isActive || (isCompatible && compatible.size > 0);
         const clickable = Boolean(
-          onSlotPick && !filled && (isCompatible || compatible.size === 0),
+          onSlotPick &&
+            !filled &&
+            (isCompatible || compatible.size === 0),
         );
         const Tag = clickable ? "button" : "div";
         const pos = screenPositions.get(slot.slotId) ?? anchorToNorm(slot.anchor, slot.position);
+        const placement = popoverPlacement(pos);
         const surname = player?.name.split(" ").pop();
         const meta =
           filled && surname && player ? (
@@ -313,7 +409,12 @@ export function Pitch({
         return (
           <div
             key={slot.slotId}
-            className="pitch__token"
+            className={[
+              "pitch__token",
+              isActive ? "pitch__token--active" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={normToCss(pos)}
           >
             <Tag
@@ -323,10 +424,13 @@ export function Pitch({
                 filled ? "pitch__slot--filled" : "pitch__slot--empty",
                 highlight ? "pitch__slot--highlight" : "",
                 isCompatible ? "pitch__slot--compatible" : "",
+                isActive ? "pitch__slot--active" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               onClick={clickable ? () => onSlotPick!(slot.slotId) : undefined}
+              aria-expanded={isActive || undefined}
+              aria-haspopup={clickable && !filled ? "dialog" : undefined}
               aria-label={
                 filled && player
                   ? `${player.name}, ${slot.position}`
@@ -343,6 +447,14 @@ export function Pitch({
               )}
             </Tag>
             {meta ? <div className="pitch__token-meta">{meta}</div> : null}
+            {isActive && onPickFromSlot ? (
+              <SlotPlayerPicker
+                position={slot.position}
+                players={activePlayers}
+                placement={placement}
+                onPick={(playerId) => onPickFromSlot(slot.slotId, playerId)}
+              />
+            ) : null}
           </div>
         );
       })}

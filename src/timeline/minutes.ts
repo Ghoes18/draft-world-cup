@@ -8,11 +8,18 @@
 import { GOAL_MAX_MINUTE, GOAL_MIN_MINUTE } from "../constants.js";
 import { randInt, type Rng } from "../rng.js";
 
-/** Return `count` distinct-ish goal minutes in ascending order. */
-export function placeGoalMinutes(count: number, rng: Rng): number[] {
+/**
+ * Return `count` distinct-ish goal minutes in ascending order, spread across
+ * the `[lo, hi]` window (defaults to the regulation goal window). Extra-time
+ * goals pass a 91–120 window so they land in the right period.
+ */
+export function placeGoalMinutes(
+  count: number,
+  rng: Rng,
+  lo: number = GOAL_MIN_MINUTE,
+  hi: number = GOAL_MAX_MINUTE,
+): number[] {
   if (count <= 0) return [];
-  const lo = GOAL_MIN_MINUTE;
-  const hi = GOAL_MAX_MINUTE;
   const span = hi - lo;
   const minutes: number[] = [];
   for (let i = 0; i < count; i++) {

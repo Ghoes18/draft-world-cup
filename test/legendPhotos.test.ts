@@ -15,24 +15,35 @@ describe("legend Commons photos", () => {
       const filenames = LEGEND_ROSTER.map((entry) =>
         commonsFilename(entry.photoUrl),
       );
-      const titles = filenames.map((f) => `File:${f}`).join("|");
-      const url = new URL("https://commons.wikimedia.org/w/api.php");
-      url.searchParams.set("action", "query");
-      url.searchParams.set("titles", titles);
-      url.searchParams.set("format", "json");
 
-      const res = await fetch(url, {
-        headers: { "User-Agent": "7a0-engine/legend-photo-check" },
-      });
-      expect(res.ok).toBe(true);
+      // The Commons API caps `titles` at 50 per request, so batch.
+      const BATCH = 50;
+      const missing: string[] = [];
+      for (let i = 0; i < filenames.length; i += BATCH) {
+        const titles = filenames
+          .slice(i, i + BATCH)
+          .map((f) => `File:${f}`)
+          .join("|");
+        const url = new URL("https://commons.wikimedia.org/w/api.php");
+        url.searchParams.set("action", "query");
+        url.searchParams.set("titles", titles);
+        url.searchParams.set("format", "json");
 
-      const data = (await res.json()) as {
-        query: { pages: Record<string, { title?: string; missing?: string }> };
-      };
+        const res = await fetch(url, {
+          headers: { "User-Agent": "7a0-engine/legend-photo-check" },
+        });
+        expect(res.ok).toBe(true);
 
-      const missing = Object.values(data.query.pages)
-        .filter((page) => "missing" in page)
-        .map((page) => page.title?.replace(/^File:/, "") ?? "unknown");
+        const data = (await res.json()) as {
+          query: { pages: Record<string, { title?: string; missing?: string }> };
+        };
+
+        for (const page of Object.values(data.query.pages)) {
+          if ("missing" in page) {
+            missing.push(page.title?.replace(/^File:/, "") ?? "unknown");
+          }
+        }
+      }
 
       expect(missing, `Missing Commons files: ${missing.join(", ")}`).toEqual(
         [],

@@ -98,6 +98,20 @@ export const REGULATION_MINUTES = 90;
 /** Light stoppage-time allowance so a late goal can land at e.g. 90+2. */
 export const STOPPAGE_ALLOWANCE = 4;
 
+/**
+ * Knockout extra time (two 15-min halves) played when a knockout tie is level
+ * after 90'. ET can produce goals; only a still-level tie goes to penalties.
+ * TUNABLE — there is no source for these in the live game (it goes straight to
+ * penalties); see CLAUDE.md note in `simulateMatch`.
+ */
+export const EXTRA_TIME_MINUTES = 30;
+/** Half-way point of extra time (first ET half ends here). */
+export const EXTRA_TIME_HALF = REGULATION_MINUTES + EXTRA_TIME_MINUTES / 2; // 105
+/** Last minute extra-time goals can land on (before the +stoppage allowance). */
+export const EXTRA_TIME_END = REGULATION_MINUTES + EXTRA_TIME_MINUTES; // 120
+/** ET expected goals ≈ 30/90 of the regulation rate (shorter, cagier period). */
+export const EXTRA_TIME_LAMBDA_SCALE = 0.33;
+
 // ---------------------------------------------------------------------------
 // Calibration — timeline generation (TUNABLE — MVP §9 / PRD §15)
 // ---------------------------------------------------------------------------
@@ -124,6 +138,19 @@ export const PENALTY_GOAL_CHANCE = 0.08;
 /** Passes per possession chain (inclusive range). */
 export const PASSES_MIN = 2;
 export const PASSES_MAX = 6;
+
+/**
+ * Match "incidents" — cosmetic non-goal chronology (fouls, cards, subs,
+ * offsides, throw-ins). Like all filler these can never change the score; the
+ * counts are deliberately modest so the live ticker stays readable. TUNABLE.
+ */
+export const FOULS_PER_MATCH = 20; // total fouls across both sides
+export const FOUL_TO_FREEKICK = 0.4; // a foul that yields a quick free kick
+export const CARD_PER_FOUL = 0.12; // a foul that earns a card
+export const RED_CARD_CHANCE = 0.06; // a card that is red rather than yellow
+export const SUBS_PER_SIDE = 3; // substitutions each side makes (60'–85')
+export const OFFSIDES_PER_MATCH = 4; // total offside calls across both sides
+export const THROWINS_PER_MATCH = 8; // total throw-ins surfaced (sampled, not every one)
 
 // ---------------------------------------------------------------------------
 // Roll / Build — live 7a0 draft flow (MVP §4.5.1)

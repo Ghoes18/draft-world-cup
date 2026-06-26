@@ -21,6 +21,7 @@ export { toFastText } from "./consumers/fastText.js";
 export type { FastTextOptions } from "./consumers/fastText.js";
 export { computeMatchStats } from "./consumers/stats.js";
 export type { MatchStats, TeamStats } from "./consumers/stats.js";
+export * from "./highlight.js";
 export * from "./catalog.js";
 export {
   overlayRawExportOnCatalog,

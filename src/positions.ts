@@ -1,79 +1,47 @@
 /**
- * 7a0 position codes and attack/defense weights for lineup aggregation.
+ * Attack/defense weights for lineup aggregation (`src/lineupStrength.ts`).
  *
- * Maps FIFA-style field codes (GK, RB, ST…) to 7a0 codes (GR, LD, PE…) and
- * the live-game weight tables used to derive attack/defense from the XI.
+ * A fielded position contributes to a side's attack and defense in proportion
+ * to how advanced the role is: a striker is all attack, a centre-back all
+ * defense, midfielders split. Weights are keyed by the 8 canonical roles, and
+ * any position code (coarse "CB"/"ST" or detail "RCB"/"LST"/"RWB") is collapsed
+ * to its role via `anyPositionRole` — the SAME normalizer chemistry uses, so the
+ * two systems can never disagree about what a code means.
  */
 
-/** Canonical 7a0 position codes used for weight lookup. */
-export type Pos7a0 =
-  | "GR"
-  | "LD"
-  | "LE"
-  | "ZAG"
-  | "VOL"
-  | "MC"
-  | "MD"
-  | "ME"
-  | "MEI"
-  | "PD"
-  | "CA"
-  | "PE";
+import { anyPositionRole, type Role } from "./chemistry.js";
 
-const ATTACK_WEIGHT: Record<Pos7a0, number> = {
-  GR: 0,
-  LD: 0,
-  LE: 0,
-  ZAG: 0,
-  VOL: 0.2,
-  MC: 0.5,
-  MD: 0.5,
-  ME: 0.5,
-  MEI: 0.8,
-  PD: 1,
-  CA: 1,
-  PE: 1,
+/** How much each role contributes to the side's attack rating (0…1). */
+const ATTACK_BY_ROLE: Record<Role, number> = {
+  GK: 0,
+  FB: 0,
+  CB: 0,
+  DM: 0.2,
+  CM: 0.5,
+  AM: 0.8,
+  W: 1,
+  ST: 1,
 };
 
-const DEFENSE_WEIGHT: Record<Pos7a0, number> = {
-  GR: 1,
-  LD: 1,
-  LE: 1,
-  ZAG: 1,
-  VOL: 0.8,
-  MC: 0.5,
-  MD: 0.5,
-  ME: 0.5,
-  MEI: 0.2,
-  PD: 0,
-  CA: 0,
-  PE: 0,
+/** How much each role contributes to the side's defense rating (0…1). */
+const DEFENSE_BY_ROLE: Record<Role, number> = {
+  GK: 1,
+  FB: 1,
+  CB: 1,
+  DM: 0.8,
+  CM: 0.5,
+  AM: 0.2,
+  W: 0,
+  ST: 0,
 };
 
-/** Map a field/natural position string to a 7a0 code. */
-export function toPos7a0(position: string): Pos7a0 {
-  const p = position.trim().toUpperCase();
-  if (p === "GR" || p === "GK") return "GR";
-  if (p === "LD" || p === "RB") return "LD";
-  if (p === "LE" || p === "LB") return "LE";
-  if (p === "ZAG" || p === "CB" || p === "RCB" || p === "LCB") return "ZAG";
-  if (p === "VOL" || p === "DM" || p === "CDM") return "VOL";
-  if (p === "MC" || p === "CM" || p === "RCM" || p === "LCM") return "MC";
-  if (p === "MD") return "MD";
-  if (p === "ME") return "ME";
-  if (p === "MEI" || p === "AM" || p === "CAM") return "MEI";
-  if (p === "PD" || p === "RW" || p === "LW" || p === "W" || p === "WF")
-    return "PD";
-  if (p === "CA") return "CA";
-  if (p === "PE" || p === "ST" || p === "CF" || p === "FW") return "PE";
-  // Unknown → treat as balanced midfielder.
-  return "MC";
-}
+/** Unknown codes weigh like a balanced central midfielder. */
+const FALLBACK_ROLE: Role = "CM";
 
 export function attackWeight(position: string): number {
-  return ATTACK_WEIGHT[toPos7a0(position)];
+  return ATTACK_BY_ROLE[anyPositionRole(position) ?? FALLBACK_ROLE];
 }
 
 export function defenseWeight(position: string): number {
-  return DEFENSE_WEIGHT[toPos7a0(position)];
+  return DEFENSE_BY_ROLE[anyPositionRole(position) ?? FALLBACK_ROLE];
 }

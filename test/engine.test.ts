@@ -87,6 +87,62 @@ describe("simulateMatch", () => {
   });
 });
 
+describe("extra time (knockout)", () => {
+  const EVEN: TeamStrength = { attack: 80, defense: 80, overall: 80 };
+
+  it("regulation equals the final score and no ET for non-knockout matches", () => {
+    for (let i = 0; i < 100; i++) {
+      const r = simulateMatch({ home: STRONG, away: WEAK, seed: `reg${i}` });
+      expect(r.regulation).toEqual(r.score);
+      expect(r.extraTime).toBeFalsy();
+    }
+  });
+
+  it("plays extra time iff a knockout tie is level at 90', and only then can reach penalties", () => {
+    let sawET = false;
+    let sawShootout = false;
+    for (let i = 0; i < 300; i++) {
+      const r = simulateMatch({ home: EVEN, away: EVEN, seed: `et${i}`, knockout: true });
+      const drawnAt90 = r.regulation[0] === r.regulation[1];
+      expect(r.extraTime ?? false).toBe(drawnAt90);
+      if (drawnAt90) {
+        sawET = true;
+        // ET only adds goals — never removes them.
+        expect(r.score[0]).toBeGreaterThanOrEqual(r.regulation[0]);
+        expect(r.score[1]).toBeGreaterThanOrEqual(r.regulation[1]);
+        // A shootout happens exactly when ET is still level.
+        expect(Boolean(r.shootout)).toBe(r.score[0] === r.score[1]);
+        if (r.shootout) sawShootout = true;
+      } else {
+        expect(r.regulation).toEqual(r.score);
+        expect(r.shootout).toBeUndefined();
+      }
+      expect(r.winner).not.toBe("draw");
+    }
+    expect(sawET).toBe(true);
+    expect(sawShootout).toBe(true);
+  });
+
+  it("never plays extra time when regulation is already decisive", () => {
+    let sawDecisive = false;
+    for (let i = 0; i < 200; i++) {
+      const r = simulateMatch({ home: STRONG, away: WEAK, seed: `dec${i}`, knockout: true });
+      if (r.regulation[0] !== r.regulation[1]) {
+        sawDecisive = true;
+        expect(r.extraTime).toBeFalsy();
+        expect(r.regulation).toEqual(r.score);
+      }
+    }
+    expect(sawDecisive).toBe(true);
+  });
+
+  it("is deterministic through extra time and penalties", () => {
+    const a = simulateMatch({ home: EVEN, away: EVEN, seed: "et-dup", knockout: true });
+    const b = simulateMatch({ home: EVEN, away: EVEN, seed: "et-dup", knockout: true });
+    expect(a).toEqual(b);
+  });
+});
+
 describe("simulateShootout", () => {
   it("declares the side with more makes as the winner", () => {
     for (let i = 0; i < 100; i++) {

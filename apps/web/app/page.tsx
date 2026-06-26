@@ -53,6 +53,9 @@ export default function Page() {
     null,
   );
   const [timeline, setTimeline] = useState<MatchTimeline | null>(null);
+  // The result, stats and final score stay hidden until the match has actually
+  // been played to the end — no spoilers while the ticker is still running.
+  const [matchDone, setMatchDone] = useState(false);
 
   const opponentScenario = useMemo(() => {
     if (!seed || !catalog) return null;
@@ -88,6 +91,7 @@ export default function Page() {
     setBuildState(null);
     setOpponentScenarioId(null);
     setTimeline(null);
+    setMatchDone(false);
   }
 
   function onConfirmFormation() {
@@ -151,6 +155,7 @@ export default function Page() {
       scenario: { team: homeLabel.team, cup: homeLabel.cup },
       lineups: { home: homeLineup, away: awayLineup },
     });
+    setMatchDone(false);
     setTimeline(next);
   }
 
@@ -172,8 +177,9 @@ export default function Page() {
   const draftLabel = buildState
     ? S.build.draftInProgress(buildState.turnIndex)
     : S.build.yourXi;
-  const score = timeline?.result.score;
-  const pens = timeline?.result.penalties;
+  // Final score/pens only surface once the match has been watched to the end.
+  const score = matchDone ? timeline?.result.score : undefined;
+  const pens = matchDone ? timeline?.result.penalties : undefined;
   const pickingFormation = pendingSeed !== null && buildState === null;
   const drawn = buildState && opponentScenario;
 
@@ -240,16 +246,6 @@ export default function Page() {
 
       {timeline && opponentScenario && (
         <>
-          {seed && (
-            <ResultCard
-              timeline={timeline}
-              homeLabel={S.build.yourXi}
-              awayLabel={opponentScenario.team}
-              awayTag={`’${opponentScenario.cup}`}
-              seed={seed}
-              onAgain={onRoll}
-            />
-          )}
           <MatchView
             key={timeline.seed}
             timeline={timeline}
@@ -257,14 +253,30 @@ export default function Page() {
               home: S.build.yourXi,
               away: opponentScenario.team,
             }}
+            onDone={() => setMatchDone(true)}
           />
-          <StatsPanel
-            timeline={timeline}
-            labels={{
-              home: S.build.yourXi,
-              away: opponentScenario.team,
-            }}
-          />
+          {/* Result and stats are held back until the match is over. */}
+          {matchDone && (
+            <>
+              {seed && (
+                <ResultCard
+                  timeline={timeline}
+                  homeLabel={S.build.yourXi}
+                  awayLabel={opponentScenario.team}
+                  awayTag={`’${opponentScenario.cup}`}
+                  seed={seed}
+                  onAgain={onRoll}
+                />
+              )}
+              <StatsPanel
+                timeline={timeline}
+                labels={{
+                  home: S.build.yourXi,
+                  away: opponentScenario.team,
+                }}
+              />
+            </>
+          )}
         </>
       )}
       <Footer />

@@ -1362,7 +1362,7 @@ button:focus-visible {
   position: relative;
   min-height: 520px;
   aspect-ratio: 3 / 4;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 10px;
   background:
     linear-gradient(180deg, rgba(198, 242, 78, 0.08), transparent 24%),
@@ -1541,6 +1541,147 @@ button.pitch__slot:hover:not(:disabled) {
   color: var(--home);
 }
 
+.pitch__token--active {
+  z-index: 4;
+}
+
+.pitch__slot--active {
+  border-color: var(--home);
+  box-shadow:
+    0 0 0 3px var(--home-glow),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.pitch__popover {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  width: min(13.5rem, 52vw);
+  padding: 0.55rem;
+  background: rgba(6, 18, 12, 0.96);
+  border: 1px solid rgba(198, 242, 78, 0.38);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgba(198, 242, 78, 0.08),
+    0 16px 36px rgba(0, 0, 0, 0.42);
+  pointer-events: auto;
+}
+
+.pitch__popover--below {
+  top: calc(100% + 0.55rem);
+  transform: translateX(-50%);
+}
+
+.pitch__popover--above {
+  bottom: calc(100% + 0.55rem);
+  transform: translateX(-50%);
+}
+
+.pitch__popover-connector {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: rgba(6, 18, 12, 0.96);
+  border: 1px solid rgba(198, 242, 78, 0.38);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.pitch__popover--below .pitch__popover-connector {
+  top: -6px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.pitch__popover--above .pitch__popover-connector {
+  bottom: -6px;
+  border-left: 0;
+  border-top: 0;
+}
+
+.pitch__popover-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.pitch__popover-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--home);
+}
+
+.pitch__popover-hint {
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+}
+
+.pitch__popover-empty {
+  margin: 0;
+  padding: 0.35rem 0.15rem 0.2rem;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.pitch__popover-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  max-height: min(220px, 34vh);
+  overflow-y: auto;
+}
+
+.pitch__popover-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 0;
+  padding: 0.38rem 0.42rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.pitch__popover-row:hover {
+  background: rgba(198, 242, 78, 0.08);
+  border-color: rgba(198, 242, 78, 0.42);
+}
+
+.pitch__popover-row .player-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.pitch__popover-ovr {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--home);
+}
+
+.pitch__popover-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .chip__body {
   display: flex;
   flex-direction: column;
@@ -1553,6 +1694,309 @@ button.pitch__slot:hover:not(:disabled) {
   font-size: 0.72rem;
   line-height: 1.2;
   letter-spacing: 0.02em;
+}
+
+/* ---- draft setup wizard (name → formation → build) -------------------- */
+
+.setup-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  margin-top: 0.5rem;
+}
+
+.setup-wizard__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.setup-wizard__phase {
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.setup-wizard__rail {
+  position: relative;
+  padding: 0 0.25rem 0.35rem;
+}
+
+.setup-wizard__track {
+  position: absolute;
+  z-index: 0;
+  top: 1.05rem;
+  /* Connect marker 1 → marker 3 only (centres of three equal columns). */
+  left: calc(100% / 6);
+  right: calc(100% / 6);
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.setup-wizard__track-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--home-ink), var(--home));
+  /* Glow stays on the rail — no spread over markers */
+  box-shadow: none;
+  transition: width 0.5s var(--ease);
+}
+
+.setup-wizard__steps {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.setup-wizard__step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  text-align: center;
+  color: var(--chalk-dim);
+  transition: color 0.25s var(--ease);
+}
+
+.setup-wizard__step--active {
+  color: var(--chalk);
+}
+
+.setup-wizard__step--done {
+  color: var(--chalk-2);
+}
+
+.setup-wizard__marker {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--turf-1);
+  border: 2px solid var(--line);
+  transition:
+    border-color 0.25s var(--ease),
+    background 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    transform 0.25s var(--ease);
+}
+
+.setup-wizard__step--active .setup-wizard__marker {
+  background: var(--home);
+  border-color: var(--home);
+  color: var(--turf-0);
+  box-shadow:
+    0 0 0 4px var(--home-glow),
+    0 0 24px var(--home-glow);
+  transform: scale(1.06);
+}
+
+.setup-wizard__step--done .setup-wizard__marker {
+  border-color: var(--home);
+  color: var(--home);
+  background: var(--turf-1);
+}
+
+.setup-wizard__label {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.25;
+}
+
+.setup-wizard__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: setup-wizard-in 0.45s var(--ease) both;
+}
+
+@keyframes setup-wizard-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.setup-wizard__panel {
+  margin-top: 0;
+  padding: clamp(1.35rem, 4vw, 2rem);
+  display: grid;
+  gap: 1.5rem;
+}
+
+.setup-wizard__panel--name {
+  overflow: hidden;
+}
+
+.setup-wizard__panel--name::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -45% -20%;
+  height: 55%;
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(198, 242, 78, 0.07),
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.setup-wizard__name-stage {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 1.35rem;
+}
+
+.setup-wizard__name-copy {
+  max-width: 38ch;
+}
+
+.setup-wizard__name-title {
+  margin-top: 0.4rem;
+}
+
+.setup-wizard__hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.setup-wizard__nameplate {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem 1rem;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.setup-wizard__nameplate-tag {
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+}
+
+.setup-wizard__nameplate-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 6vw, 2.75rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--chalk);
+  word-break: break-word;
+  min-height: 1em;
+  transition: color 0.2s var(--ease);
+}
+
+.setup-wizard__nameplate-kit {
+  display: block;
+  width: clamp(72px, 28%, 120px);
+  height: 4px;
+  margin: 0.15rem auto 0;
+  border-radius: 2px;
+  background: var(--home);
+  box-shadow: 0 0 16px var(--home-glow);
+  transition:
+    width 0.35s var(--ease),
+    opacity 0.35s var(--ease);
+}
+
+.setup-wizard__field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.setup-wizard__input {
+  width: 100%;
+  margin: 0;
+  padding: 0.85rem 0.15rem 0.65rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.35rem, 4.5vw, 1.85rem);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--chalk);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--line-2);
+  border-radius: 0;
+  transition:
+    border-color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.setup-wizard__input::placeholder {
+  color: var(--chalk-dim);
+  opacity: 0.55;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.setup-wizard__input:hover {
+  border-bottom-color: rgba(234, 242, 236, 0.35);
+}
+
+.setup-wizard__input:focus {
+  outline: none;
+  border-bottom-color: var(--home);
+  box-shadow: 0 3px 0 -1px var(--home-glow);
+}
+
+.setup-wizard__actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: stretch;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.setup-wizard__continue {
+  width: 100%;
+  justify-content: center;
+}
+
+.setup-wizard .formation-pick {
+  margin-top: 0;
+  animation: setup-wizard-in 0.45s var(--ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-wizard__body,
+  .setup-wizard .formation-pick {
+    animation: none;
+  }
+
+  .setup-wizard__track-fill,
+  .setup-wizard__marker,
+  .setup-wizard__nameplate-kit {
+    transition: none;
+  }
 }
 
 /* ---- formation picker (FIFA Draft style) ------------------------------- */
@@ -1905,28 +2349,309 @@ button.pitch__slot:hover:not(:disabled) {
   animation: blink 1s steps(1) infinite;
 }
 
+.matchview {
+  position: relative;
+  overflow: hidden;
+}
+
+.scorebug-wrap {
+  animation: scorebug-bump 0.55s var(--ease);
+}
+
+@keyframes scorebug-bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.045);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .feed__screen {
   margin: 0;
-  padding: 0.5rem 0.25rem;
-  min-height: 260px;
-  max-height: 460px;
+  padding: 0.35rem 0.1rem;
+  min-height: 240px;
+  max-height: 420px;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  scroll-behavior: smooth;
+}
+
+.feed__waiting {
   font-family: var(--font-mono), monospace;
-  font-size: 0.82rem;
-  line-height: 1.95;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+  padding: 0.6rem 0.4rem;
+  animation: blink 1.4s steps(1) infinite;
+}
+
+/* one curated highlight beat */
+.tick {
+  display: grid;
+  grid-template-columns: 2rem 2.6rem 1fr;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 12px;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
   color: var(--chalk-2);
+  animation: tick-in 0.42s var(--ease) both;
 }
 
-.feed__line {
-  white-space: pre-wrap;
-  padding-left: 0.9rem;
-  border-left: 2px solid transparent;
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.feed__line--goal {
+.tick__icon {
+  font-size: 1.2rem;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.4));
+}
+
+/* second yellow shows two squares — keep them compact in the icon column */
+.tick--card .tick__icon {
+  font-size: 0.95rem;
+  letter-spacing: -0.16em;
+}
+
+.tick__time {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--chalk-dim);
+  text-align: center;
+}
+
+.tick__body {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.tick__text {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.tick__detail {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+  color: var(--chalk-dim);
+  font-weight: 500;
+}
+
+/* team-tinted left edge on attacking beats */
+.tick[data-team="home"] {
+  border-left: 3px solid var(--home);
+}
+.tick[data-team="away"] {
+  border-left: 3px solid var(--away);
+}
+
+/* period markers read as a quiet centred divider */
+.tick--period,
+.tick--kickoff {
+  background: transparent;
+  border: none;
+  border-top: 1px dashed var(--line-2);
+  border-radius: 0;
+  grid-template-columns: 1.6rem 2.6rem 1fr;
+  color: var(--chalk-dim);
+}
+.tick--period .tick__text,
+.tick--kickoff .tick__text {
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* the moment everyone's here for */
+.tick--goal {
+  grid-template-columns: 2.4rem 2.6rem 1fr;
+  padding: 0.8rem 0.85rem;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--home) 16%, var(--turf-2)),
+    var(--turf-2) 70%
+  );
+  border-color: var(--home-ink);
+  box-shadow: 0 0 0 1px var(--home-glow), 0 8px 26px -12px var(--home-glow);
+  animation: tick-in 0.42s var(--ease) both, goal-glow 1.6s var(--ease);
+}
+.tick--goal[data-team="away"] {
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--away) 16%, var(--turf-2)),
+    var(--turf-2) 70%
+  );
+  border-color: var(--away);
+  box-shadow: 0 0 0 1px var(--away-glow), 0 8px 26px -12px var(--away-glow);
+}
+.tick--goal .tick__icon {
+  font-size: 1.5rem;
+  animation: goal-ball 0.7s var(--ease);
+}
+.tick__goal {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 1rem;
+  color: var(--home);
+}
+.tick--goal[data-team="away"] .tick__goal {
+  color: var(--away);
+}
+.tick--goal .tick__text {
   color: var(--chalk);
-  border-left-color: var(--home);
-  text-shadow: 0 0 14px var(--home-glow);
+  font-weight: 700;
+}
+.tick__score {
+  margin-left: auto;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: var(--chalk);
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+@keyframes goal-glow {
+  0% {
+    box-shadow: 0 0 0 1px var(--home-glow), 0 0 34px 4px var(--home-glow);
+  }
+  100% {
+    box-shadow: 0 0 0 1px var(--home-glow), 0 8px 26px -12px var(--home-glow);
+  }
+}
+@keyframes goal-ball {
+  0% {
+    transform: scale(0.4) rotate(-25deg);
+  }
+  60% {
+    transform: scale(1.25) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+/* full-bleed celebration splash */
+.goal-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  pointer-events: none;
+  background: radial-gradient(
+    60% 60% at 50% 45%,
+    color-mix(in srgb, var(--home) 22%, transparent),
+    transparent 70%
+  );
+  animation: splash-fade 1.7s var(--ease) forwards;
+}
+.goal-splash[data-team="away"] {
+  background: radial-gradient(
+    60% 60% at 50% 45%,
+    color-mix(in srgb, var(--away) 22%, transparent),
+    transparent 70%
+  );
+}
+.goal-splash__ball {
+  font-size: 3.4rem;
+  animation: splash-ball 0.9s var(--ease);
+}
+.goal-splash__word {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: clamp(2.4rem, 9vw, 4rem);
+  color: var(--home);
+  text-shadow: 0 0 30px var(--home-glow);
+  animation: splash-word 0.6s var(--ease);
+}
+.goal-splash[data-team="away"] .goal-splash__word {
+  color: var(--away);
+  text-shadow: 0 0 30px var(--away-glow);
+}
+.goal-splash__score {
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--chalk);
+}
+
+@keyframes splash-fade {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes splash-ball {
+  0% {
+    transform: translateY(20px) scale(0.2) rotate(-40deg);
+  }
+  60% {
+    transform: translateY(0) scale(1.2) rotate(12deg);
+  }
+  100% {
+    transform: translateY(0) scale(1) rotate(0);
+  }
+}
+@keyframes splash-word {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick,
+  .tick--goal,
+  .tick--goal .tick__icon,
+  .scorebug-wrap,
+  .goal-splash,
+  .goal-splash__ball,
+  .goal-splash__word {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
 }
 
 .feed__controls {
@@ -1936,6 +2661,121 @@ button.pitch__slot:hover:not(:disabled) {
   margin-top: 0.9rem;
   padding-top: 0.9rem;
   border-top: 1px solid var(--line);
+}
+
+/* ---- live match clock -------------------------------------------------- */
+
+.matchclock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  margin: 0.4rem 0 0.9rem;
+}
+
+.matchclock__time {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 1.9rem;
+  letter-spacing: 0.04em;
+  color: var(--chalk);
+}
+
+.matchclock__time[data-live="true"] {
+  color: var(--home);
+  text-shadow: 0 0 18px var(--home-glow);
+}
+
+.matchclock__period {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+}
+
+.matchclock__progress {
+  width: min(260px, 70%);
+  height: 3px;
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.matchclock__progressfill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--home-ink), var(--home));
+  box-shadow: 0 0 10px var(--home-glow);
+  transition: width 0.6s var(--ease);
+}
+
+/* ---- penalty shootout (kick-by-kick) ----------------------------------- */
+
+.shootout {
+  margin-top: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--line-2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.shootout__head {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+  margin-bottom: 0.2rem;
+}
+
+.shootout__kick {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.86rem;
+  padding: 0.32rem 0.6rem;
+  border-radius: 10px;
+  background: var(--turf-2);
+  animation: tick-in 0.35s var(--ease) both;
+}
+
+.shootout__mark {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.shootout__team {
+  font-weight: 700;
+}
+.shootout__kick[data-team="home"] .shootout__team {
+  color: var(--home);
+}
+.shootout__kick[data-team="away"] .shootout__team {
+  color: var(--away);
+}
+
+.shootout__outcome {
+  margin-left: auto;
+  font-size: 0.74rem;
+  color: var(--chalk-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.shootout__result {
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 1rem;
+  color: var(--chalk);
+  animation: tick-in 0.4s var(--ease) both;
 }
 
 /* ---- stat comparison table --------------------------------------------- */
@@ -2048,6 +2888,25 @@ button.pitch__slot:hover:not(:disabled) {
     grid-template-columns: 1fr 1fr;
   }
 
+  .setup-wizard__steps {
+    gap: 0.25rem;
+  }
+
+  .setup-wizard__marker {
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 0.7rem;
+  }
+
+  .setup-wizard__label {
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+  }
+
+  .setup-wizard__nameplate {
+    padding: 0.95rem 1rem 0.85rem;
+  }
+
   .result-card__stamp {
     width: 44px;
     height: 44px;
@@ -2077,4 +2936,87 @@ button.pitch__slot:hover:not(:disabled) {
   .draw {
     stroke-dashoffset: 0;
   }
+}
+
+/* ---- shareable highlights ---------------------------------------------- */
+
+.share {
+  position: relative;
+  z-index: 1;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.share__btn {
+  align-self: flex-start;
+}
+
+.share__link {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.share__link input {
+  flex: 1;
+  min-width: 0;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--chalk);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.share__hint {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.highlight__head {
+  margin: 0.5rem 0 1rem;
+}
+
+.highlight__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  margin: 0.2rem 0 0;
+}
+
+.highlight__badges {
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.highlight__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--home);
+  color: var(--turf-0);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+}
+
+.badge-chip[data-badge="clean-sheet"] {
+  background: var(--chalk);
+}
+
+.badge-chip[data-badge="esmagador"] {
+  background: var(--away);
+  color: var(--chalk);
+}
+
+.highlight__cta {
+  margin-top: 1.25rem;
 }

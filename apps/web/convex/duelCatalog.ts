@@ -11,14 +11,15 @@
  * and the server can validate it. If the client cannot load the file it must
  * NOT fall back to a different catalog — see `app/duel/page.tsx`.
  *
- * `SquadCatalog` is the serialized shape stored in `catalog.json`, so the JSON
- * is consumed directly (no normalization/hydration — the engine reads what it
- * needs from the base fields, exactly as it does for the bundled `demoCatalog`).
+ * Both sides hydrate the JSON the same way (`hydrateCatalog`) so inferred
+ * `positionSource` / `overall` backfills match the duel client.
  */
-import type { SquadCatalog } from "7a0-engine/dist";
+import { hydrateCatalog, type SquadCatalog } from "7a0-engine/dist";
 import fullCatalog from "../public/catalog.json";
 
 // Cast through `unknown`: the JSON's inferred literal type is structurally
 // looser than `SquadCatalog` (e.g. `positionSource: string`), but the file is
 // produced by the engine's own `build:catalog` so the shape is authoritative.
-export const duelCatalog: SquadCatalog = fullCatalog as unknown as SquadCatalog;
+export const duelCatalog: SquadCatalog = hydrateCatalog(
+  fullCatalog as unknown as SquadCatalog,
+);

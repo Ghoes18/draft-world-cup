@@ -9,6 +9,8 @@
  */
 
 import {
+  EXTRA_TIME_END,
+  EXTRA_TIME_HALF,
   PENALTY_GOAL_CHANCE,
   REGULATION_MINUTES,
   STOPPAGE_ALLOWANCE,
@@ -22,10 +24,19 @@ import type {
   MatchTimeline,
   Side,
 } from "../types.js";
+import { anyPositionRole } from "../chemistry.js";
 import { buildBuildup, buildAttackClusters, outfield } from "./clusters.js";
+import { buildIncidents } from "./incidents.js";
 import { placeGoalMinutes } from "./minutes.js";
 
-const ATTACKER = /ST|CF|W|F|AM/;
+/** Halftime falls at the midpoint of regulation. */
+const HALFTIME_MINUTE = REGULATION_MINUTES / 2; // 45
+/** Extra-time goals land in 91 … 120 (+stoppage). */
+const EXTRA_TIME_GOAL_LO = REGULATION_MINUTES + 1;
+const EXTRA_TIME_GOAL_HI = EXTRA_TIME_END + STOPPAGE_ALLOWANCE;
+
+/** Roles that lead the line — favoured (but not required) as goalscorers. */
+const SCORING_ROLES = new Set(["ST", "W", "AM"]);
 
 export interface GenerateTimelineInput {
   result: MatchResult;
@@ -37,45 +48,76 @@ export interface GenerateTimelineInput {
 export function generateTimeline(input: GenerateTimelineInput): MatchTimeline {
   const { result, seed, scenario, lineups } = input;
   const rng = rngFromSeed(`${seed}:timeline`);
-  const [homeGoals, awayGoals] = result.score;
+  const [regHome, regAway] = result.regulation;
+  const extraTime = Boolean(result.extraTime);
 
   const events: MatchEvent[] = [{ t: 0, type: "kickoff", team: "home" }];
 
-  const homeGoalEvents = buildGoals("home", homeGoals, lineups.home, rng);
-  const awayGoalEvents = buildGoals("away", awayGoals, lineups.away, rng);
-  events.push(...homeGoalEvents, ...awayGoalEvents);
+  // Regulation goals. Their count is `result.regulation`, so the scoreline at
+  // 90' reconciles by construction. When the tie goes to extra time we cap the
+  // window at 90' (not the usual +stoppage) so regulation goals can't bleed into
+  // the 91–120 extra-time band and the 90' scoreline reads as the drawn result.
+  const regHi = extraTime ? REGULATION_MINUTES : undefined;
+  const goalEvents: MatchEvent[] = [
+    ...buildGoals("home", regHome, lineups.home, rng, undefined, regHi),
+    ...buildGoals("away", regAway, lineups.away, rng, undefined, regHi),
+  ];
+
+  // Extra-time goals (91–120), if a knockout tie went the distance.
+  if (extraTime) {
+    const [finalHome, finalAway] = result.score;
+    goalEvents.push(
+      ...buildGoals(
+        "home",
+        finalHome - regHome,
+        lineups.home,
+        rng,
+        EXTRA_TIME_GOAL_LO,
+        EXTRA_TIME_GOAL_HI,
+      ),
+      ...buildGoals(
+        "away",
+        finalAway - regAway,
+        lineups.away,
+        rng,
+        EXTRA_TIME_GOAL_LO,
+        EXTRA_TIME_GOAL_HI,
+      ),
+    );
+  }
+  events.push(...goalEvents);
 
   const reservedMinutes = new Set(
-    [...homeGoalEvents, ...awayGoalEvents]
-      .filter((e) => e.type === "goal")
-      .map((e) => e.t),
+    goalEvents.filter((e) => e.type === "goal").map((e) => e.t),
   );
 
   events.push(
-    ...buildAttackClusters(
-      "home",
-      result.lambda[0],
-      lineups.home,
-      rng,
-      reservedMinutes,
-    ),
+    ...buildAttackClusters("home", result.lambda[0], lineups.home, rng, reservedMinutes),
+    ...buildAttackClusters("away", result.lambda[1], lineups.away, rng, reservedMinutes),
   );
-  events.push(
-    ...buildAttackClusters(
-      "away",
-      result.lambda[1],
-      lineups.away,
-      rng,
-      reservedMinutes,
-    ),
-  );
+
+  // Cosmetic incidents (fouls, cards, subs, offsides, throw-ins) across the
+  // whole playable window — ET included when it ran.
+  const maxMinute = extraTime ? EXTRA_TIME_GOAL_HI : REGULATION_MINUTES + STOPPAGE_ALLOWANCE;
+  events.push(...buildIncidents(lineups, rng, reservedMinutes, maxMinute));
+
+  // Period markers the live clock reads.
+  events.push({ t: HALFTIME_MINUTE, type: "halftime" });
+  if (extraTime) {
+    events.push(
+      { t: REGULATION_MINUTES, type: "extratime", mark: "start" },
+      { t: EXTRA_TIME_HALF, type: "extratime", mark: "ht" },
+      { t: EXTRA_TIME_END, type: "extratime", mark: "end" },
+    );
+  }
 
   // Stable chronological order; kickoff (t=0) stays first.
   events.sort((a, b) => a.t - b.t);
 
   // Final whistle reconciles to the engine score.
   const lastMinute = events.reduce((m, e) => Math.max(m, e.t), 0);
-  const ftMinute = Math.max(lastMinute, REGULATION_MINUTES);
+  const ftFloor = extraTime ? EXTRA_TIME_END : REGULATION_MINUTES;
+  const ftMinute = Math.max(lastMinute, ftFloor);
   events.push({ t: ftMinute, type: "fulltime", score: result.score });
 
   // Knockout shootout, if any, plays after full time.
@@ -106,8 +148,10 @@ function buildGoals(
   count: number,
   lineup: LineupSlot[],
   rng: Rng,
+  lo?: number,
+  hi?: number,
 ): MatchEvent[] {
-  const minutes = placeGoalMinutes(count, rng);
+  const minutes = placeGoalMinutes(count, rng, lo, hi);
   const players = outfield(lineup);
   const events: MatchEvent[] = [];
 
@@ -146,7 +190,10 @@ function buildGoals(
 /** Prefer attackers as scorers, but anyone outfield can score. */
 function pickScorer(lineup: LineupSlot[], rng: Rng): LineupSlot {
   const out = outfield(lineup);
-  const attackers = out.filter((s) => ATTACKER.test(s.position.toUpperCase()));
+  const attackers = out.filter((s) => {
+    const role = anyPositionRole(s.position);
+    return role !== null && SCORING_ROLES.has(role);
+  });
   const pool = attackers.length > 0 && rng() < 0.7 ? attackers : out;
   return pick(rng, pool.length > 0 ? pool : lineup);
 }

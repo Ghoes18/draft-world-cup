@@ -81,6 +81,59 @@ describe("generateTimeline", () => {
   it("has a positive playback duration", () => {
     expect(build("dur").durationMs).toBeGreaterThan(0);
   });
+
+  it("surfaces incident events (fouls, subs, offsides, throw-ins) and a half-time marker", () => {
+    const tl = build("incidents");
+    const types = new Set(tl.events.map((e) => e.type));
+    for (const t of ["foul", "substitution", "offside", "throwin", "halftime"] as const) {
+      expect(types.has(t)).toBe(true);
+    }
+  });
+
+  it("produces cards across matches", () => {
+    let sawCard = false;
+    for (let i = 0; i < 30 && !sawCard; i++) {
+      sawCard = build(`cards${i}`).events.some((e) => e.type === "card");
+    }
+    expect(sawCard).toBe(true);
+  });
+});
+
+describe("generateTimeline — extra time", () => {
+  const EVEN: TeamStrength = { attack: 80, defense: 80, overall: 80 };
+
+  function buildET(seed: string) {
+    const result = simulateMatch({ home: EVEN, away: EVEN, seed, knockout: true });
+    const tl = generateTimeline({
+      result,
+      seed,
+      scenario: { team: "Test", cup: 1970 },
+      lineups: { home: defaultLineup("home"), away: defaultLineup("away") },
+    });
+    return { result, tl };
+  }
+
+  it("keeps regulation goals by 90' and places extra-time goals after it", () => {
+    let sawET = false;
+    for (let i = 0; i < 300 && !sawET; i++) {
+      const { result, tl } = buildET(`tlet${i}`);
+      if (!result.extraTime) continue;
+      sawET = true;
+
+      const goals = tl.events.filter((e) => e.type === "goal");
+      const regCount = result.regulation[0] + result.regulation[1];
+      expect(goals.filter((g) => g.t <= 90).length).toBe(regCount);
+      expect(goals.filter((g) => g.t > 90).length).toBe(
+        result.score[0] + result.score[1] - regCount,
+      );
+      expect(
+        tl.events.some((e) => e.type === "extratime" && e.mark === "start"),
+      ).toBe(true);
+      const ft = tl.events.find((e) => e.type === "fulltime");
+      expect(ft && ft.type === "fulltime" && ft.t).toBeGreaterThanOrEqual(120);
+    }
+    expect(sawET).toBe(true);
+  });
 });
 
 describe("toFastText", () => {
@@ -98,5 +151,31 @@ describe("toFastText", () => {
     const lines = toFastText(build("a11y"));
     expect(lines.length).toBeGreaterThan(0);
     for (const l of lines) expect(l.trim().length).toBeGreaterThan(0);
+  });
+
+  it("renders penalties kick-by-kick with a final winning line", () => {
+    let checked = false;
+    for (let i = 0; i < 400 && !checked; i++) {
+      const result = simulateMatch({
+        home: WEAK,
+        away: WEAK,
+        seed: `pk${i}`,
+        knockout: true,
+      });
+      if (!result.shootout) continue;
+      checked = true;
+      const tl = generateTimeline({
+        result,
+        seed: `pk${i}`,
+        scenario: { team: "Test", cup: 1970 },
+        lineups: { home: defaultLineup("home"), away: defaultLineup("away") },
+      });
+      const lines = toFastText(tl, { labels: { home: "HOME", away: "AWAY" } });
+      expect(lines.some((l) => l.includes("Penalty shootout"))).toBe(true);
+      const kicks = lines.filter((l) => l.includes("scored") || l.includes("missed"));
+      expect(kicks.length).toBe(result.shootout.kicks.length);
+      expect(lines.some((l) => l.startsWith("Penalties:") && l.includes("win"))).toBe(true);
+    }
+    expect(checked).toBe(true);
   });
 });

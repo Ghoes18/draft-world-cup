@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
   drawFormationOptions,
+  hydrateCatalog,
   initBuildState,
   isLineupComplete,
+  replayAndValidate,
   type BuildAction,
   type BuildState,
   type FormationDefinition,
@@ -16,21 +18,19 @@ import {
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import { BuildPanel } from "../_components/BuildPanel";
+import { DraftSetupWizard, NameSetupStep } from "../_components/DraftSetupWizard";
 import { FormationPicker } from "../_components/FormationPicker";
 import { MatchView } from "../_components/MatchView";
 import { StatsPanel } from "../_components/StatsPanel";
+import { ShareHighlight } from "../_components/ShareHighlight";
 import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
 import { usePlayerId } from "../_hooks/usePlayerId";
+import { STRINGS as S } from "../_data/strings";
 
 const NEUTRAL_AWAY: TeamStrength = { attack: 78, defense: 78, overall: 78 };
 
-/** The tournament is played on the full 85-nation catalog — the exact bytes
- * the server bundles as `duelCatalog` (both read `public/catalog.json`), so a
- * replayed action log rolls the same scenarios on both sides. We use the RAW
- * fetched catalog (no overlays/photos), matching what the server validates
- * against. On load failure we must NOT fall back to a different catalog — the
- * server would reject the draft — so the duel UI stays blocked until it loads. */
+/** Tournament catalog — same JSON + `hydrateCatalog` pass as `convex/duelCatalog`. */
 function useDuelCatalog(): { catalog: SquadCatalog | null; error: boolean } {
   const [catalog, setCatalog] = useState<SquadCatalog | null>(null);
   const [error, setError] = useState(false);
@@ -41,7 +41,7 @@ function useDuelCatalog(): { catalog: SquadCatalog | null; error: boolean } {
       .then((r) => (r.ok ? (r.json() as Promise<SquadCatalog>) : null))
       .then((data) => {
         if (cancelled) return;
-        if (data?.scenarios?.length) setCatalog(data);
+        if (data?.scenarios?.length) setCatalog(hydrateCatalog(data));
         else setError(true);
       })
       .catch(() => {
@@ -220,6 +220,10 @@ function BuildStep({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [nameDone, setNameDone] = useState(false);
+
+  const wizardStep =
+    buildState && formationId ? 3 : nameDone ? 2 : 1;
 
   const canJoin = buildState !== null && isLineupComplete(buildState);
 
@@ -228,6 +232,18 @@ function BuildStep({
     setSubmitting(true);
     setError(null);
     try {
+      const replay = replayAndValidate(catalog, {
+        seed,
+        side: "home",
+        formationId,
+        actions: actionsRef.current,
+        tactic: "balanced",
+      });
+      if (!replay.ok) {
+        throw new Error(
+          "Invalid build: " + replay.errors.map((e) => e.message).join(", "),
+        );
+      }
       const res = await joinQueue({
         playerId,
         name,
@@ -242,31 +258,38 @@ function BuildStep({
       setError(e instanceof Error ? e.message : "Could not join the World Cup");
       setSubmitting(false);
     }
-  }, [buildState, formationId, submitting, joinQueue, playerId, name, seed, actionsRef, onMatched, onQueued]);
+  }, [buildState, formationId, submitting, joinQueue, playerId, name, seed, actionsRef, onMatched, onQueued, catalog]);
+
+  function onRerollSquad() {
+    reset();
+    setNameDone(true);
+  }
+
+  function onConfirmFormation() {
+    confirmFormation();
+    setNameDone(true);
+  }
 
   return (
-    <>
-      <section className="panel" style={{ padding: "1.5rem", display: "grid", gap: "1rem" }}>
-        <div>
-          <span className="label">Your name</span>
-          <input
-            className="seg"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: "100%", padding: "0.5rem" }}
-          />
-        </div>
-        {error && <p className="draft-roll__rerolls--low">{error}</p>}
-      </section>
+    <DraftSetupWizard step={wizardStep}>
+      {wizardStep === 1 && (
+        <NameSetupStep
+          name={name}
+          onNameChange={setName}
+          onContinue={() => setNameDone(true)}
+        />
+      )}
 
-      {!formationId || !buildState ? (
+      {wizardStep === 2 && (
         <FormationPicker
           options={formationOptions}
           selectedId={pendingFormationId}
           onSelect={setPendingFormationId}
-          onConfirm={confirmFormation}
+          onConfirm={onConfirmFormation}
         />
-      ) : (
+      )}
+
+      {wizardStep === 3 && buildState && (
         <>
           <BuildPanel
             catalog={catalog}
@@ -275,17 +298,18 @@ function BuildStep({
             onBuildState={setBuildState}
             onAction={(a) => actionsRef.current.push(a)}
           />
+          {error && <p className="draft-roll__rerolls--low">{error}</p>}
           <section className="hero__cta" style={{ padding: "1rem", display: "flex", gap: "1rem" }}>
             <button className="btn-kick" disabled={!canJoin || submitting} onClick={onJoinWorldCup}>
               {submitting ? "Joining…" : "Join World Cup"}
             </button>
-            <button onClick={reset} disabled={submitting}>
+            <button onClick={onRerollSquad} disabled={submitting}>
               Reroll squad
             </button>
           </section>
         </>
       )}
-    </>
+    </DraftSetupWizard>
   );
 }
 
@@ -368,6 +392,11 @@ function RevealStep({
   const state = useQuery(api.tournament.tournamentState, { tournamentId });
   const leaveQueue = useMutation(api.tournament.leaveQueue);
   const [expanded, setExpanded] = useState<number | null>(null);
+  // Hold back every result (champion, standings, fixtures, bracket) until the
+  // player has watched their own campaign to the end — otherwise the page
+  // spoils the whole tournament before a single match has been played.
+  const [campaignDone, setCampaignDone] = useState(false);
+  const handleCampaignDone = useCallback(() => setCampaignDone(true), []);
 
   const mySlot = useMemo(
     () => state?.participants.find((p) => p.playerId === playerId)?.slot,
@@ -389,8 +418,37 @@ function RevealStep({
   const semis = state.matches.filter((m) => m.stage === "semi");
   const final = state.matches.find((m) => m.stage === "final");
 
+  // The player's campaign in chronological order (group fixtures, then their
+  // semifinal and final if they advanced) — `state.matches` is already stored
+  // in that order, so the filtered list is the play sequence.
+  let groupNo = 0;
+  const campaign: CampaignFixture[] = myMatches.map((m) => {
+    const header =
+      m.stage === "group"
+        ? S.campaign.groupGame(++groupNo, 3)
+        : m.stage === "semi"
+          ? S.campaign.semifinal
+          : S.campaign.final;
+    return {
+      timeline: m.timeline as MatchTimeline,
+      home: slotName(state.participants, m.homeSlot),
+      away: slotName(state.participants, m.awaySlot),
+      header,
+    };
+  });
+
+  // Spectators (no campaign of their own) see everything straight away; a
+  // player only after they've watched their campaign through.
+  const showResults = campaignDone || campaign.length === 0;
+
   return (
     <>
+      {campaign.length > 0 && (
+        <CampaignPlayer sequence={campaign} onAllDone={handleCampaignDone} />
+      )}
+
+      {showResults && (
+        <>
       <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
         <h2 className="panel__title">
           {mySlot !== undefined ? myJourney(state, mySlot) : "Tournament complete"}
@@ -499,6 +557,8 @@ function RevealStep({
           </div>
         )}
       </section>
+        </>
+      )}
 
       <section className="hero__cta" style={{ padding: "1rem", textAlign: "center" }}>
         <button className="btn-kick" onClick={onSearchAgain}>
@@ -519,10 +579,83 @@ function FixtureDetail({
   away: string;
 }) {
   const labels = { home, away };
+  const [done, setDone] = useState(false);
   return (
     <>
-      <MatchView key={timeline.seed} timeline={timeline} labels={labels} />
-      <StatsPanel timeline={timeline} labels={labels} />
+      <MatchView
+        key={timeline.seed}
+        timeline={timeline}
+        labels={labels}
+        onDone={() => setDone(true)}
+      />
+      {/* Stats describe the final result — hold them back until the match ends
+          so nothing is spoiled while the ticker is still playing. */}
+      {done && <StatsPanel timeline={timeline} labels={labels} />}
+    </>
+  );
+}
+
+interface CampaignFixture {
+  timeline: MatchTimeline;
+  home: string;
+  away: string;
+  header: string;
+}
+
+/**
+ * Plays the player's own campaign one match at a time: their group fixtures in
+ * order, then the semifinal and final if they advanced. Each match runs on the
+ * live clock; "Next match" (surfaced by MatchView when a match ends) advances.
+ */
+function CampaignPlayer({
+  sequence,
+  onAllDone,
+}: {
+  sequence: CampaignFixture[];
+  /** Fires once the player has watched their whole campaign to the end. */
+  onAllDone: () => void;
+}) {
+  const [index, setIndex] = useState(0);
+  // Whether the current match has settled — its stats stay hidden until then.
+  const [matchDone, setMatchDone] = useState(false);
+
+  const allDone = index >= sequence.length;
+  useEffect(() => {
+    if (allDone) onAllDone();
+  }, [allDone, onAllDone]);
+
+  if (sequence.length === 0) return null;
+  if (allDone) {
+    return (
+      <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
+        <div className="eyebrow">{S.campaign.kicker}</div>
+        <h3 className="panel__title">{S.campaign.done}</h3>
+        <p className="dim">{S.campaign.watchAgain}</p>
+      </section>
+    );
+  }
+
+  const cur = sequence[index]!;
+  const labels = { home: cur.home, away: cur.away };
+  return (
+    <>
+      <MatchView
+        key={cur.timeline.seed}
+        timeline={cur.timeline}
+        labels={labels}
+        header={cur.header}
+        onDone={() => setMatchDone(true)}
+        onComplete={() => {
+          setMatchDone(false);
+          setIndex((i) => i + 1);
+        }}
+      />
+      {/* This match's stats appear only once it has finished — not while the
+          ticker is still revealing the result. */}
+      {matchDone && <StatsPanel timeline={cur.timeline} labels={labels} />}
+      {matchDone && (
+        <ShareHighlight timeline={cur.timeline} homeLabel={cur.home} awayLabel={cur.away} />
+      )}
     </>
   );
 }

@@ -25,6 +25,10 @@ export interface TeamStats {
   corners: number;
   penalties: number;
   passes: number;
+  fouls: number;
+  yellowCards: number;
+  redCards: number;
+  offsides: number;
   /** Approximate expected goals, one decimal. */
   xg: number;
 }
@@ -40,6 +44,10 @@ interface Acc {
   corners: number;
   penalties: number;
   passes: number;
+  fouls: number;
+  yellowCards: number;
+  redCards: number;
+  offsides: number;
   xg: number;
 }
 
@@ -50,6 +58,10 @@ function emptyAcc(): Acc {
     corners: 0,
     penalties: 0,
     passes: 0,
+    fouls: 0,
+    yellowCards: 0,
+    redCards: 0,
+    offsides: 0,
     xg: 0,
   };
 }
@@ -100,7 +112,18 @@ function tally(acc: Record<Side, Acc>, e: MatchEvent): void {
     case "possession":
       acc[e.team].passes += e.passes.length;
       break;
-    // kickoff, freekick, fulltime, shootout carry no stats.
+    case "foul":
+      acc[e.team].fouls++;
+      break;
+    case "card":
+      if (e.card === "red") acc[e.team].redCards++;
+      else acc[e.team].yellowCards++;
+      break;
+    case "offside":
+      acc[e.team].offsides++;
+      break;
+    // kickoff, freekick, throwin, substitution, halftime, extratime,
+    // fulltime, shootout carry no statistics.
   }
 }
 
@@ -125,6 +148,10 @@ function finalize(acc: Acc, possession: number): TeamStats {
     corners: acc.corners,
     penalties: acc.penalties,
     passes: acc.passes,
+    fouls: acc.fouls,
+    yellowCards: acc.yellowCards,
+    redCards: acc.redCards,
+    offsides: acc.offsides,
     xg: Math.round(acc.xg * 10) / 10,
   };
 }
