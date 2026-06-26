@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assignSquadDetailPositions } from "../src/catalog/detailPositionsMigrate.js";
+import {
+  assignSquadDetailPositions,
+  isBroadDetailPositionList,
+} from "../src/catalog/detailPositionsMigrate.js";
 
 describe("assignSquadDetailPositions", () => {
   it("assigns RCB/LCB to two ambiguous centre-backs in shirt order", () => {
@@ -54,5 +57,36 @@ describe("assignSquadDetailPositions", () => {
 
     expect(result[0]!.naturalPosition).toBe("RCM");
     expect(result[1]!.naturalPosition).toBe("LCM");
+  });
+
+  it("assigns full-backs before centre-backs for broad defender blobs", () => {
+    const broadDefenders = ["RCB", "LCB", "CB", "LB", "LWB", "RB", "RWB"];
+    const result = assignSquadDetailPositions([
+      {
+        name: "Right Back",
+        naturalPosition: "CB",
+        positions: broadDefenders,
+        shirtNumber: 2,
+      },
+      {
+        name: "Left Back",
+        naturalPosition: "CB",
+        positions: broadDefenders,
+        shirtNumber: 3,
+      },
+      {
+        name: "Centre Back",
+        naturalPosition: "CB",
+        positions: broadDefenders,
+        shirtNumber: 4,
+      },
+    ]);
+
+    expect(isBroadDetailPositionList(broadDefenders)).toBe(true);
+    expect(result.map((p) => p.naturalPosition)).toEqual([
+      "RB",
+      "LB",
+      "RCB",
+    ]);
   });
 });

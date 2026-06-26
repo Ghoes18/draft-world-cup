@@ -12,7 +12,7 @@ import {
   effectiveStrength,
   expectedGoals,
   formatPlacementOptions,
-  formatPlayerPositions,
+  formatEligibleFormationSlots,
   getFormation,
   getScenario,
   isLegendPlayer,
@@ -20,6 +20,7 @@ import {
   isPlayerPickable,
   openSlotsForPlayer,
   partialBuildToTeamStrength,
+  pickablePlayersForSlot,
   playerOverall,
   rerollScenario,
   selectPlayer,
@@ -34,10 +35,7 @@ import { useCasinoRoulette } from "../_hooks/useCasinoRoulette";
 import { Pitch } from "./Pitch";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { STRINGS as S } from "../_data/strings";
-
-function scenarioLabel(team: string, cup: number): string {
-  return `${team} · ’${String(cup).slice(-2)}`;
-}
+import { formatScenarioLabel } from "../_data/teamDisplay";
 
 function scenarioId(s: SquadScenario): string {
   return s.id;
@@ -60,7 +58,7 @@ export function BuildPanel({
   onAction?: (action: BuildAction) => void;
 }) {
   const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null);
-  const [highlightSlotId, setHighlightSlotId] = useState<string | undefined>();
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
   const chem = Math.round(buildChemistryPercent(catalog, buildState));
   const complete = isLineupComplete(buildState);
@@ -81,6 +79,7 @@ export function BuildPanel({
 
   const currentScenario = getScenario(catalog, buildState.currentScenarioId);
   const formationLabel = getFormation(buildState.formationId).label;
+  const formationSlots = getFormation(buildState.formationId).slots;
   const scenarioSpinKey = `${buildState.turnIndex}:${buildState.rerollCounter}:${buildState.currentScenarioId}`;
   const scenarioPool = useMemo(() => catalog.scenarios, [catalog.scenarios]);
 
@@ -114,12 +113,19 @@ export function BuildPanel({
     ? openSlotsForPlayer(catalog, buildState, pendingPlayer.id)
     : [];
 
+  const activeSlotPlayers = useMemo(() => {
+    if (!activeSlotId) return [];
+    return pickablePlayersForSlot(catalog, buildState, activeSlotId).sort(
+      (a, b) => playerOverall(b) - playerOverall(a),
+    );
+  }, [activeSlotId, buildState, catalog]);
+
   function onSelect(slotId: string, playerId: string) {
     try {
       onBuildState(selectPlayer(catalog, buildState, slotId, playerId));
       onAction?.({ type: "pick", slotId, playerId });
       setPendingPlayerId(null);
-      setHighlightSlotId(undefined);
+      setActiveSlotId(null);
     } catch {
       // Invalid selection — ignore in demo UI.
     }
@@ -130,7 +136,7 @@ export function BuildPanel({
       onBuildState(rerollScenario(catalog, buildState, mode));
       onAction?.({ type: "reroll", mode });
       setPendingPlayerId(null);
-      setHighlightSlotId(undefined);
+      setActiveSlotId(null);
     } catch {
       // Limit reached — ignore in demo UI.
     }
@@ -139,7 +145,7 @@ export function BuildPanel({
   function onPickPlayer(playerId: string) {
     if (!isPlayerPickable(catalog, buildState, playerId)) return;
     setPendingPlayerId((cur) => (cur === playerId ? null : playerId));
-    setHighlightSlotId(undefined);
+    setActiveSlotId(null);
   }
 
   function onSlotPick(slotId: string) {
@@ -149,8 +155,16 @@ export function BuildPanel({
         onSelect(slotId, pendingPlayerId);
         return;
       }
+      return;
     }
-    setHighlightSlotId(slotId);
+    const slot = buildState.slots.find((s) => s.slotId === slotId);
+    if (slot && !slot.selectedPlayerId) {
+      setActiveSlotId((cur) => (cur === slotId ? null : slotId));
+    }
+  }
+
+  function onPickFromSlot(slotId: string, playerId: string) {
+    onSelect(slotId, playerId);
   }
 
   return (
@@ -183,7 +197,7 @@ export function BuildPanel({
                 </div>
                 <div className="draft-roll__team">
                   <span className="draft-roll__team-line">
-                    {scenarioLabel(displayScenario.team, displayScenario.cup)}
+                    {formatScenarioLabel(displayScenario.team, displayScenario.cup)}
                   </span>
                 </div>
                 <div className="draft-roll__facts mono dim">
@@ -287,6 +301,7 @@ export function BuildPanel({
                       onSelect={() => onPickPlayer(p.id)}
                       onPlace={(slotId) => onSelect(slotId, p.id)}
                       slots={slots}
+                      formationSlots={formationSlots}
                     />
                   );
                 })}
@@ -325,8 +340,11 @@ export function BuildPanel({
                   ? pendingSlots.map((s) => s.slotId)
                   : undefined
               }
-              highlightSlotId={highlightSlotId}
+              activeSlotId={activeSlotId ?? undefined}
+              playersForActiveSlot={activeSlotPlayers}
               onSlotPick={!complete ? onSlotPick : undefined}
+              onPickFromSlot={!complete ? onPickFromSlot : undefined}
+              onCloseSlotPopover={() => setActiveSlotId(null)}
             />
           </div>
         </div>
@@ -402,6 +420,7 @@ function PlayerPickRow({
   onSelect,
   onPlace,
   slots,
+  formationSlots,
 }: {
   player: PlayerCard;
   pickable: boolean;
@@ -409,11 +428,12 @@ function PlayerPickRow({
   onSelect: () => void;
   onPlace: (slotId: string) => void;
   slots: { slotId: string; position: string }[];
+  formationSlots: readonly { position: string }[];
 }) {
   const positions =
-    selected && slots.length > 0
+    slots.length > 0
       ? formatPlacementOptions(slots)
-      : formatPlayerPositions(player);
+      : formatEligibleFormationSlots(player, formationSlots);
   const ovr = playerOverall(player);
 
   return (

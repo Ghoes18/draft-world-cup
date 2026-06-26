@@ -6,6 +6,7 @@ import { demoCatalog } from "../src/demoCatalog.js";
 import {
   canPlayInSlot,
   formatPlacementOptions,
+  formatEligibleFormationSlots,
   formatPlayerPositions,
   formatPositionList,
   playerPlayablePositions,
@@ -15,6 +16,7 @@ import { playerOverall } from "../src/playerRating.js";
 import {
   initBuildState,
   openSlotsForPlayer,
+  pickablePlayersForSlot,
   selectablePlayers,
   autoFillLineup,
   isLineupComplete,
@@ -86,6 +88,38 @@ describe("formatPlacementOptions", () => {
   });
 });
 
+describe("formatEligibleFormationSlots", () => {
+  it("lists formation slots the player can fill", () => {
+    const broadForward = {
+      id: "test__rst",
+      name: "Forward",
+      team: "Test",
+      cup: 2000,
+      naturalPosition: "RST",
+      positions: ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
+      positionSource: "api" as const,
+      force: 200,
+    };
+    const formation433 = [
+      { position: "GK" },
+      { position: "RB" },
+      { position: "CB" },
+      { position: "CB" },
+      { position: "LB" },
+      { position: "CDM" },
+      { position: "RCM" },
+      { position: "LCM" },
+      { position: "RW" },
+      { position: "ST" },
+      { position: "LW" },
+    ];
+
+    expect(formatEligibleFormationSlots(broadForward, formation433)).toBe(
+      "RW · ST",
+    );
+  });
+});
+
 describe("canPlayInSlot", () => {
   it("restricts ST-only API players to striker slots", () => {
     const valdano = demoCatalog.players["ar86-valdano"]!;
@@ -106,6 +140,167 @@ describe("canPlayInSlot", () => {
     expect(canPlayInSlot(maradona, "CB")).toBe(false);
     expect(canPlayInSlot(maradona, "GK")).toBe(false);
     expect(canPlayInSlot(maradona, "RW")).toBe(false);
+  });
+
+  it("keeps side-specific API detail positions exact", () => {
+    const ashleyColeLike = {
+      id: "england-2010__ashley-cole",
+      name: "Ashley Cole",
+      team: "England",
+      cup: 2010,
+      naturalPosition: "LB",
+      positions: ["LB"],
+      positionSource: "api" as const,
+      force: 188,
+      overall: 83,
+      shirtNumber: 3,
+    };
+
+    expect(canPlayInSlot(ashleyColeLike, "LB")).toBe(true);
+    expect(canPlayInSlot(ashleyColeLike, "LWB")).toBe(true);
+    expect(canPlayInSlot(ashleyColeLike, "RB")).toBe(false);
+    expect(canPlayInSlot(ashleyColeLike, "RWB")).toBe(false);
+    expect(canPlayInSlot(ashleyColeLike, "LCB")).toBe(false);
+    expect(canPlayInSlot(ashleyColeLike, "RCB")).toBe(false);
+  });
+
+  it("allows same-side full-backs to cover wing-back slots", () => {
+    const rb = {
+      id: "test__rb",
+      name: "Full Back",
+      team: "Test",
+      cup: 2000,
+      naturalPosition: "RB",
+      positions: ["RB"],
+      positionSource: "api" as const,
+      force: 200,
+    };
+
+    expect(canPlayInSlot(rb, "RB")).toBe(true);
+    expect(canPlayInSlot(rb, "RWB")).toBe(true);
+    expect(canPlayInSlot(rb, "LB")).toBe(false);
+    expect(canPlayInSlot(rb, "LWB")).toBe(false);
+  });
+
+  it("does not treat broad migrated defender blobs as all-defender API truth", () => {
+    const broadMigratedLeftBack = {
+      id: "england-2010__ashley-cole",
+      name: "Ashley Cole",
+      team: "England",
+      cup: 2010,
+      naturalPosition: "LB",
+      positions: ["RCB", "LCB", "CB", "LB", "LWB", "RB", "RWB"],
+      positionSource: "api" as const,
+      force: 188,
+      overall: 83,
+      shirtNumber: 3,
+    };
+
+    expect(canPlayInSlot(broadMigratedLeftBack, "LB")).toBe(true);
+    expect(canPlayInSlot(broadMigratedLeftBack, "LWB")).toBe(true);
+    expect(canPlayInSlot(broadMigratedLeftBack, "RB")).toBe(false);
+    expect(canPlayInSlot(broadMigratedLeftBack, "RWB")).toBe(false);
+    expect(canPlayInSlot(broadMigratedLeftBack, "LCB")).toBe(false);
+    expect(canPlayInSlot(broadMigratedLeftBack, "RCB")).toBe(false);
+  });
+
+  it("allows broad migrated midfielders to fill CDM from natural CM", () => {
+    const broadMid = {
+      id: "test__rcm",
+      name: "Mid",
+      team: "Test",
+      cup: 2000,
+      naturalPosition: "RCM",
+      positions: [
+        "CM",
+        "RCM",
+        "LCM",
+        "CM_LEFT",
+        "CM_RIGHT",
+        "CDM",
+        "CDM_DEEP",
+        "CAM",
+        "RAM",
+        "LAM",
+        "CAM_RIGHT",
+        "CAM_LEFT",
+      ],
+      positionSource: "api" as const,
+      force: 200,
+    };
+
+    expect(canPlayInSlot(broadMid, "CDM")).toBe(true);
+    expect(canPlayInSlot(broadMid, "CAM")).toBe(true);
+    expect(canPlayInSlot(broadMid, "RCM")).toBe(true);
+    expect(canPlayInSlot(broadMid, "RW")).toBe(false);
+  });
+
+  it("allows broad migrated forwards to fill wing slots on the same side", () => {
+    const broadForward = {
+      id: "test__rst",
+      name: "Forward",
+      team: "Test",
+      cup: 2000,
+      naturalPosition: "RST",
+      positions: ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
+      positionSource: "api" as const,
+      force: 200,
+    };
+
+    expect(canPlayInSlot(broadForward, "RW")).toBe(true);
+    expect(canPlayInSlot(broadForward, "LW")).toBe(false);
+    expect(canPlayInSlot(broadForward, "ST")).toBe(true);
+  });
+
+  it("allows side-specific striker naturals to cover the same-side winger", () => {
+    const leftStriker = {
+      id: "england-2010__rooney",
+      name: "Wayne Rooney",
+      team: "England",
+      cup: 2010,
+      naturalPosition: "LST",
+      positions: ["CF"],
+      positionSource: "api" as const,
+      force: 220,
+    };
+
+    expect(canPlayInSlot(leftStriker, "LW")).toBe(true);
+    expect(canPlayInSlot(leftStriker, "RW")).toBe(false);
+    expect(canPlayInSlot(leftStriker, "ST")).toBe(true);
+  });
+
+  it("allows same-side wide players to cover RM/LM slots", () => {
+    const rw = {
+      id: "test__rw",
+      name: "Winger",
+      team: "Test",
+      cup: 2000,
+      naturalPosition: "RW",
+      positions: ["RW"],
+      positionSource: "api" as const,
+      force: 200,
+    };
+
+    expect(canPlayInSlot(rw, "RW")).toBe(true);
+    expect(canPlayInSlot(rw, "RM")).toBe(true);
+    expect(canPlayInSlot(rw, "LM")).toBe(false);
+  });
+
+  it("allows same-side AM variants for precise API lists", () => {
+    const cam = {
+      id: "test__cam",
+      name: "Playmaker",
+      team: "Test",
+      cup: 2000,
+      naturalPosition: "CAM",
+      positions: ["CAM"],
+      positionSource: "api" as const,
+      force: 200,
+    };
+
+    expect(canPlayInSlot(cam, "CAM")).toBe(true);
+    expect(canPlayInSlot(cam, "RAM")).toBe(true);
+    expect(canPlayInSlot(cam, "LAM")).toBe(true);
   });
 
   it("expands inferred Fjelstul CB to full-back slots", () => {
@@ -349,5 +544,29 @@ describe("openSlotsForPlayer with positions", () => {
     expect(
       maradonaSlots.some((s) => s.position === "CF" || s.position === "ST"),
     ).toBe(true);
+  });
+
+  it("lists squad players who fit an open slot (inverse of openSlotsForPlayer)", () => {
+    const state = initBuildState(
+      demoCatalog,
+      "pos-slot-pool",
+      "home",
+      "argentina-1986",
+      "433-attack",
+    );
+    const camSlot = state.slots.find((s) => s.position === "CAM");
+    expect(camSlot).toBeDefined();
+    const forCam = pickablePlayersForSlot(demoCatalog, state, camSlot!.slotId);
+    expect(forCam.some((p) => p.id === "ar86-maradona")).toBe(true);
+    expect(forCam.every((p) => p.team === "Argentina" && p.cup === 1986)).toBe(
+      true,
+    );
+    for (const player of forCam) {
+      expect(
+        openSlotsForPlayer(demoCatalog, state, player.id).some(
+          (s) => s.slotId === camSlot!.slotId,
+        ),
+      ).toBe(true);
+    }
   });
 });

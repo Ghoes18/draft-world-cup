@@ -209,6 +209,20 @@ export function openSlotsForPlayer(
   return state.slots.filter((s) => canPlaceInSlot(player, s));
 }
 
+/** Squad players who can fill an open slot on the current turn. */
+export function pickablePlayersForSlot(
+  catalog: SquadCatalog,
+  state: BuildState,
+  slotId: string,
+): PlayerCard[] {
+  if (state.turnIndex >= state.slots.length) return [];
+  const slot = state.slots.find((s) => s.slotId === slotId);
+  if (!slot || slot.selectedPlayerId) return [];
+  return currentSquadPlayers(catalog, state).filter((p) =>
+    canPlaceInSlot(p, slot),
+  );
+}
+
 /** Full current scenario squad minus already-picked players. */
 export function currentSquadPlayers(
   catalog: SquadCatalog,
@@ -393,6 +407,7 @@ export function buildStateToLineup(
     const p = getPlayer(catalog, slot.selectedPlayerId);
     return {
       playerId: p.id,
+      name: p.name,
       number: p.shirtNumber ?? Number(slot.slotId) + 1,
       position: slot.position,
       naturalPosition: p.naturalPosition,
@@ -526,7 +541,13 @@ export function autoFillLineup(
 ): BuildState {
   let next = state;
   while (!isLineupComplete(next)) {
-    const pool = selectablePlayers(catalog, next);
+    const currentSlot = next.slots[next.turnIndex];
+    const turnPool = currentSlot?.selectedPlayerId
+      ? []
+      : currentSquadPlayers(catalog, next).filter((player) =>
+          currentSlot ? canPlaceInSlot(player, currentSlot) : false,
+        );
+    const pool = turnPool.length > 0 ? turnPool : selectablePlayers(catalog, next);
     if (pool.length === 0) {
       throw new Error(
         `no selectable players on turn ${next.turnIndex} (scenario ${next.currentScenarioId})`,
@@ -544,7 +565,10 @@ export function autoFillLineup(
       if (fitB !== fitA) return fitB - fitA;
       return a.name.localeCompare(b.name);
     })[0]!;
-    const targetSlot = openSlotsForPlayer(catalog, next, best.id).sort(
+    const compatibleSlots = currentSlot && canPlaceInSlot(best, currentSlot)
+      ? [currentSlot]
+      : openSlotsForPlayer(catalog, next, best.id);
+    const targetSlot = compatibleSlots.sort(
       (a, b) =>
         slotFitForPlayer(best, b.position) - slotFitForPlayer(best, a.position),
     )[0]!;

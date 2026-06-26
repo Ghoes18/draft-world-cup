@@ -39,6 +39,33 @@ const SQUAD_SIDE_ROTATION: Record<Role, readonly PosDetail[]> = {
   ST: ["RST", "LST", "ST", "CF", "CF_SUPPORT", "CF_FALSE9"],
 };
 
+const BROAD_DETAIL_POSITION_SETS: readonly (readonly PosDetail[])[] = [
+  ["RCB", "LCB", "CB", "LB", "LWB", "RB", "RWB"],
+  [
+    "CM",
+    "RCM",
+    "LCM",
+    "CM_LEFT",
+    "CM_RIGHT",
+    "CDM",
+    "CDM_DEEP",
+    "CAM",
+    "RAM",
+    "LAM",
+    "CAM_RIGHT",
+    "CAM_LEFT",
+  ],
+  ["ST", "RST", "LST", "CF", "CF_FALSE9", "CF_SUPPORT"],
+];
+
+const BROAD_DEFENDER_NATURAL_ROTATION: readonly PosDetail[] = [
+  "RB",
+  "LB",
+  "RCB",
+  "LCB",
+  "CB",
+];
+
 /** Formation slot labels that are not detail codes but appear in catalog data. */
 const FORMATION_SLOT_TO_DETAIL: Record<string, PosDetail> = {
   LCDM: "CDM",
@@ -54,9 +81,14 @@ const FORMATION_SLOT_TO_DETAIL: Record<string, PosDetail> = {
   WF: "RW",
 };
 
-function normalizePositionCode(code: string): string {
+/** Map formation slot labels (RCDM, PD, …) to detail codes. */
+export function normalizeFormationSlotToDetail(code: string): string {
   const upper = code.trim().toUpperCase();
   return FORMATION_SLOT_TO_DETAIL[upper] ?? upper;
+}
+
+function normalizePositionCode(code: string): string {
+  return normalizeFormationSlotToDetail(code);
 }
 
 export function isDetailCode(code: string): code is PosDetail {
@@ -74,6 +106,49 @@ export function isAmbiguousDetailNatural(code: string): boolean {
   if (!isDetailCode(upper)) return true;
   if (upper === "GK") return false;
   return AMBIGUOUS_NATURALS.has(upper);
+}
+
+function sortedPositionKey(positions: readonly string[]): string {
+  return [...new Set(positions.map((p) => p.trim().toUpperCase()))]
+    .sort()
+    .join(",");
+}
+
+export function isBroadDetailPositionList(
+  positions: readonly string[] | undefined,
+): boolean {
+  if (!positions?.length) return false;
+  const key = sortedPositionKey(positions);
+  return BROAD_DETAIL_POSITION_SETS.some(
+    (template) => sortedPositionKey(template) === key,
+  );
+}
+
+export function isBroadDetailDefenderList(
+  positions: readonly string[] | undefined,
+): boolean {
+  if (!positions?.length) return false;
+  return (
+    sortedPositionKey(positions) === sortedPositionKey(BROAD_DETAIL_POSITION_SETS[0]!)
+  );
+}
+
+export function isBroadDetailMidfieldList(
+  positions: readonly string[] | undefined,
+): boolean {
+  if (!positions?.length) return false;
+  return (
+    sortedPositionKey(positions) === sortedPositionKey(BROAD_DETAIL_POSITION_SETS[1]!)
+  );
+}
+
+export function isBroadDetailForwardList(
+  positions: readonly string[] | undefined,
+): boolean {
+  if (!positions?.length) return false;
+  return (
+    sortedPositionKey(positions) === sortedPositionKey(BROAD_DETAIL_POSITION_SETS[2]!)
+  );
 }
 
 /** Map a coarse or detail code to a single detail natural (side hint from R/L prefix). */
@@ -101,6 +176,10 @@ export function expandPositionsToDetail(
   const expanded: PosDetail[] = [];
   for (const pos of positions) {
     const normalized = normalizePositionCode(pos);
+    if (isDetailCode(normalized)) {
+      expanded.push(normalized);
+      continue;
+    }
     for (const code of expandCoarseToDetail(normalized)) {
       if (isDetailCode(code)) expanded.push(code);
     }
@@ -173,6 +252,7 @@ export function assignSquadDetailPositions<
     );
 
   const roleCounters = new Map<Role, number>();
+  let broadDefenderCounter = 0;
   const byIndex = new Map<number, DetailMigratePlayerResult>();
 
   for (const { player, index } of ordered) {
@@ -180,11 +260,22 @@ export function assignSquadDetailPositions<
       ? player.positions
       : [player.naturalPosition];
     const detailPositions = expandPositionsToDetail(listed);
+    const hasBroadDefenderPositions = isBroadDetailDefenderList(detailPositions);
+    const broadDefenderSlot = hasBroadDefenderPositions
+      ? broadDefenderCounter++
+      : undefined;
 
     const currentNatural = toNaturalDetail(player.naturalPosition);
     let naturalPosition = currentNatural;
+    const shouldReassignBroadDefender =
+      hasBroadDefenderPositions &&
+      detailToRole(currentNatural) === "CB" &&
+      currentNatural !== "CB";
 
-    if (!isAmbiguousDetailNatural(currentNatural)) {
+    if (
+      !shouldReassignBroadDefender &&
+      !isAmbiguousDetailNatural(currentNatural)
+    ) {
       byIndex.set(index, { naturalPosition, positions: detailPositions });
       continue;
     }
@@ -195,9 +286,13 @@ export function assignSquadDetailPositions<
       if (fromListed) {
         naturalPosition = fromListed;
       } else {
-        const rotation = SQUAD_SIDE_ROTATION[naturalRole];
-        const slot = roleCounters.get(naturalRole) ?? 0;
-        roleCounters.set(naturalRole, slot + 1);
+        const rotation = hasBroadDefenderPositions
+          ? BROAD_DEFENDER_NATURAL_ROTATION
+          : SQUAD_SIDE_ROTATION[naturalRole];
+        const slot = broadDefenderSlot ?? roleCounters.get(naturalRole) ?? 0;
+        if (broadDefenderSlot === undefined) {
+          roleCounters.set(naturalRole, slot + 1);
+        }
         naturalPosition = rotation[slot % rotation.length] ?? currentNatural;
       }
     }

@@ -15,6 +15,7 @@ import {
 import { canonicalRole } from "../chemistry.js";
 import {
   isAmbiguousDetailNatural,
+  isBroadDetailPositionList,
   isSideSpecificDetail,
 } from "./detailPositionsMigrate.js";
 import { transfermarktLabelToDetail } from "../positionsDetail.js";
@@ -324,7 +325,8 @@ function filterCompatibleMappedPositions(
 ): string[] {
   if (
     catalogPlayer.positionSource === "inferred" ||
-    isCoarseCatalogPositions(catalogPlayer.positions)
+    isCoarseCatalogPositions(catalogPlayer.positions) ||
+    isBroadDetailPositionList(catalogPlayer.positions)
   ) {
     return [...mappedCodes];
   }
@@ -348,7 +350,8 @@ function coarseRoleCompatible(
 
   if (
     catalogPlayer.positionSource === "inferred" ||
-    isCoarseCatalogPositions(catalogPlayer.positions)
+    isCoarseCatalogPositions(catalogPlayer.positions) ||
+    isBroadDetailPositionList(catalogPlayer.positions)
   ) {
     return true;
   }
@@ -372,10 +375,12 @@ function resolveEligibilityMode(
 
 /** Whether this catalog player already has side-aware detail positions. */
 export function hasSideAwareDetailPositions(player: PlayerCard): boolean {
+  if (isBroadDetailPositionList(player.positions)) return false;
   if (isSideSpecificDetail(player.naturalPosition)) return true;
   return (
     player.positionSource === "api" &&
     !isCoarseCatalogPositions(player.positions) &&
+    !isBroadDetailPositionList(player.positions) &&
     (player.positions?.some((p) => isSideSpecificDetail(p)) ?? false)
   );
 }
@@ -406,6 +411,7 @@ export function isEligibleForTransfermarktOverlay(
       return (
         player.positionSource === "inferred" ||
         isCoarseCatalogPositions(player.positions) ||
+        isBroadDetailPositionList(player.positions) ||
         isAmbiguousDetailNatural(player.naturalPosition)
       );
     case "inferred":
@@ -1156,7 +1162,8 @@ export function applyTransfermarktPositionOverlay(
 
       if (
         existing.positionSource === "api" &&
-        !isCoarseCatalogPositions(existing.positions)
+        !isCoarseCatalogPositions(existing.positions) &&
+        !isBroadDetailPositionList(existing.positions)
       ) {
         skipped++;
         continue;

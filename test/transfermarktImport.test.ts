@@ -18,6 +18,7 @@ import type {
   TransfermarktPlayerProfileResponse,
   TransfermarktPlayerSearchResponse,
 } from "../src/catalog/transfermarktClient.js";
+import { isBroadDetailPositionList } from "../src/catalog/detailPositionsMigrate.js";
 
 function inferredCatalog(): SquadCatalog {
   const players = {
@@ -95,6 +96,13 @@ describe("transfermarkt eligibility", () => {
     expect(isCoarseCatalogPositions(["CAM", "CF", "LW", "CM"])).toBe(false);
   });
 
+  it("detects broad detail blobs from old migrations separately", () => {
+    expect(
+      isBroadDetailPositionList(["RCB", "LCB", "CB", "LB", "LWB", "RB", "RWB"]),
+    ).toBe(true);
+    expect(isCoarseCatalogPositions(["RCB", "LCB", "CB", "LB", "LWB", "RB", "RWB"])).toBe(false);
+  });
+
   it("includes coarse API players and skips fine curated lists by default", () => {
     const catalog = inferredCatalog();
     const apiPlayer = catalog.players["brazil-1970__p-pele"]!;
@@ -119,6 +127,18 @@ describe("transfermarkt eligibility", () => {
     };
     expect(isEligibleForTransfermarktOverlay(sideAware, "ambiguous")).toBe(false);
     expect(isEligibleForTransfermarktOverlay(sideAware, "force")).toBe(true);
+  });
+
+  it("keeps broad detail defender blobs eligible for ambiguous cleanup", () => {
+    const broadDetailApi = {
+      ...inferredCatalog().players["brazil-1970__p-carlos"]!,
+      naturalPosition: "LCB",
+      positions: ["RCB", "LCB", "CB", "LB", "LWB", "RB", "RWB"],
+      positionSource: "api" as const,
+    };
+
+    expect(isEligibleForTransfermarktOverlay(broadDetailApi, "inferred")).toBe(false);
+    expect(isEligibleForTransfermarktOverlay(broadDetailApi, "ambiguous")).toBe(true);
   });
 });
 
