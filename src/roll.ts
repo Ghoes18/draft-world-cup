@@ -7,10 +7,7 @@
  * year-only). All randomness derives from the server-owned seed (mulberry32).
  */
 
-import {
-  chemistryPercent,
-  positionFit,
-} from "./chemistry.js";
+
 import { GLOBAL_REROLLS_PER_BUILD } from "./constants.js";
 import {
   getPlayer,
@@ -368,26 +365,6 @@ export function selectPlayer(
     0,
   );
   return { ...next, currentScenarioId: nextScenario.id };
-}
-
-/** Chemistry % from current selections (0 if incomplete). */
-export function buildChemistryPercent(
-  catalog: SquadCatalog,
-  state: BuildState,
-): number {
-  const placements: { natural: string; assigned: string }[] = [];
-  for (const slot of state.slots) {
-    if (!slot.selectedPlayerId) continue;
-    const p = getPlayer(catalog, slot.selectedPlayerId);
-    placements.push({
-      natural: p.naturalPosition,
-      assigned: slot.position,
-    });
-  }
-  if (placements.length !== state.slots.length) {
-    return placements.length === 0 ? 0 : chemistryPercent(placements);
-  }
-  return chemistryPercent(placements);
 }
 
 /** Whether every slot has a selected player. */

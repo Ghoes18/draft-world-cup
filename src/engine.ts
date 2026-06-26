@@ -17,6 +17,7 @@ import {
   KNOCKOUT_PHASES,
   LAMBDA_SLOPE,
   MAX_LAMBDA,
+  MIDFIELD_SLOPE,
   MIN_LAMBDA,
   PENALTY_BASE,
   PENALTY_MAX,
@@ -32,9 +33,11 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
-/** Effective ratings after chemistry + tactics (see `effectiveStrength`, src/strength.ts). */
+/** Effective ratings after tactics (see `effectiveStrength`, src/strength.ts). */
 export interface TeamStrength {
   attack: number;
+  /** Midfield rating; a midfield edge nudges λ (see `expectedGoals`). */
+  midfield: number;
   defense: number;
   overall: number;
 }
@@ -71,10 +74,24 @@ export interface MatchResult {
   penalties?: [number, number];
 }
 
-/** Expected goals for a team: clamp(1.4 + (attack − opponentDefense) × 0.08, 0.15, 5). */
-export function expectedGoals(attack: number, opponentDefense: number): number {
+/**
+ * Expected goals for a team:
+ *   clamp(1.4 + (attack − oppDefense)×0.08 + (midfield − oppMidfield)×0.04, 0.15, 5).
+ *
+ * The midfield term is a deliberate extension beyond the live game's
+ * attack-vs-defense λ (see `MIDFIELD_SLOPE`). Passing 0 for both midfields
+ * reproduces the original live-game λ exactly.
+ */
+export function expectedGoals(
+  attack: number,
+  opponentDefense: number,
+  midfield = 0,
+  opponentMidfield = 0,
+): number {
   return clamp(
-    BASE_LAMBDA + (attack - opponentDefense) * LAMBDA_SLOPE,
+    BASE_LAMBDA +
+      (attack - opponentDefense) * LAMBDA_SLOPE +
+      (midfield - opponentMidfield) * MIDFIELD_SLOPE,
     MIN_LAMBDA,
     MAX_LAMBDA,
   );
@@ -148,8 +165,18 @@ export function simulateMatch(input: SimulateMatchInput): MatchResult {
   const { home, away, seed, knockout = false } = input;
   const rng = rngFromSeed(`${seed}:engine`);
 
-  const lambdaHome = expectedGoals(home.attack, away.defense);
-  const lambdaAway = expectedGoals(away.attack, home.defense);
+  const lambdaHome = expectedGoals(
+    home.attack,
+    away.defense,
+    home.midfield,
+    away.midfield,
+  );
+  const lambdaAway = expectedGoals(
+    away.attack,
+    home.defense,
+    away.midfield,
+    home.midfield,
+  );
 
   const homeGoals = poissonKnuth(lambdaHome, rng);
   const awayGoals = poissonKnuth(lambdaAway, rng);

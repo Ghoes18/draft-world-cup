@@ -19,9 +19,9 @@ import { simulateMatch, type MatchResult } from "./engine.js";
 import { effectiveStrength } from "./strength.js";
 import { generateTimeline } from "./timeline/generate.js";
 import { buildStateToTeamStrength } from "./lineupStrength.js";
+import { buildStateSynergy } from "./synergy.js";
 import {
   autoFillLineup,
-  buildChemistryPercent,
   buildStateToLineup,
   initBuildState,
   isLineupComplete,
@@ -87,7 +87,6 @@ export interface DuelResolution {
   timeline: MatchTimeline;
   /** Final (post auto-fill) Build states actually fed to the engine. */
   finalStates: Record<Side, BuildState>;
-  chemistry: Record<Side, number>;
 }
 
 /** Label a side by the scenario its first pick came from (mirrors solo Build). */
@@ -102,7 +101,7 @@ function scenarioLabel(catalog: SquadCatalog, state: BuildState): MatchScenario 
  * Resolve a head-to-head duel from two authoritative Build states.
  *
  * Incomplete XIs are filled deterministically (`autoFillLineup`, MVP §9.3),
- * chemistry + tactic feed `effectiveStrength`, then a single knockout match
+ * tactic feeds `effectiveStrength`, then a single knockout match
  * (tie → penalties, MVP §9.1–9.2) produces the canonical timeline. Pure and
  * deterministic in `seed`, so both clients can present the identical result.
  */
@@ -122,17 +121,19 @@ export function resolveDuel(
   const homeState = fill(input.home.buildState);
   const awayState = fill(input.away.buildState);
 
-  const homeChem = Math.round(buildChemistryPercent(catalog, homeState));
-  const awayChem = Math.round(buildChemistryPercent(catalog, awayState));
+  const homeSynergy = buildStateSynergy(catalog, homeState);
+  const awaySynergy = buildStateSynergy(catalog, awayState);
 
   const result = simulateMatch({
     home: effectiveStrength(buildStateToTeamStrength(catalog, homeState), {
-      chemistryPct: homeChem,
       tactic: input.home.tactic,
+      chemistryBonus: homeSynergy.chemistryBonus,
+      legendBonus: homeSynergy.legendBonus,
     }),
     away: effectiveStrength(buildStateToTeamStrength(catalog, awayState), {
-      chemistryPct: awayChem,
       tactic: input.away.tactic,
+      chemistryBonus: awaySynergy.chemistryBonus,
+      legendBonus: awaySynergy.legendBonus,
     }),
     seed: input.seed,
     knockout: input.knockout ?? true,
@@ -152,7 +153,6 @@ export function resolveDuel(
     result,
     timeline,
     finalStates: { home: homeState, away: awayState },
-    chemistry: { home: homeChem, away: awayChem },
   };
 }
 

@@ -4,7 +4,6 @@ import { demoCatalog } from "../src/demoCatalog.js";
 import { GLOBAL_REROLLS_PER_BUILD } from "../src/constants.js";
 import {
   autoFillLineup,
-  buildChemistryPercent,
   buildStateToLineup,
   drawScenario,
   initBuildState,
@@ -257,17 +256,6 @@ describe("autoFillLineup", () => {
   });
 });
 
-describe("buildChemistryPercent", () => {
-  it("reflects placement quality after autofill", () => {
-    const filled = autoFillLineup(
-      demoCatalog,
-      initBuildState(demoCatalog, "chem-test", "home"),
-    );
-    const chem = buildChemistryPercent(demoCatalog, filled);
-    expect(chem).toBeGreaterThan(50);
-    expect(chem).toBeLessThanOrEqual(100);
-  });
-});
 
 describe("normalizeCatalog", () => {
   it("builds indexed players and scenario rosters", () => {

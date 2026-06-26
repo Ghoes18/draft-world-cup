@@ -20,6 +20,14 @@ export const LAMBDA_SLOPE = 0.08;
 export const MIN_LAMBDA = 0.15;
 /** Upper clamp on λ. */
 export const MAX_LAMBDA = 5;
+/**
+ * Expected-goals added per point of (midfield − opponentMidfield). A midfield
+ * edge wins the ball and creates chances, nudging λ. This is a deliberate
+ * extension beyond the live game's attack-vs-defense λ (CLAUDE.md parity note);
+ * kept smaller than `LAMBDA_SLOPE` and TUNABLE (MVP §9). Set to 0 to restore
+ * exact live-game parity.
+ */
+export const MIDFIELD_SLOPE = 0.04;
 
 // ---------------------------------------------------------------------------
 // Engine — knockout penalty model (must match exactly)
@@ -66,28 +74,48 @@ export const KNOCKOUT_PHASES: ReadonlySet<CampaignPhase> = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
-// Chemistry + tactics — effective-rating modifiers (TUNABLE — MVP §9.4)
+// Tactics — effective-rating modifiers (TUNABLE — MVP §9.4)
 // ---------------------------------------------------------------------------
 
 /** A single pre-match tactical choice (MVP §4.6). */
 export type Tactic = "offensive" | "balanced" | "defensive";
 
-/**
- * Chemistry bonus span: `round((chem% − 50) / 100 × CHEMISTRY_RANGE)` → ±3.
- * Applied to attack, defense and overall (see `src/strength.ts`).
- */
-export const CHEMISTRY_RANGE = 6;
-
 /** Tactic δ: rating points traded between attack and your defense. */
 export const TACTIC_DELTA = 4;
 
 /**
- * Position-fit tiers for chemistry (GAME-GUIDE §6): full credit for the exact
- * role, partial for an adjacent role, little for an unrelated one.
+ * Position-fit tiers for slot eligibility (`src/chemistry.ts`): full credit for
+ * the exact role, partial for an adjacent role, little for an unrelated one.
  */
 export const FIT_EXACT = 1.0;
 export const FIT_ADJACENT = 0.5;
 export const FIT_UNRELATED = 0.15;
+
+// ---------------------------------------------------------------------------
+// Chemistry / synergy — squad cohesion + legend bonus (TUNABLE — MVP §9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Synergy "links" between two fielded players, summed pairwise across the XI.
+ * Two tiers: real teammates (same national team AND same World Cup edition)
+ * count fully; countrymen (same team, different edition) count partially.
+ */
+export const LINK_TEAMMATE = 1.0; // same team + same cup
+export const LINK_COUNTRYMAN = 0.4; // same team, different cup
+
+/**
+ * Pair-points at which chemistry saturates to 100%. Total link score is mapped
+ * to chemistry% via `50 + clamp(linkScore / CHEM_SATURATION, 0, 1) * 50`, so a
+ * lineup with no links sits at a neutral 50% (no penalty) and a tightly-knit
+ * squad reaches 100% → +3 (CLAUDE.md chemistryBonus model).
+ */
+export const CHEM_SATURATION = 12;
+/** Engine swing per side of the chemistry% range (CLAUDE.md: ≈ −3…+3). */
+export const CHEM_BONUS_RANGE = 6;
+
+/** Overall rating added per legend fielded, capped so a full legend XI stays sane. */
+export const LEGEND_OVERALL_PER = 1;
+export const LEGEND_OVERALL_CAP = 4;
 
 // ---------------------------------------------------------------------------
 // Match shape

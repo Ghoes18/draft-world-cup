@@ -35,6 +35,18 @@ const DEFENSE_BY_ROLE: Record<Role, number> = {
   ST: 0,
 };
 
+/** How much each role contributes to the side's midfield rating (0…1). Peaks at CM. */
+const MIDFIELD_BY_ROLE: Record<Role, number> = {
+  GK: 0,
+  FB: 0.2,
+  CB: 0.2,
+  DM: 0.8,
+  CM: 1,
+  AM: 0.8,
+  W: 0.4,
+  ST: 0.2,
+};
+
 /** Unknown codes weigh like a balanced central midfielder. */
 const FALLBACK_ROLE: Role = "CM";
 
@@ -44,4 +56,8 @@ export function attackWeight(position: string): number {
 
 export function defenseWeight(position: string): number {
   return DEFENSE_BY_ROLE[anyPositionRole(position) ?? FALLBACK_ROLE];
+}
+
+export function midfieldWeight(position: string): number {
+  return MIDFIELD_BY_ROLE[anyPositionRole(position) ?? FALLBACK_ROLE];
 }

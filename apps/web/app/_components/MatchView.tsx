@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * MatchView — text-only LIVE match presentation (no 2D), like the original 7a0
- * but broadcast-styled and dopamine-tuned.
+ * MatchView — text-only LIVE match presentation.
  *
  * Two modes, both reading the same MatchTimeline:
  *  - "fast":  a curated, event-paced highlight reel. Only high-signal beats
@@ -11,8 +10,8 @@
  *             dropped so the feed stays legible and punchy. Each beat lands one
  *             at a time on its own dwell (goals breathe longer), the clock rolls
  *             up to it, and a goal fires a celebration splash. This is also the
- *             screen-reader path (MVP §4.1 / RF-S3) via aria-live.
- *  - "ultra": the full result printed instantly (original 7a0 behaviour).
+ *             screen-reader path via aria-live.
+ *  - "ultra": the full result printed instantly.
  *
  * `onComplete` fires once the match (and any shootout) has fully played, so a
  * campaign can advance to the next fixture.
@@ -25,7 +24,7 @@ import { Scorebug } from "./Scoreboard";
 
 type Mode = "fast" | "ultra";
 
-const MODE_KEY = "7a0-mode";
+const MODE_KEY = "ninety-mode";
 const MS_PER_KICK = 950; // one penalty revealed at a time
 
 /** How long each beat lingers before the next one lands (ms). Goals breathe. */

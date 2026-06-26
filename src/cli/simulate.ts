@@ -5,7 +5,7 @@
  *
  *   pnpm sim --home 91 --away 76 --seed demo123
  *   pnpm sim --home 88 --phase final --seed cup-run
- *   pnpm sim --home 88 --away 76 --tactic offensive --chem 80 --seed demo
+ *   pnpm sim --home 88 --away 76 --tactic offensive --seed demo
  */
 
 import {
@@ -28,7 +28,6 @@ interface Args {
   knockout: boolean;
   phase?: CampaignPhase;
   tactic: Tactic;
-  chem: number;
 }
 
 const TACTICS: readonly Tactic[] = ["offensive", "balanced", "defensive"];
@@ -40,7 +39,6 @@ function parseArgs(argv: string[]): Args {
     seed: "demo",
     knockout: false,
     tactic: "balanced",
-    chem: 50,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -69,9 +67,6 @@ function parseArgs(argv: string[]): Args {
         args.tactic = t;
         break;
       }
-      case "--chem":
-        args.chem = Number(argv[++i]);
-        break;
       default:
         if (arg?.startsWith("--")) {
           console.error(`Unknown flag: ${arg}`);
@@ -87,15 +82,14 @@ function parseArgs(argv: string[]): Args {
 }
 
 function baseStrength(overall: number): TeamStrength {
-  // No squad data in the CLI; use the overall flat for attack/defense.
-  return { attack: overall, defense: overall, overall };
+  // No squad data in the CLI; use the overall flat for attack/midfield/defense.
+  return { attack: overall, midfield: overall, defense: overall, overall };
 }
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
-  // Home gets chemistry + tactics; away stays neutral (its own flags TBD).
+  // Home gets tactics; away stays neutral (its own flags TBD).
   const home = effectiveStrength(baseStrength(args.home), {
-    chemistryPct: args.chem,
     tactic: args.tactic,
   });
   const away = baseStrength(args.away);
@@ -122,7 +116,7 @@ function main(): void {
     `\n7a0 — seed "${args.seed}"  (HOME ${args.home} vs AWAY ${args.away}${phaseLabel}${ko})`,
   );
   console.log(
-    `HOME build: tactic ${args.tactic}, chemistry ${args.chem}%  →  eff ATK ${home.attack} DEF ${home.defense} OVR ${home.overall}`,
+    `HOME build: tactic ${args.tactic}  →  eff ATK ${home.attack} MID ${home.midfield} DEF ${home.defense} OVR ${home.overall}`,
   );
   console.log(
     `λ: HOME ${result.lambda[0].toFixed(2)}  AWAY ${result.lambda[1].toFixed(2)}   events: ${timeline.events.length}   duration: ${(timeline.durationMs / 1000).toFixed(1)}s\n`,

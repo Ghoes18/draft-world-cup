@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   canonicalRole,
-  chemistryPercent,
   positionFit,
 } from "../src/chemistry.js";
 import { FIT_ADJACENT, FIT_EXACT, FIT_UNRELATED } from "../src/constants.js";
-import { defaultLineup } from "../src/lineup.js";
 
 describe("canonicalRole", () => {
   it("normalizes side-qualified and synonym codes", () => {
@@ -55,30 +53,5 @@ describe("positionFit", () => {
 
   it("treats unknown codes as unrelated", () => {
     expect(positionFit("???", "ST")).toBe(FIT_UNRELATED);
-  });
-});
-
-describe("chemistryPercent", () => {
-  it("is 0 for an empty lineup", () => {
-    expect(chemistryPercent([])).toBe(0);
-  });
-
-  it("is 100 for a perfectly-placed XI", () => {
-    const placements = defaultLineup("home").map((s) => ({
-      natural: s.position,
-      assigned: s.position,
-    }));
-    expect(chemistryPercent(placements)).toBe(100);
-  });
-
-  it("drops when players are shifted out of position", () => {
-    const slots = defaultLineup("home");
-    const placements = slots.map((s, i) => ({
-      // Field the striker (last slot) at centre-back: an unrelated fit.
-      natural: s.position,
-      assigned: i === slots.length - 1 ? "RCB" : s.position,
-    }));
-    expect(chemistryPercent(placements)).toBeLessThan(100);
-    expect(chemistryPercent(placements)).toBeGreaterThan(0);
   });
 });
