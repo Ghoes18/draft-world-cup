@@ -1,6 +1,6 @@
 ## 1. MVP goal
 
-Ship the **smallest version worth launching**: a readable **text simulation** (like the original 7a0), a real **online** duel, and the features that make building a team feel meaningful and social — **shareable highlights, match statistics, squad chemistry, tactical choice, and a daily challenge**. Everything else from the full PRD is deferred.
+Ship the **smallest version worth launching**: a readable **text simulation** (like the original 7a0), a real **online** duel, and the features that make building a team feel meaningful and social — **shareable highlights, match statistics, squad chemistry, tactical choice, and a missions + weekly-boss layer**. Everything else from the full PRD is deferred.
 
 ---
 
@@ -15,7 +15,7 @@ Ship the **smallest version worth launching**: a readable **text simulation** (l
 5. ✅ **Match statistics** — possession, shots, on-target, corners, penalties, xG, passes. *(M3)*
 6. ✅ **Squad chemistry** — a lineup bonus/penalty that nudges team strength. *(M2)*
 7. ✅ **Tactical choice** — Offensive / Balanced / Defensive, biasing the goal model. *(M2)*
-8. ⏳ **Daily challenge** — one shared daily scenario; compare and share results. *(M6)*
+8. ✅ **Missions & Weekly Boss** — daily + career objectives completed through any match, plus a weekly Boss squad with one attempt per day. Server-authoritative. *(M6)*
 
 ### 2.2 Out of scope (post-MVP)
 
@@ -53,7 +53,7 @@ Reuse existing routes: `/api/match/record` (results), `/api/shorten` (highlight/
 | Match statistics | ✅ M3 | `src/consumers/stats.ts`; `StatsPanel` in `apps/web` |
 | Online World Cup tournament | ✅ M4 | `apps/web/convex/tournament.ts`, `apps/web/app/duel/`; `src/online.ts` (replay validation + `resolveDuel`) |
 | Shareable highlights | ⏳ M5 | Spec §4.3; `/api/shorten` in main app (not wired here) |
-| Daily challenge | ⏳ M6 | Spec §4.7; not started |
+| Missions & Weekly Boss | ✅ M6 | `src/period.ts`, `src/missions.ts`; `apps/web/convex/{missions,solo,boss}.ts`; `apps/web/app/missions/` |
 
 Public export (`src/index.ts`) = engine + timeline + Fast text + stats + chemistry/tactics + online replay helpers (server-safe bundle).
 
@@ -140,12 +140,41 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 - δ is tunable; applied before computing λ for both teams.
 - One choice per match (per phase, in a campaign). Visible in stats and in the highlight card.
 
-### 4.7 Daily challenge
+### 4.7 Missions & Weekly Boss
 
-- A **deterministic daily seed** (from the UTC date) gives **everyone the same scenario** (team + Cup) for the day.
-- **One official attempt** per day counts for the day's comparison; free practice after.
-- A simple **daily leaderboard** (best result / margin) using `/api/match/record`; results are **shareable** via the highlight link.
-- Server-authoritative (same anti-cheat as online) so the daily comparison is fair.
+*(M6, as built — supersedes the original "daily challenge" sketch. The product
+owner redefined this milestone into a Missions system plus a Weekly Boss; the
+scenario-locked draft is unchanged and there is no separate "daily seed
+scenario" or per-day leaderboard. Persistent ranking stays in online mode only.)*
+
+**Missions** — objectives the player completes through **any** match they play:
+
+- **Daily missions** rotate from a deterministic UTC-date seed (everyone sees
+  the same set); **persistent missions** are always-on career/achievement goals.
+- Categories: **composition** (e.g. "field 3+ Brazil players" — satisfied when
+  you roll that nation), **result** (e.g. "win 7–0", "clean sheet", "beat the
+  Boss"), and **career/cumulative** (e.g. "score 50 goals", "2 GOATs — field
+  CR7 and Messi across matches", "field 5 different legends").
+- Progress is **server-authoritative**: every counted match is re-validated
+  (action-log replay) and re-resolved on the server, then folded into
+  per-`playerId` `playerStats` + `missionProgress`. A tampered score earns no
+  credit. A completed mission is never downgraded.
+
+**Weekly Boss** — a real historical squad, drawn deterministically from the ISO
+week (same for everyone Mon–Sun):
+
+- A dedicated **"Challenge the Boss"** match: build an XI and face the fixed
+  weekly Boss; server-authoritative, **one attempt per UTC day** (enforced via
+  `bossAttempts` `by_player_date`), with your day result and best-of-week shown.
+- A tie goes to penalties (`knockout: true`), same rule as online knockouts.
+- Missions and the Boss are independent except for the `beat-boss` mission
+  predicate, which only credits inside the Boss challenge.
+
+Engine helpers live in `src/period.ts` (UTC/ISO-week keys + seeds) and
+`src/missions.ts` (predicates, evaluator, daily selection — pure + tested).
+Backend in `apps/web/convex/{missions,solo,boss}.ts` on the shared
+`gameCatalog`. UI at `apps/web/app/missions/` (`MissionCard`, `BossCard`,
+Boss build flow); solo matches report via `solo.recordMatch`.
 
 ---
 
@@ -158,7 +187,9 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 | `tournaments`      | id, seed, created_at, champion_slot                                          |
 | `participants`     | tournament_id, slot(0-7), group_index(0/1), kind('human'|'cpu'), player_id?, name, scenario_id? |
 | `matches`          | id, tournament_id, stage('group'|'semi'|'final'), group_index?, home_slot, away_slot, seed, timeline(json), gf, ga, winner_slot? |
-| `daily`           | date, seed, scenario(team,cup)                                                |
+| `bossAttempts`     | player_id, week_key, date_key, seed, formation_id, tactic, actions(json), timeline(json), gf, ga, beat, created_at |
+| `missionProgress`  | player_id, mission_id, period_key, type('daily'|'persistent'), progress, target, status, completed_at? |
+| `playerStats`      | player_id, total_goals, wins, clean_sheets, legend_ids[], nations[]            |
 
 
 ---
@@ -170,7 +201,7 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 3. ~~**M3 — Match statistics** screen (derived from timeline).~~ ✅
 4. **M4 — Online World Cup Tournament** (untimed solo draft, 8-player pool, instant batch resolution of 2 groups → semis → final, CPU bot-fill on a stalled pool). ✅ *Convex + `/duel` implemented.*
 5. **M5 — Shareable highlights** (text goal replay link + share card). ⏳
-6. **M6 — Daily challenge** (daily seed, one attempt, simple leaderboard, share). ⏳
+6. **M6 — Missions & Weekly Boss** (daily + career objectives credited from any match; weekly Boss squad, one attempt/day; server-authoritative). ✅ *Convex + `/missions` implemented.*
 
 ---
 
@@ -180,7 +211,7 @@ A single pre-match choice that **biases the goal model** (a real trade-off, usef
 - ✅ **Chemistry** and **tactics** measurably change λ and the result, and are visible in Build and stats.
 - ✅ Up to 8 players on **different devices** join the pool, see the **same** server-resolved group standings, bracket, and champion the instant the tournament resolves, and can **search again with a new squad**; outcome is fully **server-decided**.
 - ⏳ A finished match produces a **working highlight link** (replays goals as text, previews with a share card) and a **stats** breakdown. *(Stats ✅; highlight link ⏳ M5.)*
-- ⏳ The **daily challenge** gives everyone the same scenario and records a comparable result.
+- ✅ **Missions** (daily + career) are credited from any match the player plays, server-side; the **Weekly Boss** is the same squad for everyone all week and enforces one attempt per day.
 - ✅ **Fast text** and **Ultra Fast** are always available on all devices.
 
 ---

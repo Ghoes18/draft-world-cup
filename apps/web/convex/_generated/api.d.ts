@@ -8,7 +8,11 @@
  * @module
  */
 
+import type * as boss from "../boss.js";
 import type * as duelCatalog from "../duelCatalog.js";
+import type * as gameCatalog from "../gameCatalog.js";
+import type * as missions from "../missions.js";
+import type * as solo from "../solo.js";
 import type * as tournament from "../tournament.js";
 
 import type {
@@ -18,7 +22,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  boss: typeof boss;
   duelCatalog: typeof duelCatalog;
+  gameCatalog: typeof gameCatalog;
+  missions: typeof missions;
+  solo: typeof solo;
   tournament: typeof tournament;
 }>;
 

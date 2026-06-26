@@ -81,4 +81,55 @@ export default defineSchema({
     winnerSlot: v.optional(v.number()), // unset only for a group-stage draw
     createdAt: v.number(),
   }).index("by_tournament", ["tournamentId"]),
+
+  // --- M6: Missions & Weekly Boss (server-authoritative, per playerId) ---
+
+  // One row per player's daily Boss attempt (1/day). The Boss squad is fixed
+  // for the ISO week (`weekKey`); `dateKey` enforces the one-try-per-day rule.
+  bossAttempts: defineTable({
+    playerId: v.string(),
+    weekKey: v.string(), // ISO week, e.g. "2026-W26"
+    dateKey: v.string(), // UTC date, e.g. "2026-06-26"
+    seed: v.string(), // the fixture seed actually used
+    formationId: v.string(),
+    tactic,
+    actionsJson: v.string(), // JSON-encoded BuildAction[]
+    timelineJson: v.string(), // JSON-encoded MatchTimeline
+    gf: v.number(), // player (home) perspective
+    ga: v.number(),
+    beat: v.boolean(), // did the player win
+    createdAt: v.number(),
+  })
+    .index("by_player_date", ["playerId", "dateKey"]) // 1/day guard
+    .index("by_week", ["weekKey"]) // weekly leaderboard
+    .index("by_player_week", ["playerId", "weekKey"]), // my best this week
+
+  // One row per (player, mission, period). `periodKey` is the UTC date for
+  // daily missions and "all" for persistent ones, so a daily mission resets
+  // each day while a career mission keeps a single lifetime row. Once a row is
+  // completed it is never downgraded.
+  missionProgress: defineTable({
+    playerId: v.string(),
+    missionId: v.string(),
+    periodKey: v.string(),
+    type: v.union(v.literal("daily"), v.literal("persistent")),
+    progress: v.number(),
+    target: v.number(),
+    status: v.union(v.literal("in_progress"), v.literal("completed")),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_mission_period", ["playerId", "missionId", "periodKey"]),
+
+  // One row per player: the running cumulative facts that feed career missions.
+  playerStats: defineTable({
+    playerId: v.string(),
+    totalGoals: v.number(),
+    wins: v.number(),
+    cleanSheets: v.number(),
+    legendIds: v.array(v.string()), // distinct legend ids ever fielded
+    nations: v.array(v.string()), // distinct nations ever fielded
+    updatedAt: v.number(),
+  }).index("by_player", ["playerId"]),
 });

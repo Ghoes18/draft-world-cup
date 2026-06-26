@@ -1,23 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useMutation } from "convex/react";
 import {
   autoFillLineup,
-  buildChemistryPercent,
-  buildStateToLineup,
   buildStateToTeamStrength,
   drawFormationOptions,
   drawOpponentScenario,
-  effectiveStrength,
-  generateTimeline,
   getScenario,
   initBuildState,
   isLineupComplete,
-  simulateMatch,
+  resolveDuel,
+  type BuildAction,
   type BuildState,
   type FormationDefinition,
   type MatchTimeline,
 } from "7a0-engine";
+import { api } from "../convex/_generated/api";
+import { usePlayerId } from "./_hooks/usePlayerId";
 import { MatchView } from "./_components/MatchView";
 import { BuildPanel } from "./_components/BuildPanel";
 import { FormationPicker } from "./_components/FormationPicker";
@@ -38,8 +38,41 @@ function newSeed(): string {
   return `demo-${Date.now()}`;
 }
 
+type RecordMatchFn = (args: {
+  playerId: string;
+  seed: string;
+  formationId: string;
+  tactic: "offensive" | "balanced" | "defensive";
+  actionsJson: string;
+}) => Promise<{ ok: boolean; missionsCompleted: string[] }>;
+
+/** Calls `useMutation` only when the Convex provider is present, parking the
+ *  mutation in a ref the page uses to report finished solo matches. */
+function RecordMatchBridge({
+  recordRef,
+}: {
+  recordRef: MutableRefObject<RecordMatchFn | null>;
+}) {
+  const recordMatch = useMutation(api.solo.recordMatch);
+  useEffect(() => {
+    recordRef.current = recordMatch;
+    return () => {
+      recordRef.current = null;
+    };
+  }, [recordMatch, recordRef]);
+  return null;
+}
+
 export default function Page() {
   const { catalog, source, ready } = useGameCatalog();
+  const { playerId } = usePlayerId();
+  const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
+  // The Convex provider only wraps the app when NEXT_PUBLIC_CONVEX_URL is set,
+  // so `useMutation` can't be called here unconditionally. A gated bridge
+  // (mounted only when convex is ready) parks the mutation in this ref.
+  const recordRef = useRef<RecordMatchFn | null>(null);
+  // Draft action log (picks + rerolls), replayed server-side to credit missions.
+  const actionsRef = useRef<BuildAction[]>([]);
   const [pendingSeed, setPendingSeed] = useState<string | null>(null);
   const [formationOptions, setFormationOptions] = useState<FormationDefinition[]>(
     [],
@@ -92,10 +125,12 @@ export default function Page() {
     setOpponentScenarioId(null);
     setTimeline(null);
     setMatchDone(false);
+    actionsRef.current = [];
   }
 
   function onConfirmFormation() {
     if (!catalog || !pendingSeed || !selectedFormationId) return;
+    actionsRef.current = [];
     const draft = initBuildState(
       catalog,
       pendingSeed,
@@ -126,37 +161,33 @@ export default function Page() {
 
     setBuildState(filled);
 
-    const chem = Math.round(buildChemistryPercent(catalog, filled));
-    const homeLineup = buildStateToLineup(catalog, filled);
-    const homeBase = buildStateToTeamStrength(catalog, filled);
-
     const awayBuild = autoFillLineup(
       catalog,
       initBuildState(catalog, `${seed}:away`, "away", opponentScenario.id),
     );
-    const awayBase = buildStateToTeamStrength(catalog, awayBuild);
-    const awayLineup = buildStateToLineup(catalog, awayBuild);
 
-    const firstPick = filled.slots.find((s) => s.pickedFromScenarioId);
-    const homeLabel = firstPick?.pickedFromScenarioId
-      ? getScenario(catalog, firstPick.pickedFromScenarioId)
-      : getScenario(catalog, filled.currentScenarioId);
-
-    const result = simulateMatch({
-      home: effectiveStrength(homeBase, { chemistryPct: chem, tactic: "balanced" }),
-      away: effectiveStrength(awayBase, { chemistryPct: 50, tactic: "balanced" }),
+    // Same resolution path the server runs in `solo.recordMatch`, so the result
+    // the player watches is byte-identical to the one that credits missions.
+    const { timeline: next } = resolveDuel(catalog, {
       seed,
+      home: { buildState: filled, tactic: "balanced" },
+      away: { buildState: awayBuild, tactic: "balanced" },
       knockout: false,
-    });
-
-    const next = generateTimeline({
-      result,
-      seed,
-      scenario: { team: homeLabel.team, cup: homeLabel.cup },
-      lineups: { home: homeLineup, away: awayLineup },
     });
     setMatchDone(false);
     setTimeline(next);
+
+    // Best-effort: record the match server-side for mission progress. The local
+    // result is already shown; mission credit follows reactively.
+    if (playerId && recordRef.current) {
+      recordRef.current({
+        playerId,
+        seed,
+        formationId: filled.formationId,
+        tactic: "balanced",
+        actionsJson: JSON.stringify(actionsRef.current),
+      }).catch(() => {});
+    }
   }
 
   const canSimulate = buildState !== null && catalog !== null;
@@ -185,6 +216,7 @@ export default function Page() {
 
   return (
     <main className="shell">
+      {convexReady && <RecordMatchBridge recordRef={recordRef} />}
       <Header meta={catalogHint} />
 
       <section className="hero">
@@ -241,6 +273,7 @@ export default function Page() {
           awayStrength={awayStrength}
           buildState={buildState}
           onBuildState={setBuildState}
+          onAction={(a) => actionsRef.current.push(a)}
         />
       )}
 
