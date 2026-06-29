@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   getPlayer,
-  isLegendPlayer,
+  isCaptainTsubasaTeam,
   playerOverall,
+  playerTier,
   type BuildState,
   type PlayerCard,
   type Side,
@@ -14,6 +15,8 @@ import {
 import { POSITION_DETAILS, type PosDetail } from "7a0-engine";
 import { useStrings } from "../_i18n/LocaleProvider";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { tierNameClass } from "../_lib/tierClasses";
+import { PitchPlacementFX } from "./motion";
 
 /** Get a short display label for a position code (detail-aware). */
 function posLabel(code: string): string {
@@ -291,7 +294,7 @@ function SlotPlayerPicker({
                 className="pitch__popover-row"
                 onClick={() => onPick(player.id)}
               >
-                <PlayerAvatar player={player} size="sm" />
+                <PlayerAvatar player={player} size="sm" tier={playerTier(player)} />
                 <span
                   className="pitch__popover-ovr mono"
                   aria-label={`${S.build.playerOvr} ${playerOverall(player)}`}
@@ -301,7 +304,7 @@ function SlotPlayerPicker({
                 <span
                   className={[
                     "pitch__popover-name",
-                    isLegendPlayer(player.name) ? "player-name--legend" : "",
+                    tierNameClass(playerTier(player)),
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -425,14 +428,12 @@ export function Pitch({
           anchorToNorm(slot.anchor, slot.position, buildState.side);
         const placement = popoverPlacement(pos);
         const surname = player?.name.split(" ").pop();
+        const tier = player ? playerTier(player) : null;
         const meta =
-          filled && surname && player ? (
+          filled && surname && player && tier ? (
             <>
               <span
-                className={[
-                  "pitch__token-name",
-                  isLegendPlayer(player.name) ? "player-name--legend" : "",
-                ]
+                className={["pitch__token-name", tierNameClass(tier)]
                   .filter(Boolean)
                   .join(" ")}
               >
@@ -482,11 +483,16 @@ export function Pitch({
               title={player?.name}
             >
               {filled && player ? (
-                <PlayerAvatar player={player} size="sm" />
+                <PlayerAvatar player={player} size="sm" tier={tier ?? undefined} />
               ) : (
                 <span className="pitch__pos">{posLabel(slot.position)}</span>
               )}
             </Tag>
+            <PitchPlacementFX
+              tier={tier}
+              flame={Boolean(player && isCaptainTsubasaTeam(player.team))}
+              trigger={justFilled === slot.slotId ? slot.slotId : null}
+            />
             {meta ? <div className="pitch__token-meta">{meta}</div> : null}
             {isActive && onPickFromSlot ? (
               <SlotPlayerPicker

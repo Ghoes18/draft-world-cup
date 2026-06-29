@@ -1,7 +1,8 @@
 "use client";
 
 import { bossCopy } from "7a0-engine";
-import { isLegendPlayer, type BuildState, type SquadCatalog } from "7a0-engine";
+import { playerTier, type BuildState, type SquadCatalog } from "7a0-engine";
+import { tierNameClass } from "../_lib/tierClasses";
 import { Pitch } from "./Pitch";
 import { HoloCard3D } from "./three";
 import { useLocale, useStrings } from "../_i18n/LocaleProvider";
@@ -97,7 +98,7 @@ export function BossCard({
                   <span
                     className={[
                       "boss-card__lineup-name",
-                      isLegendPlayer(player.name) ? "player-name--legend" : "",
+                      tierNameClass(playerTier(player)),
                     ]
                       .filter(Boolean)
                       .join(" ")}

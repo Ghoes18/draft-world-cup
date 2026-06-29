@@ -2,6 +2,7 @@
 
 import { useStrings } from "../_i18n/LocaleProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { SoundToggle } from "./SoundToggle";
 
 export function Header({ meta }: { meta?: string }) {
   const S = useStrings();
@@ -19,7 +20,10 @@ export function Header({ meta }: { meta?: string }) {
         <a href="/leaderboard">{S.nav.leaderboard}</a>
       </nav>
       <div className="topbar__actions">
-        <LanguageSwitcher />
+        <div className="topbar__controls">
+          <SoundToggle />
+          <LanguageSwitcher />
+        </div>
         <p className="topbar__meta">
           {S.brand.tagline}
           {meta ? (

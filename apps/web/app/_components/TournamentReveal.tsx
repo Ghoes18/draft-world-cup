@@ -6,6 +6,7 @@ import { MatchView } from "./MatchView";
 import { StatsPanel } from "./StatsPanel";
 import { ShareHighlight } from "./ShareHighlight";
 import { StampReveal } from "./motion";
+import { TournamentBracket } from "./TournamentBracket";
 import { useStrings } from "../_i18n/LocaleProvider";
 import type { StringCatalog } from "../_i18n/types";
 
@@ -68,9 +69,6 @@ export function TournamentReveal({
     [state.matches, mySlot],
   );
 
-  const semis = state.matches.filter((m) => m.stage === "semi");
-  const final = state.matches.find((m) => m.stage === "final");
-
   let groupNo = 0;
   const campaign: CampaignFixture[] = myMatches.map((m) => {
     const header =
@@ -125,48 +123,27 @@ export function TournamentReveal({
             )}
           </section>
 
-          <section
-            className="panel"
-            style={{ padding: "1rem", display: "flex", gap: "2rem", flexWrap: "wrap" }}
-          >
-            {state.standings.map((group, gi) => (
-              <div
-                key={group.groupIndex}
-                className="stagger-in__item"
-                style={{ flex: "1 1 280px", animationDelay: `${gi * 120}ms` }}
-              >
-                <h3 className="panel__title">
-                  {group.groupIndex === 0 ? S.tournament.groupA : S.tournament.groupB}
-                </h3>
-                <table className="mono" style={{ width: "100%", fontSize: "0.85rem" }}>
-                  <thead>
-                    <tr>
-                      <th align="left">{S.tournament.team}</th>
-                      <th>{S.tournament.played}</th>
-                      <th>{S.tournament.gd}</th>
-                      <th>{S.tournament.pts}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.table.map((row) => (
-                      <tr
-                        key={row.slot}
-                        style={row.slot === mySlot ? { fontWeight: "bold" } : undefined}
-                      >
-                        <td>{slotName(state.participants, row.slot, S)}</td>
-                        <td align="center">{row.played}</td>
-                        <td align="center">{row.gd}</td>
-                        <td align="center">{row.points}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <TournamentBracket
+            state={state}
+            mySlot={mySlot}
+            expandedIndex={expanded}
+            onToggleMatch={setExpanded}
+          />
+
+          {expanded !== null && (() => {
+            const m = state.matches[expanded];
+            if (!m || m.stage === "group") return null;
+            const home = slotName(state.participants, m.homeSlot, S);
+            const away = slotName(state.participants, m.awaySlot, S);
+            return (
+              <div id={`fixture-${expanded}`} className="bracket-fixture-detail">
+                <FixtureDetail timeline={m.timeline} home={home} away={away} />
               </div>
-            ))}
-          </section>
+            );
+          })()}
 
           {mySlot !== undefined && (
-            <section className="panel" style={{ padding: "1rem" }}>
+            <section className="panel bracket-fixtures" style={{ padding: "1rem" }}>
               <h3 className="panel__title">{S.tournament.yourFixtures}</h3>
               {myMatches
                 .filter((m) => m.stage === "group")
@@ -175,12 +152,12 @@ export function TournamentReveal({
                   const away = slotName(state.participants, m.awaySlot, S);
                   const key = state.matches.indexOf(m);
                   return (
-                    <div key={i} style={{ marginBottom: "0.5rem" }}>
+                    <div key={i} className="bracket-fixtures__row">
                       <button
                         type="button"
-                        className="mono"
+                        className="bracket-fixtures__btn mono"
                         onClick={() => setExpanded(expanded === key ? null : key)}
-                        style={{ width: "100%", textAlign: "left" }}
+                        aria-expanded={expanded === key}
                       >
                         {home} {m.gf}–{m.ga} {away}
                       </button>
@@ -192,56 +169,6 @@ export function TournamentReveal({
                 })}
             </section>
           )}
-
-          <section className="panel" style={{ padding: "1rem" }}>
-            <h3 className="panel__title">{S.tournament.knockout}</h3>
-            {semis.map((m, i) => {
-              const home = slotName(state.participants, m.homeSlot, S);
-              const away = slotName(state.participants, m.awaySlot, S);
-              const key = state.matches.indexOf(m);
-              return (
-                <div key={`sf-${i}`} style={{ marginBottom: "0.5rem" }}>
-                  <button
-                    type="button"
-                    className="mono"
-                    onClick={() => setExpanded(expanded === key ? null : key)}
-                    style={{ width: "100%", textAlign: "left" }}
-                  >
-                    {S.tournament.semifinalN(i + 1)}: {home} {m.gf}–{m.ga} {away}
-                  </button>
-                  {expanded === key && (
-                    <FixtureDetail timeline={m.timeline} home={home} away={away} />
-                  )}
-                </div>
-              );
-            })}
-            {final && (
-              <div>
-                <button
-                  type="button"
-                  className="mono"
-                  onClick={() =>
-                    setExpanded(
-                      expanded === state.matches.indexOf(final)
-                        ? null
-                        : state.matches.indexOf(final),
-                    )
-                  }
-                  style={{ width: "100%", textAlign: "left" }}
-                >
-                  {S.tournament.final}: {slotName(state.participants, final.homeSlot, S)} {final.gf}–{final.ga}{" "}
-                  {slotName(state.participants, final.awaySlot, S)}
-                </button>
-                {expanded === state.matches.indexOf(final) && (
-                  <FixtureDetail
-                    timeline={final.timeline}
-                    home={slotName(state.participants, final.homeSlot, S)}
-                    away={slotName(state.participants, final.awaySlot, S)}
-                  />
-                )}
-              </div>
-            )}
-          </section>
         </>
       )}
 

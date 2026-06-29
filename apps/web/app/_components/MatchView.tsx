@@ -22,6 +22,7 @@ import type { MatchEvent, MatchTimeline, ShootoutKick, Side } from "7a0-engine";
 import { useStrings } from "../_i18n/LocaleProvider";
 import { Scorebug } from "./Scoreboard";
 import { useCountUp, ImpactBurst } from "./motion";
+import { useSound } from "../_hooks/useSound";
 import type { StringCatalog } from "../_i18n/types";
 
 type Mode = "fast" | "ultra";
@@ -267,6 +268,7 @@ export function MatchView({
   const lab = labels ?? { home: "Home", away: "Away" };
   const parsed = useMemo(() => parseTimeline(timeline, lab, S), [timeline, lab.home, lab.away, S]);
 
+  const { play } = useSound();
   const [mode, setMode] = useState<Mode>("fast");
   /** Playback speed for the Fast reel — never changes the outcome. */
   const [speed, setSpeed] = useState<1 | 2>(1);
@@ -348,6 +350,7 @@ export function MatchView({
     if (mode !== "fast") return;
     const last = idx > 0 ? parsed.entries[idx - 1] : null;
     if (!last?.isGoal || !last.team) return;
+    play("goal");
     setSplash({
       key: idx,
       team: last.team,
@@ -357,7 +360,7 @@ export function MatchView({
     });
     const id = setTimeout(() => setSplash(null), 1700 / speed);
     return () => clearTimeout(id);
-  }, [idx, mode, parsed, speed]);
+  }, [idx, mode, parsed, speed, play]);
 
   // Auto-scroll the feed as new beats land.
   useEffect(() => {

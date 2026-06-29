@@ -13,7 +13,7 @@
  * Player forces are autoral (appearances + goals), not live 7a0 values.
  */
 
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
   buildCatalogFromFjelstul,
@@ -23,6 +23,10 @@ import {
 } from "7a0-engine/server";
 import { normalizeCatalog, type SquadCatalog } from "../catalog.js";
 import { overlayRawExportOnCatalog } from "../catalog/catalogOverlay.js";
+import {
+  mergePhotosIntoCatalog,
+  parsePhotoCache,
+} from "../catalog/wikimediaPhotos.js";
 import { buildZafronixRawExport } from "../catalog/zafronixImport.js";
 import {
   loadZafronixTournaments,
@@ -30,6 +34,7 @@ import {
   type ZafronixClientOptions,
 } from "../catalog/zafronixClient.js";
 import { applyLegendPhotosToCatalog } from "../legends.js";
+import { ELITE_MIN_OVERALL } from "../playerTier.js";
 import { loadCuratedExportsFromDir } from "./curatedSquadsLoader.js";
 
 interface CliArgs {
@@ -123,6 +128,28 @@ async function downloadFjelstul(cacheDir: string): Promise<void> {
   }
 }
 
+async function applyElitePhotoCache(catalog: SquadCatalog): Promise<SquadCatalog> {
+  const cachePath = resolve("data/player-photos.json");
+  try {
+    await access(cachePath);
+    const text = await readFile(cachePath, "utf8");
+    const cache = parsePhotoCache(JSON.parse(text));
+    if (Object.keys(cache.byPlayerId).length === 0) return catalog;
+    const result = await mergePhotosIntoCatalog(catalog, {
+      cache,
+      minOverall: ELITE_MIN_OVERALL,
+      cacheOnly: true,
+      delayMs: 0,
+    });
+    console.log(
+      `Elite photo cache: ${result.matched} applied (${result.skipped} not cached)`,
+    );
+    return result.catalog;
+  } catch {
+    return catalog;
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const cacheDir = resolve(args.cache);
@@ -159,11 +186,15 @@ async function main() {
     );
   }
 
+  catalog = await applyElitePhotoCache(catalog);
   catalog = applyLegendPhotosToCatalog(catalog);
-  const legendPhotos = Object.values(catalog.players).filter(
-    (p) => p.photoUrl,
+  const withPhotos = Object.values(catalog.players).filter((p) => p.photoUrl);
+  const elitePhotos = withPhotos.filter(
+    (p) => (p.overall ?? 0) >= ELITE_MIN_OVERALL,
   ).length;
-  console.log(`Legend photos: ${legendPhotos} players`);
+  console.log(
+    `Photos: ${withPhotos.length} players (${elitePhotos} elite ${ELITE_MIN_OVERALL}+)`,
+  );
 
   const { migrateCatalogToDetailPositions } = await import(
     "../catalog/detailPositionsMigrate.js"

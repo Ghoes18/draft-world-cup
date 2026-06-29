@@ -10,6 +10,11 @@
 
 import { GLOBAL_REROLLS_PER_BUILD } from "./constants.js";
 import {
+  CAPTAIN_TSUBASA_ODDS,
+  CAPTAIN_TSUBASA_SCENARIO_ID,
+  isCaptainTsubasaScenario,
+} from "./captainTsubasa.js";
+import {
   getPlayer,
   getScenario,
   scenarioPlayers,
@@ -79,6 +84,48 @@ function scenarioDrawRng(seed: string) {
   return rngFromSeed(`${seed}:draw`);
 }
 
+/**
+ * Scenarios eligible for a normal uniform draw. The Captain Tsubasa easter egg
+ * is kept out — it only surfaces through the per-turn jackpot gate.
+ */
+function normalPool(
+  catalog: SquadCatalog,
+  excludeIds: ReadonlySet<string> = new Set(),
+): SquadScenario[] {
+  const pool = catalog.scenarios.filter(
+    (s) => !isCaptainTsubasaScenario(s.id) && !excludeIds.has(s.id),
+  );
+  // Degenerate catalogs (e.g. only the easter egg, or everything excluded) fall
+  // back to the unfiltered list so a draw never throws.
+  if (pool.length > 0) return pool;
+  const withoutExclude = catalog.scenarios.filter((s) => !excludeIds.has(s.id));
+  return withoutExclude.length > 0 ? withoutExclude : [...catalog.scenarios];
+}
+
+/**
+ * Roll the rare easter-egg gate for one draft draw. Uses a dedicated rng
+ * substream so it never disturbs the main pick stream (keeping every existing
+ * seed's draws byte-for-byte stable). Returns the Captain Tsubasa scenario on a
+ * jackpot, otherwise `null`.
+ */
+function maybeDrawCaptainTsubasa(
+  catalog: SquadCatalog,
+  seed: string,
+  turnIndex: number,
+  rerollCounter: number,
+  excludeIds: ReadonlySet<string>,
+): SquadScenario | null {
+  if (excludeIds.has(CAPTAIN_TSUBASA_SCENARIO_ID)) return null;
+  const scenario = catalog.scenarios.find((s) =>
+    isCaptainTsubasaScenario(s.id),
+  );
+  if (!scenario) return null;
+  const rng = rngFromSeed(
+    `${seed}:turn:${turnIndex}:reroll:${rerollCounter}:tsubasa`,
+  );
+  return rng() < CAPTAIN_TSUBASA_ODDS ? scenario : null;
+}
+
 /** Draw one scenario from the catalog (single initial draw). */
 export function drawScenario(
   catalog: SquadCatalog,
@@ -88,7 +135,7 @@ export function drawScenario(
     throw new Error("drawScenario: empty catalog");
   }
   const rng = scenarioDrawRng(seed);
-  return pick(rng, catalog.scenarios);
+  return pick(rng, normalPool(catalog));
 }
 
 /**
@@ -100,7 +147,7 @@ export function drawOpponentScenario(
   seed: string,
   playerScenarioId: string,
 ): SquadScenario {
-  const pool = catalog.scenarios.filter((s) => s.id !== playerScenarioId);
+  const pool = normalPool(catalog, new Set([playerScenarioId]));
   const rng = rngFromSeed(`${seed}:opponent`);
   if (pool.length === 0) return getScenario(catalog, playerScenarioId);
   return pick(rng, pool);
@@ -113,8 +160,15 @@ function drawScenarioForTurn(
   rerollCounter: number,
   excludeIds: ReadonlySet<string> = new Set(),
 ): SquadScenario {
-  let pool = catalog.scenarios.filter((s) => !excludeIds.has(s.id));
-  if (pool.length === 0) pool = [...catalog.scenarios];
+  const jackpot = maybeDrawCaptainTsubasa(
+    catalog,
+    seed,
+    turnIndex,
+    rerollCounter,
+    excludeIds,
+  );
+  if (jackpot) return jackpot;
+  const pool = normalPool(catalog, excludeIds);
   if (pool.length === 0) throw new Error("drawScenarioForTurn: empty catalog");
   const rng = turnScenarioRng(seed, turnIndex, rerollCounter);
   return pick(rng, pool);

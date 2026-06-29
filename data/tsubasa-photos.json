@@ -1,0 +1,51 @@
+{
+  "source": "Captain Tsubasa Wiki (Fandom) — character portraits for local dev only.",
+  "licenseNote": "Captain Tsubasa © Yoichi Takahashi / Shueisha. Fan/wiki assets are not redistributable; run `pnpm import:tsubasa` locally.",
+  "size": 256,
+  "players": {
+    "ct-wakabayashi": {
+      "wikiTitle": "Genzo_Wakabayashi",
+      "name": "Genzo Wakabayashi"
+    },
+    "ct-kaltz": {
+      "wikiTitle": "Hermann_Kaltz",
+      "name": "Hermann Kaltz"
+    },
+    "ct-gentile": {
+      "wikiTitle": "Salvatore_Gentile",
+      "name": "Salvatore Gentile"
+    },
+    "ct-misugi": {
+      "wikiTitle": "Jun_Misugi",
+      "name": "Jun Misugi"
+    },
+    "ct-tsubasa": {
+      "wikiTitle": "Tsubasa_Ozora",
+      "name": "Tsubasa Ozora"
+    },
+    "ct-misaki": {
+      "wikiTitle": "Taro_Misaki",
+      "name": "Taro Misaki"
+    },
+    "ct-rivaul": {
+      "wikiTitle": "Rivaul",
+      "name": "Rivaul"
+    },
+    "ct-natureza": {
+      "wikiTitle": "Natureza",
+      "name": "Natureza"
+    },
+    "ct-schneider": {
+      "wikiTitle": "Karl_Heinz_Schneider",
+      "name": "Karl Heinz Schneider"
+    },
+    "ct-santana": {
+      "wikiTitle": "Carlos_Santana",
+      "name": "Carlos Santana"
+    },
+    "ct-hyuga": {
+      "wikiTitle": "Kojiro_Hyuga",
+      "name": "Kojiro Hyuga"
+    }
+  }
+}

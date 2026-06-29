@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useMutation } from "convex/react";
 import {
   autoFillLineup,
+  CAPTAIN_TSUBASA_SCENARIO_ID,
   drawFormationOptions,
   initBuildState,
   isLineupComplete,
@@ -66,7 +67,7 @@ function RecordMatchBridge({
 export default function Page() {
   const S = useStrings();
   const { catalog, source, ready } = useGameCatalog();
-  const { playerId } = usePlayerId();
+  const { playerId, name } = usePlayerId();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
   const recordRef = useRef<RecordMatchFn | null>(null);
   const actionsRef = useRef<BuildAction[]>([]);
@@ -102,11 +103,27 @@ export default function Page() {
   function onConfirmFormation() {
     if (!catalog || !pendingSeed || !selectedFormationId) return;
     actionsRef.current = [];
+    // TEST: name "Ghoes" forces the Captain Tsubasa easter egg as the first roll.
+    // Triggered by the persisted name OR a `?as=ghoes` URL query (the solo page
+    // has no name field, so the query param is the easy way to test).
+    const queryName =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("as") ?? ""
+        : "";
+    const isGhoes =
+      name.trim().toLowerCase() === "ghoes" ||
+      queryName.trim().toLowerCase() === "ghoes";
+    if (isGhoes) {
+      console.warn("[easter-egg] Ghoes detected → first roll = Captain Tsubasa");
+    }
+    const startingScenarioId = isGhoes
+      ? CAPTAIN_TSUBASA_SCENARIO_ID
+      : undefined;
     const draft = initBuildState(
       catalog,
       pendingSeed,
       "home",
-      undefined,
+      startingScenarioId,
       selectedFormationId,
     );
     setSeed(pendingSeed);

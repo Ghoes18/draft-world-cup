@@ -18,7 +18,11 @@ export function LanguageSwitcher() {
         <button
           key={code}
           type="button"
-          className={["lang-switch__btn", locale === code ? "lang-switch__btn--active" : ""]
+          className={[
+            "lang-switch__btn",
+            "pressable",
+            locale === code ? "lang-switch__btn--active" : "",
+          ]
             .filter(Boolean)
             .join(" ")}
           aria-pressed={locale === code}

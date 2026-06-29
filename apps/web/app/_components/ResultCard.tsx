@@ -6,6 +6,7 @@ import { Scorebug } from "./Scoreboard";
 import { ShareHighlight } from "./ShareHighlight";
 import { StampReveal, ImpactBurst } from "./motion";
 import { useStrings } from "../_i18n/LocaleProvider";
+import { useSound } from "../_hooks/useSound";
 
 export function ResultCard({
   timeline,
@@ -23,6 +24,7 @@ export function ResultCard({
   onAgain: () => void;
 }) {
   const S = useStrings();
+  const { play } = useSound();
   const [home, away] = timeline.result.score;
   const pens = timeline.result.penalties;
   const winner =
@@ -54,6 +56,11 @@ export function ResultCard({
     const id = requestAnimationFrame(() => setBurst(Date.now()));
     return () => cancelAnimationFrame(id);
   }, [special]);
+
+  // Full-time whistle when the result lands.
+  useEffect(() => {
+    play("whistle");
+  }, [play]);
 
   return (
     <article className="result-card">

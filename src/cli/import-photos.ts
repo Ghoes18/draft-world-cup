@@ -5,6 +5,7 @@
  * Usage:
  *   pnpm build:catalog
  *   pnpm import:photos --overlay ./data/catalog.json
+ *   pnpm import:photos --overlay ./data/catalog.json --min-overall 85
  *   pnpm import:squads --dir ./squads/curated --overlay ./data/catalog.json
  *
  * Curated/external photoUrl values are never overwritten unless already missing.
@@ -19,12 +20,14 @@ import {
   parsePhotoCache,
   type PhotoCache,
 } from "../catalog/wikimediaPhotos.js";
+import { applyLegendPhotosToCatalog } from "../legends.js";
 
 function parseArgs(argv: string[]): {
   overlay: string;
   out: string;
   cache: string;
   limit: number | undefined;
+  minOverall: number | undefined;
   force: boolean;
   dryRun: boolean;
   delayMs: number;
@@ -33,6 +36,7 @@ function parseArgs(argv: string[]): {
   let out = "./data/catalog.json";
   let cache = "./data/player-photos.json";
   let limit: number | undefined;
+  let minOverall: number | undefined;
   let force = false;
   let dryRun = false;
   let delayMs = 200;
@@ -43,12 +47,16 @@ function parseArgs(argv: string[]): {
     if (a === "--out" && argv[i + 1]) out = argv[++i]!;
     if (a === "--cache" && argv[i + 1]) cache = argv[++i]!;
     if (a === "--limit" && argv[i + 1]) limit = Number(argv[++i]);
+    if (a === "--min-overall" && argv[i + 1]) {
+      minOverall = Number(argv[++i]);
+      if (delayMs === 200) delayMs = 1000;
+    }
     if (a === "--delay-ms" && argv[i + 1]) delayMs = Number(argv[++i]);
     if (a === "--force") force = true;
     if (a === "--dry-run") dryRun = true;
   }
 
-  return { overlay, out, cache, limit, force, dryRun, delayMs };
+  return { overlay, out, cache, limit, minOverall, force, dryRun, delayMs };
 }
 
 async function loadCatalog(path: string): Promise<SquadCatalog> {
@@ -82,9 +90,8 @@ async function writeCache(cache: PhotoCache, path: string): Promise<void> {
 }
 
 async function main() {
-  const { overlay, out, cache, limit, force, dryRun, delayMs } = parseArgs(
-    process.argv.slice(2),
-  );
+  const { overlay, out, cache, limit, minOverall, force, dryRun, delayMs } =
+    parseArgs(process.argv.slice(2));
 
   const overlayPath = resolve(overlay);
   try {
@@ -100,13 +107,14 @@ async function main() {
   const photoCache = await loadCache(cachePath);
 
   console.log(
-    `Importing photos (${Object.keys(base.players).length} players, cache ${Object.keys(photoCache.byPlayerId).length} entries)…`,
+    `Importing photos (${Object.keys(base.players).length} players, cache ${Object.keys(photoCache.byPlayerId).length} entries${minOverall !== undefined ? `, min OVR ${minOverall}` : ""})…`,
   );
 
   const result = await mergePhotosIntoCatalog(base, {
     cache: photoCache,
     force,
     ...(limit !== undefined ? { limit } : {}),
+    ...(minOverall !== undefined ? { minOverall } : {}),
     dryRun,
     delayMs,
     onProgress: (done, total, player) => {
@@ -120,7 +128,8 @@ async function main() {
 
   if (!dryRun) {
     const outPath = resolve(out);
-    await writeCatalog(result.catalog, outPath);
+    const patched = applyLegendPhotosToCatalog(result.catalog);
+    await writeCatalog(patched, outPath);
     await writeCache(
       {
         byPlayerId: {

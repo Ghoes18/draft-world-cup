@@ -49,6 +49,28 @@
     rgba(215, 181, 91, 0) 80%
   );
 
+  /* collectible rarity tiers (FIFA-style) — frame + name accents per card */
+  --tier-bronze: #a85f28; /* deep copper-brown — clearly NOT yellow gold */
+  --tier-bronze-2: #e29355;
+  --tier-bronze-glow: rgba(168, 95, 40, 0.5);
+  --tier-silver: #8ba2b8; /* cool blue-steel — clearly NOT white/platinum */
+  --tier-silver-2: #dde7f0;
+  --tier-silver-glow: rgba(139, 162, 184, 0.42);
+  --tier-gold: #ffcf1a; /* bright lemon gold for 75–84 */
+  --tier-gold-2: #fff4ad;
+  --tier-gold-glow: rgba(255, 207, 26, 0.45);
+  --tier-elite: #c084fc; /* amethyst violet — elite 85+ */
+  --tier-elite-2: #e879f9;
+  --tier-elite-glow: rgba(192, 132, 252, 0.5);
+  /* legend (still-playing greats) — mystic ruby red, its own color away from gold */
+  --tier-legend: #e11d48;
+  --tier-legend-2: #ff7aa2;
+  --tier-legend-deep: #8d1538;
+  --tier-legend-glow: rgba(225, 29, 72, 0.55);
+  /* retired icon — high-contrast platinum/obsidian (true black ↔ bright white) */
+  --tier-icon: #ffffff;
+  --tier-icon-glow: rgba(255, 255, 255, 0.62);
+
   --font-display: var(--font-display), system-ui, sans-serif;
 }
 
@@ -158,34 +180,103 @@ a {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.35rem;
+  gap: 0.45rem;
+}
+
+.topbar__controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--turf-2);
+  color: var(--chalk-dim);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(234, 242, 236, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.28);
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.sound-toggle:hover:not(:disabled) {
+  color: var(--chalk-2);
+  border-color: var(--line-2);
+  background: var(--turf-3);
+}
+
+.sound-toggle[aria-pressed="true"] {
+  color: var(--turf-0);
+  background: var(--home);
+  border-color: var(--home-ink);
+  box-shadow:
+    0 0 14px var(--home-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.sound-toggle:focus-visible,
+.lang-switch__btn:focus-visible {
+  outline: 2px solid var(--home);
+  outline-offset: 2px;
 }
 
 .lang-switch {
-  display: flex;
-  gap: 0.25rem;
+  display: inline-flex;
+  padding: 2px;
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--turf-2);
+  box-shadow:
+    inset 0 1px 0 rgba(234, 242, 236, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.28);
 }
 
 .lang-switch__btn {
   font-family: var(--font-mono), monospace;
   font-size: 0.62rem;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  padding: 0.2rem 0.45rem;
-  border: 1px solid var(--line);
+  padding: 0.38rem 0.58rem;
+  min-width: 2.15rem;
+  border: none;
+  border-radius: 6px;
   background: transparent;
   color: var(--chalk-dim);
   cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
-.lang-switch__btn:hover {
-  color: var(--chalk);
-  border-color: var(--chalk-dim);
+.lang-switch__btn:hover:not(.lang-switch__btn--active):not(:disabled) {
+  color: var(--chalk-2);
+  background: rgba(234, 242, 236, 0.05);
 }
 
 .lang-switch__btn--active {
-  color: var(--home);
-  border-color: var(--home);
+  color: var(--turf-0);
+  background: var(--home);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 /* ---- hero scorebug ------------------------------------------------------ */
@@ -1379,6 +1470,32 @@ a.btn-kick {
   border-color: var(--home);
 }
 
+/* OVR badge tinted by rarity tier (selected state still wins, above) */
+.player-card__ovr--bronze {
+  color: var(--tier-bronze);
+  border-color: var(--tier-bronze-glow);
+}
+.player-card__ovr--silver {
+  color: var(--tier-silver);
+  border-color: var(--tier-silver-glow);
+}
+.player-card__ovr--gold {
+  color: var(--tier-gold);
+  border-color: var(--tier-gold-glow);
+}
+.player-card__ovr--elite {
+  color: var(--tier-elite);
+  border-color: var(--tier-elite-glow);
+}
+.player-card__ovr--legend {
+  color: var(--tier-legend);
+  border-color: var(--tier-legend-glow);
+}
+.player-card__ovr--icon {
+  color: var(--tier-icon);
+  border-color: var(--tier-icon-glow);
+}
+
 .player-card__body {
   flex: 1;
   min-width: 0;
@@ -1397,35 +1514,188 @@ a.btn-kick {
   white-space: nowrap;
 }
 
-/* Golden name treatment for World Cup legends */
+/* Mystic-red name treatment for still-playing World Cup legends (animated sheen) */
 .player-name--legend {
   background: linear-gradient(
-    105deg,
-    #f5e6a8 0%,
-    #e8c547 38%,
-    #fff4c2 52%,
-    #c9a227 100%
+    100deg,
+    var(--tier-legend-deep) 0%,
+    var(--tier-legend) 28%,
+    var(--tier-legend-2) 50%,
+    var(--tier-legend) 72%,
+    var(--tier-legend-deep) 100%
+  );
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 9px var(--tier-legend-glow));
+  animation: legend-sheen 3.4s var(--ease-broadcast) infinite;
+}
+@keyframes legend-sheen {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: -140% 0;
+  }
+}
+
+.legend__name.player-name--legend {
+  filter: drop-shadow(0 0 11px var(--tier-legend-glow));
+}
+
+.legend__name.player-name--tier-icon {
+  filter: drop-shadow(0 0 11px var(--tier-icon-glow));
+}
+
+.pitch__token-name.player-name--legend {
+  filter: drop-shadow(0 0 7px var(--tier-legend-glow));
+}
+
+.player-avatar--legend {
+  border-color: var(--tier-legend);
+  box-shadow:
+    0 0 0 1px var(--tier-legend-glow),
+    0 0 14px var(--tier-legend-glow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- collectible rarity tiers (name accents) ---------------------------- */
+/* metallic two-stop gradients keep each tier reading as its own material */
+.player-name--tier-bronze {
+  background: linear-gradient(
+    100deg,
+    var(--tier-bronze) 0%,
+    var(--tier-bronze-2) 50%,
+    var(--tier-bronze) 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   text-shadow: none;
-  filter: drop-shadow(0 0 8px rgba(232, 197, 71, 0.35));
+  filter: drop-shadow(0 0 5px var(--tier-bronze-glow));
+}
+.player-name--tier-silver {
+  background: linear-gradient(
+    100deg,
+    var(--tier-silver) 0%,
+    var(--tier-silver-2) 50%,
+    var(--tier-silver) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+.player-name--tier-gold {
+  background: linear-gradient(
+    100deg,
+    var(--tier-gold) 0%,
+    var(--tier-gold-2) 50%,
+    var(--tier-gold) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 6px var(--tier-gold-glow));
+}
+.player-name--tier-elite {
+  background: linear-gradient(
+    105deg,
+    var(--tier-elite) 0%,
+    var(--tier-elite-2) 55%,
+    #fbcfe8 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 8px var(--tier-elite-glow));
+}
+/* retired icon — high-contrast chrome: true blacks sweeping through bright
+   white, so it reads as polished platinum/obsidian, never flat silver */
+.player-name--tier-icon {
+  background: linear-gradient(
+    100deg,
+    #2a2a2a 0%,
+    #707070 14%,
+    #ffffff 30%,
+    #cfcfcf 44%,
+    #ffffff 58%,
+    #5a5a5a 80%,
+    #1c1c1c 100%
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 8px var(--tier-icon-glow));
+  animation: icon-shimmer 3s var(--ease-broadcast) infinite;
+}
+@keyframes icon-shimmer {
+  0% {
+    background-position: 0% 0;
+  }
+  100% {
+    background-position: -160% 0;
+  }
 }
 
-.legend__name.player-name--legend {
-  filter: drop-shadow(0 0 10px rgba(232, 197, 71, 0.45));
-}
-
-.pitch__token-name.player-name--legend {
-  filter: drop-shadow(0 0 6px rgba(232, 197, 71, 0.4));
-}
-
-.player-avatar--legend {
-  border-color: #e8c547;
+/* ---- collectible rarity tiers (avatar frames) --------------------------- */
+.player-avatar--tier-bronze {
+  border-color: var(--tier-bronze);
   box-shadow:
-    0 0 0 1px rgba(232, 197, 71, 0.45),
+    0 0 0 1px var(--tier-bronze-glow),
+    0 0 7px var(--tier-bronze-glow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.player-avatar--tier-silver {
+  border-color: var(--tier-silver);
+  box-shadow:
+    0 0 0 1px var(--tier-silver-glow),
+    0 0 7px var(--tier-silver-glow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+.player-avatar--tier-gold {
+  border-color: var(--tier-gold);
+  box-shadow:
+    0 0 0 1px var(--tier-gold-glow),
+    0 0 10px var(--tier-gold-glow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.player-avatar--tier-elite {
+  border-color: var(--tier-elite);
+  box-shadow:
+    0 0 0 1px var(--tier-elite-glow),
+    0 0 14px var(--tier-elite-glow),
     inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+.player-avatar--tier-icon {
+  border-color: #ffffff;
+  box-shadow:
+    0 0 0 1px var(--tier-icon-glow),
+    0 0 16px var(--tier-icon-glow),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+/* Avatar foil sweep is reserved for the legend classes (legend + icon). */
+.holo-foil--mono::after {
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 20%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 80%
+  );
+}
+.holo-foil--legend::after {
+  background: linear-gradient(
+    115deg,
+    rgba(255, 122, 162, 0) 20%,
+    rgba(255, 214, 226, 0.6) 50%,
+    rgba(255, 122, 162, 0) 80%
+  );
 }
 
 .player-card__pos {
@@ -4729,6 +4999,15 @@ button.pitch__slot:hover:not(:disabled) {
 .impact-burst--gold .impact-burst__ring {
   border-color: var(--holo-gold);
 }
+.impact-burst--elite .impact-burst__ring {
+  border-color: var(--tier-elite);
+}
+.impact-burst--icon .impact-burst__ring {
+  border-color: var(--tier-icon);
+}
+.impact-burst--legend .impact-burst__ring {
+  border-color: var(--tier-legend);
+}
 .impact-burst__spark {
   position: absolute;
   width: 7px;
@@ -4743,6 +5022,15 @@ button.pitch__slot:hover:not(:disabled) {
 }
 .impact-burst--gold .impact-burst__spark {
   background: var(--holo-gold);
+}
+.impact-burst--elite .impact-burst__spark {
+  background: var(--tier-elite);
+}
+.impact-burst--icon .impact-burst__spark {
+  background: var(--tier-icon);
+}
+.impact-burst--legend .impact-burst__spark {
+  background: var(--tier-legend);
 }
 @keyframes burst-ring {
   from {
@@ -4762,6 +5050,91 @@ button.pitch__slot:hover:not(:disabled) {
   100% {
     transform: rotate(var(--spark-angle)) translateY(-90px) scale(0.2);
     opacity: 0;
+  }
+}
+
+/* ---- PitchPlacementFX: smoke + light when a special player lands -------- */
+.placement-fx {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 6;
+}
+/* rising beam of light (legend = gold, icon = white) */
+.placement-fx__shaft {
+  position: absolute;
+  bottom: 45%;
+  width: 44%;
+  height: 240%;
+  transform-origin: bottom center;
+  filter: blur(2px);
+  background: linear-gradient(
+    to top,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: fx-shaft 0.9s var(--ease-broadcast) forwards;
+}
+.placement-fx--legend .placement-fx__shaft {
+  background: linear-gradient(
+    to top,
+    rgba(225, 29, 72, 0) 0%,
+    rgba(255, 122, 162, 0.74) 45%,
+    rgba(225, 29, 72, 0) 100%
+  );
+}
+@keyframes fx-shaft {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.3);
+  }
+  35% {
+    opacity: 0.9;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1.06);
+  }
+}
+/* drifting smoke plume (icon tier) */
+.placement-fx__smoke {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.placement-fx__puff {
+  position: absolute;
+  bottom: 28%;
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(4px);
+  opacity: 0;
+  background: radial-gradient(
+    circle,
+    rgba(244, 244, 245, 0.7),
+    rgba(190, 195, 205, 0) 70%
+  );
+  animation: fx-smoke 1.05s var(--ease-broadcast) forwards;
+  animation-delay: calc(var(--puff) * 70ms);
+}
+@keyframes fx-smoke {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  25% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc((var(--puff) - 2) * 14px), -120%) scale(1.5);
   }
 }
 
@@ -4835,12 +5208,18 @@ button.pitch__slot:hover:not(:disabled) {
   .stamp-reveal {
     animation: none;
   }
-  .impact-burst {
+  .impact-burst,
+  .placement-fx {
     display: none;
   }
   .holo-foil::after {
     animation: none;
     opacity: 0.25;
+    background-position: 50% 0;
+  }
+  .player-name--tier-icon,
+  .player-name--legend {
+    animation: none;
     background-position: 50% 0;
   }
 }
@@ -4884,5 +5263,629 @@ button.pitch__slot:hover:not(:disabled) {
   .holo-card {
     transform: none !important;
     transition: none;
+  }
+}
+
+/* — tournament bracket trajectories — */
+
+.bracket {
+  padding: 1rem 1rem 1.25rem;
+  overflow: hidden;
+}
+
+.bracket__head {
+  margin-bottom: 1rem;
+}
+
+.bracket__hint {
+  margin: 0.85rem 0 0;
+  font-size: 0.82rem;
+}
+
+.bracket-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -0.25rem;
+  padding: 0 0.25rem 0.35rem;
+}
+
+.bracket-board {
+  position: relative;
+  min-width: min(100%, 720px);
+}
+
+@media (min-width: 900px) {
+  .bracket-board {
+    min-width: 100%;
+  }
+}
+
+.bracket-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bracket-line {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.bracket-line--mine {
+  stroke: var(--home);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px var(--home-glow));
+}
+
+.bracket-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 0.95fr) minmax(0, 1.15fr);
+  gap: 0.35rem 0.5rem;
+  align-items: stretch;
+  min-height: 320px;
+}
+
+.bracket-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bracket-col__label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+  margin: 0 0 0.45rem;
+}
+
+.bracket-col--semi-top {
+  justify-content: flex-start;
+  padding-top: 0.35rem;
+}
+
+.bracket-col--semi-bottom {
+  justify-content: flex-end;
+  padding-bottom: 0.35rem;
+}
+
+.bracket-col--final {
+  justify-content: center;
+}
+
+.bracket-teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.bracket-team {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 0.1rem 0.45rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  position: relative;
+}
+
+.bracket-team--right {
+  text-align: right;
+  grid-template-columns: auto minmax(0, 1fr) 1.4rem;
+}
+
+.bracket-team--right .bracket-team__rank {
+  order: 3;
+}
+
+.bracket-team--right .bracket-team__name {
+  order: 2;
+}
+
+.bracket-team--right .bracket-team__meta {
+  order: 1;
+  grid-column: 1 / 3;
+  justify-self: end;
+}
+
+.bracket-team--right .bracket-team__badge {
+  grid-column: 2 / 4;
+  justify-self: end;
+}
+
+.bracket-team--advances {
+  border-color: rgba(198, 242, 78, 0.28);
+}
+
+.bracket-team--out {
+  opacity: 0.72;
+}
+
+.bracket-team--me {
+  box-shadow: inset 0 0 0 1px rgba(198, 242, 78, 0.35);
+}
+
+.bracket-team--path.bracket-team--advances {
+  background: rgba(198, 242, 78, 0.06);
+}
+
+.bracket-team__rank {
+  font-size: 0.72rem;
+  color: var(--chalk-dim);
+}
+
+.bracket-team__name {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bracket-team__meta {
+  grid-column: 2 / 4;
+  font-size: 0.65rem;
+  color: var(--chalk-2);
+}
+
+.bracket-team--right .bracket-team__meta {
+  grid-column: 1 / 3;
+}
+
+.bracket-team__badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--home);
+  font-weight: 700;
+}
+
+.bracket-team__badge--out {
+  color: var(--chalk-dim);
+}
+
+.bracket-match {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  background: var(--turf-2);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.bracket-match:hover {
+  background: var(--turf-3);
+  border-color: rgba(234, 242, 236, 0.32);
+}
+
+.bracket-match:focus-visible {
+  outline: 2px solid var(--home);
+  outline-offset: 2px;
+}
+
+.bracket-match--mine {
+  border-color: rgba(198, 242, 78, 0.45);
+  box-shadow: 0 0 16px rgba(198, 242, 78, 0.08);
+}
+
+.bracket-match--final {
+  padding: 0.75rem 0.85rem;
+  border-color: rgba(232, 197, 71, 0.45);
+  background: linear-gradient(180deg, rgba(232, 197, 71, 0.1), var(--turf-2));
+}
+
+.bracket-match--open {
+  border-color: var(--home);
+}
+
+.bracket-match__stage {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--chalk-dim);
+}
+
+.bracket-match--final .bracket-match__stage {
+  color: #e8c547;
+}
+
+.bracket-match__team {
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--chalk-2);
+}
+
+.bracket-match__team--win {
+  color: var(--chalk);
+  font-weight: 800;
+}
+
+.bracket-match__team--champion {
+  color: #e8c547;
+}
+
+.bracket-match__score {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--chalk);
+  padding: 0.15rem 0;
+}
+
+.bracket-fixture-detail {
+  margin-top: -0.35rem;
+}
+
+.bracket-fixtures__row + .bracket-fixtures__row {
+  margin-top: 0.45rem;
+}
+
+.bracket-fixtures__btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  background: var(--turf-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.bracket-fixtures__btn:hover {
+  background: var(--turf-3);
+}
+
+.bracket-fixtures__btn:focus-visible {
+  outline: 2px solid var(--home);
+  outline-offset: 2px;
+}
+
+@media (max-width: 899px) {
+  .bracket-board {
+    min-width: 720px;
+  }
+
+  .bracket-grid {
+    min-height: 300px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bracket-match,
+  .bracket-fixtures__btn {
+    transition: none;
+  }
+}
+
+/* =========================================================================
+   Captain Tsubasa easter egg — "Blue Lightning"
+   A deliberate electric-blue skin (vs. the app's lime/coral turf theme) that
+   only appears for the hidden manga dream team: a charged draw panel, holo
+   number-card portraits, and a blue-flame placement climax.
+   ========================================================================= */
+:root {
+  --ct-abyss: #04122e;
+  --ct-deep: #0b2a5c;
+  --ct-blue: #1b6dff;
+  --ct-azure: #38bdf8;
+  --ct-cyan: #7df9ff;
+  --ct-ice: #eaf4ff;
+  --ct-glow: rgba(56, 189, 248, 0.55);
+}
+
+/* ---- Draw panel: the jackpot charges up in electric blue --------------- */
+.draft-roll--tsubasa {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--ct-azure);
+  background:
+    radial-gradient(120% 80% at 50% -12%, rgba(27, 109, 255, 0.38), transparent 62%),
+    linear-gradient(160deg, rgba(11, 42, 92, 0.85), rgba(4, 18, 46, 0.55));
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.4),
+    0 0 26px -6px var(--ct-glow),
+    inset 0 0 42px -16px rgba(125, 249, 255, 0.6);
+  animation: ct-charge 2.4s var(--ease) infinite;
+}
+.draft-roll--tsubasa > * {
+  position: relative;
+  z-index: 1;
+}
+/* diagonal speed-lines drifting behind the content */
+.draft-roll--tsubasa::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20%;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    115deg,
+    transparent 0 13px,
+    rgba(125, 249, 255, 0.07) 13px 15px
+  );
+  animation: ct-streaks 0.9s linear infinite;
+}
+/* a single light sheen sweeping across */
+.draft-roll--tsubasa::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(125, 249, 255, 0.28),
+    transparent
+  );
+  filter: blur(6px);
+  animation: ct-sheen 2.4s var(--ease-broadcast) infinite;
+}
+.draft-roll--tsubasa .draft-roll__team-line {
+  color: var(--ct-ice);
+  font-style: italic;
+  text-shadow:
+    0 0 10px var(--ct-glow),
+    0 0 24px rgba(27, 109, 255, 0.5);
+  animation: ct-pop 0.5s var(--ease-snap);
+}
+.draft-roll--tsubasa .label,
+.draft-roll--tsubasa .draft-roll__turn {
+  color: var(--ct-azure);
+}
+.draft-roll--tsubasa .draft-roll__btn:hover:not(:disabled) {
+  border-color: var(--ct-azure);
+  background: rgba(27, 109, 255, 0.12);
+}
+
+/* ---- Portraits: holographic blue number-cards (no licensed photos) ----- */
+.player-avatar--tsubasa {
+  position: relative;
+  border-color: var(--ct-azure);
+  background:
+    radial-gradient(120% 120% at 30% 18%, rgba(125, 249, 255, 0.35), transparent 55%),
+    conic-gradient(from 210deg at 50% 50%, var(--ct-deep), var(--ct-blue), var(--ct-azure), var(--ct-deep));
+  box-shadow:
+    0 0 0 1px rgba(56, 189, 248, 0.5),
+    0 0 14px -3px var(--ct-glow),
+    inset 0 0 16px -6px rgba(4, 18, 46, 0.9);
+}
+.player-avatar__ct-aura {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 36%,
+    rgba(125, 249, 255, 0.3) 50%,
+    transparent 64%
+  );
+  background-size: 250% 100%;
+  mix-blend-mode: screen;
+  animation: ct-avatar-sheen 4.5s ease-in-out infinite;
+}
+.player-avatar__ct-num {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-style: italic;
+  font-size: 1.7rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: rgba(234, 244, 255, 0.18);
+}
+.player-avatar--sm .player-avatar__ct-num {
+  font-size: 1.05rem;
+}
+.player-avatar--lg .player-avatar__ct-num {
+  font-size: 2.2rem;
+}
+.player-avatar--tsubasa .player-avatar__ct-initials {
+  position: relative;
+  z-index: 2;
+  color: var(--ct-ice);
+  text-shadow: 0 1px 3px rgba(4, 18, 46, 0.85);
+}
+/* on the pitch token the frame is stripped — keep a blue glow + small number */
+.pitch__slot .player-avatar--tsubasa {
+  box-shadow: 0 0 10px -2px var(--ct-glow);
+}
+.pitch__slot .player-avatar__ct-num {
+  font-size: 0.95rem;
+}
+
+/* ---- Blue-flame placement burst (the signature climax) ----------------- */
+.impact-burst--tsubasa .impact-burst__ring {
+  border-color: var(--ct-cyan);
+}
+.impact-burst--tsubasa .impact-burst__spark {
+  background: var(--ct-cyan);
+  box-shadow: 0 0 6px var(--ct-glow);
+}
+.placement-fx--tsubasa {
+  z-index: 7;
+}
+.placement-fx__flash {
+  position: absolute;
+  width: 64%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(189, 230, 255, 0.95),
+    rgba(56, 189, 248, 0.5) 40%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+  animation: ct-flash 0.5s var(--ease-broadcast) forwards;
+}
+.placement-fx__flames {
+  position: absolute;
+  bottom: 14%;
+  left: 50%;
+  width: 84%;
+  height: 130%;
+  transform: translateX(-50%);
+}
+.placement-fx__flame {
+  position: absolute;
+  bottom: 0;
+  left: calc(37% + (var(--flame) - 3) * 9%);
+  width: 26%;
+  height: 68%;
+  border-radius: 50% 50% 46% 46% / 66% 66% 34% 34%;
+  background: linear-gradient(
+    to top,
+    var(--ct-blue) 0%,
+    var(--ct-azure) 45%,
+    var(--ct-cyan) 76%,
+    rgba(234, 244, 255, 0.96) 100%
+  );
+  transform-origin: bottom center;
+  filter: blur(1px) drop-shadow(0 0 6px var(--ct-glow));
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: ct-flame 0.9s var(--ease-broadcast) forwards;
+  animation-delay: calc(var(--flame) * 26ms);
+}
+
+@keyframes ct-charge {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(56, 189, 248, 0.4),
+      0 0 22px -6px var(--ct-glow),
+      inset 0 0 42px -16px rgba(125, 249, 255, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(125, 249, 255, 0.7),
+      0 0 34px -2px var(--ct-glow),
+      inset 0 0 50px -12px rgba(125, 249, 255, 0.75);
+  }
+}
+@keyframes ct-streaks {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-15px);
+  }
+}
+@keyframes ct-sheen {
+  0% {
+    transform: translateX(-160%) skewX(-12deg);
+  }
+  55%,
+  100% {
+    transform: translateX(380%) skewX(-12deg);
+  }
+}
+@keyframes ct-pop {
+  0% {
+    transform: scale(0.86) translateY(4px);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@keyframes ct-avatar-sheen {
+  0% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -130% 0;
+  }
+}
+@keyframes ct-flame {
+  0% {
+    opacity: 0;
+    transform: translateY(20%) scaleY(0.3) scaleX(0.8);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1.05) scaleX(1);
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateY(-14%) scaleY(0.9) scaleX(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-46%) scaleY(0.5) scaleX(0.6);
+  }
+}
+@keyframes ct-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draft-roll--tsubasa,
+  .draft-roll--tsubasa .draft-roll__team-line,
+  .player-avatar__ct-aura {
+    animation: none;
+  }
+  .draft-roll--tsubasa::before,
+  .draft-roll--tsubasa::after {
+    display: none;
   }
 }

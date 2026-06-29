@@ -8,6 +8,7 @@ import {
   initBuildState,
   isLineupComplete,
   replayAndValidate,
+  withCaptainTsubasa,
   type BuildAction,
   type BuildState,
   type FormationDefinition,
@@ -28,7 +29,7 @@ import { useStrings } from "../_i18n/LocaleProvider";
 
 const NEUTRAL_AWAY: TeamStrength = { attack: 78, midfield: 78, defense: 78, overall: 78 };
 
-/** Tournament catalog — same JSON + `hydrateCatalog` pass as `convex/duelCatalog`. */
+/** Tournament catalog — same pipeline as `convex/duelCatalog` (`hydrateCatalog` + hidden easter egg). */
 function useDuelCatalog(): { catalog: SquadCatalog | null; error: boolean } {
   const [catalog, setCatalog] = useState<SquadCatalog | null>(null);
   const [error, setError] = useState(false);
@@ -39,7 +40,8 @@ function useDuelCatalog(): { catalog: SquadCatalog | null; error: boolean } {
       .then((r) => (r.ok ? (r.json() as Promise<SquadCatalog>) : null))
       .then((data) => {
         if (cancelled) return;
-        if (data?.scenarios?.length) setCatalog(hydrateCatalog(data));
+        if (data?.scenarios?.length)
+          setCatalog(withCaptainTsubasa(hydrateCatalog(data)));
         else setError(true);
       })
       .catch(() => {
