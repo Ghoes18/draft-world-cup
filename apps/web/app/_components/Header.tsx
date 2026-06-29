@@ -3,6 +3,7 @@
 import { useStrings } from "../_i18n/LocaleProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { SoundToggle } from "./SoundToggle";
+import { AuthControls } from "./AuthControls";
 
 export function Header({ meta }: { meta?: string }) {
   const S = useStrings();
@@ -21,6 +22,7 @@ export function Header({ meta }: { meta?: string }) {
       </nav>
       <div className="topbar__actions">
         <div className="topbar__controls">
+          <AuthControls />
           <SoundToggle />
           <LanguageSwitcher />
         </div>

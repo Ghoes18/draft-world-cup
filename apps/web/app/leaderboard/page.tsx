@@ -4,7 +4,8 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
-import { usePlayerId } from "../_hooks/usePlayerId";
+import { AuthGate } from "../_components/AuthGate";
+import { useAuth } from "../_hooks/useAuth";
 import { useStrings } from "../_i18n/LocaleProvider";
 
 type Placement = "champion" | "finalist" | "semifinalist" | "group";
@@ -53,7 +54,7 @@ function unnamed(playerId: string, coachLabel: string): string {
 export default function LeaderboardPage() {
   const S = useStrings();
   const L = S.leaderboard;
-  const { playerId } = usePlayerId();
+  const { playerId, isAuthenticated, isLoading } = useAuth();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
 
   return (
@@ -65,8 +66,10 @@ export default function LeaderboardPage() {
           <h1 className="missions-page__title">{L.heading}</h1>
           <p className="dim">{L.needConvex}</p>
         </section>
-      ) : !playerId ? (
-        <p className="dim">{L.loading}</p>
+      ) : isLoading ? (
+        <p className="dim">{S.auth.loading}</p>
+      ) : !isAuthenticated || !playerId ? (
+        <AuthGate>{null}</AuthGate>
       ) : (
         <LeaderboardContent playerId={playerId} />
       )}
@@ -81,10 +84,10 @@ function LeaderboardContent({ playerId }: { playerId: string }) {
   const rows = useQuery(api.ratings.leaderboard, { limit: 50 }) as
     | LeaderRow[]
     | undefined;
-  const mine = useQuery(api.ratings.myRating, { playerId }) as
+  const mine = useQuery(api.ratings.myRating, {}) as
     | RatingView
     | undefined;
-  const history = useQuery(api.ratings.myHistory, { playerId, limit: 8 }) as
+  const history = useQuery(api.ratings.myHistory, { limit: 8 }) as
     | HistoryItem[]
     | undefined;
 

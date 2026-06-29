@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { query } from "./_generated/server";
+import { authedMutation, authedQuery } from "./lib/customFunctions";
 import {
   bossForWeek,
   bossSeed,
@@ -66,8 +67,8 @@ export const currentBoss = query({
 });
 
 /** Reactive: have I used today's attempt, and my best result this week? */
-export const myBossStatus = query({
-  args: { playerId: v.string() },
+export const myBossStatus = authedQuery({
+  args: {},
   returns: v.object({
     weekKey: v.string(),
     triedToday: v.boolean(),
@@ -80,7 +81,8 @@ export const myBossStatus = query({
       v.object({ gf: v.number(), ga: v.number(), beat: v.boolean() }),
     ),
   }),
-  handler: async (ctx, { playerId }) => {
+  handler: async (ctx) => {
+    const { playerId } = ctx;
     const weekKey = isoWeekKey();
     const dateKey = utcDateKey();
 
@@ -121,9 +123,8 @@ export const myBossStatus = query({
  * weekly Boss XI (knockout: a tie goes to penalties), stores the attempt, and
  * folds the outcome into mission progress (`beat-boss` only credits here).
  */
-export const challengeBoss = mutation({
+export const challengeBoss = authedMutation({
   args: {
-    playerId: v.string(),
     seed: v.string(),
     formationId: v.string(),
     tactic: tacticValidator,
@@ -137,13 +138,14 @@ export const challengeBoss = mutation({
     missionsCompleted: v.array(v.string()),
   }),
   handler: async (ctx, args) => {
+    const { playerId } = ctx;
     const weekKey = isoWeekKey();
     const dateKey = utcDateKey();
 
     const already = await ctx.db
       .query("bossAttempts")
       .withIndex("by_player_date", (q) =>
-        q.eq("playerId", args.playerId).eq("dateKey", dateKey),
+        q.eq("playerId", playerId).eq("dateKey", dateKey),
       )
       .unique();
     if (already) throw new Error("BOSS_ALREADY_TRIED_TODAY");
@@ -168,7 +170,7 @@ export const challengeBoss = mutation({
     }
 
     // Per-attempt match seed (Boss XI stays fixed via `bossAwaySide`).
-    const matchSeed = `${bossSeed(weekKey)}:${args.playerId}:${dateKey}`;
+    const matchSeed = `${bossSeed(weekKey)}:${playerId}:${dateKey}`;
     const { result, timeline, finalStates } = resolveDuel(gameCatalog, {
       seed: matchSeed,
       home: { buildState: replay.state, tactic: args.tactic },
@@ -180,7 +182,7 @@ export const challengeBoss = mutation({
     const beat = result.winner === "home";
 
     await ctx.db.insert("bossAttempts", {
-      playerId: args.playerId,
+      playerId,
       weekKey,
       dateKey,
       seed: matchSeed,
@@ -199,7 +201,7 @@ export const challengeBoss = mutation({
     });
     const { completed } = await applyMatchToMissions(
       ctx,
-      args.playerId,
+      playerId,
       outcome,
       dateKey,
     );

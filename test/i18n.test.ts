@@ -7,14 +7,6 @@ import { MISSION_COPY } from "../src/i18n/missions";
 import { BOSS_DEFINITIONS } from "../src/bosses";
 import { MISSIONS } from "../src/missions";
 
-type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | Json[]
-  | { [key: string]: Json };
-
 function leafPaths(value: unknown, prefix = ""): string[] {
   if (typeof value === "function") return [prefix || "<root>"];
   if (value === null || typeof value !== "object") return [prefix || "<root>"];
@@ -34,7 +26,7 @@ function fnArity(value: unknown): number | null {
   return typeof value === "function" ? value.length : null;
 }
 
-function assertCatalogParity(label: string, other: typeof en) {
+function assertCatalogParity(label: string, other: Record<string, unknown>) {
   const enPaths = new Set(leafPaths(en));
   const otherPaths = new Set(leafPaths(other));
   const missing = [...enPaths].filter((p) => !otherPaths.has(p));
@@ -48,21 +40,21 @@ function assertCatalogParity(label: string, other: typeof en) {
         return (acc as Record<string, unknown>)[key];
       }
       return undefined;
-    }, en as Json);
+    }, en as unknown);
     const otherVal = path.split(".").reduce<unknown>((acc, key) => {
       if (acc && typeof acc === "object" && key in (acc as object)) {
         return (acc as Record<string, unknown>)[key];
       }
       return undefined;
-    }, other as Json);
+    }, other as unknown);
     expect(fnArity(otherVal), `${label} ${path} arity`).toBe(fnArity(enVal));
   }
 }
 
 describe("i18n locale catalogs", () => {
   it("pt and es mirror en key structure", () => {
-    assertCatalogParity("pt", pt);
-    assertCatalogParity("es", es);
+    assertCatalogParity("pt", pt as Record<string, unknown>);
+    assertCatalogParity("es", es as Record<string, unknown>);
   });
 });
 

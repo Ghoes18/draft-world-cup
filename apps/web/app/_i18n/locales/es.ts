@@ -207,6 +207,16 @@ export const es = {
     duel: "Online",
     leaderboard: "Ranking",
   },
+  auth: {
+    kicker: "Cuenta",
+    loading: "Comprobando sesión…",
+    signIn: "Entrar",
+    signOut: "Salir",
+    signInTitle: "Inicia sesión para continuar",
+    signInBody:
+      "Misiones, torneos online y ranking requieren una cuenta autenticada para evitar suplantación.",
+    signInGoogle: "Continuar con Google",
+  },
   missions: {
     kicker: "Objetivos",
     heading: "Misiones",

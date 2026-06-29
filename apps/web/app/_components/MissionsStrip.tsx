@@ -16,13 +16,13 @@ interface BossResult {
 }
 
 /** Compact horizontal strip — daily missions + Weekly Boss — shown on the home page. */
-export function MissionsStrip({ playerId }: { playerId: string }) {
+export function MissionsStrip() {
   const S = useStrings();
-  const missions = useQuery(api.missions.myMissions, { playerId }) as
+  const missions = useQuery(api.missions.myMissions, {}) as
     | MissionView[]
     | undefined;
   const bossRaw = useQuery(api.boss.currentBoss, {});
-  const bossStatus = useQuery(api.boss.myBossStatus, { playerId });
+  const bossStatus = useQuery(api.boss.myBossStatus, {});
 
   const boss = useMemo(() => normalizeBossView(bossRaw), [bossRaw]);
 

@@ -13,9 +13,12 @@
   },
   "dependencies": {
     "7a0-engine": "workspace:*",
+    "@convex-dev/better-auth": "^0.12.5",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
-    "convex": "^1.17.0",
+    "better-auth": "1.6.15",
+    "convex": "^1.42.0",
+    "convex-helpers": "^0.1.120",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, type MutationCtx } from "./_generated/server";
+import { type MutationCtx } from "./_generated/server";
+import { authedQuery } from "./lib/customFunctions";
 import {
   activeMissions,
   applyMatchToStats,
@@ -99,8 +100,8 @@ export async function applyMatchToMissions(
 }
 
 /** Reactive: today's daily missions + all persistent missions, with progress. */
-export const myMissions = query({
-  args: { playerId: v.string() },
+export const myMissions = authedQuery({
+  args: {},
   returns: v.array(
     v.object({
       id: v.string(),
@@ -117,7 +118,8 @@ export const myMissions = query({
       completed: v.boolean(),
     }),
   ),
-  handler: async (ctx, { playerId }) => {
+  handler: async (ctx) => {
+    const { playerId } = ctx;
     const dateKey = utcDateKey();
     const defs = activeMissions(dateKey);
     const rows = await ctx.db

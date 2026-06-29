@@ -1,0 +1,59 @@
+# Authentication setup (Better Auth + Convex)
+
+Server-side identity for **mode C** launch: missions, online tournament, boss, and ELO ranking require a signed-in user. Solo play and highlights remain public.
+
+## One-time setup
+
+```bash
+# Engine (Convex bundles dist/)
+pnpm build
+
+cd apps/web
+pnpm install
+npx convex dev   # first run: login + writes .env.local
+```
+
+### Convex environment
+
+```bash
+cd apps/web
+npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
+npx convex env set SITE_URL http://localhost:3000
+npx convex env set GOOGLE_CLIENT_ID "<your-google-oauth-client-id>"
+npx convex env set GOOGLE_CLIENT_SECRET "<your-google-oauth-client-secret>"
+```
+
+### Next.js `.env.local`
+
+See [`.env.example`](./.env.example). Required:
+
+- `NEXT_PUBLIC_CONVEX_URL`
+- `NEXT_PUBLIC_CONVEX_SITE_URL` (`.convex.site` URL from dashboard)
+- `NEXT_PUBLIC_SITE_URL`
+
+### Google OAuth
+
+1. Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (and production URL).
+3. Copy client ID/secret to Convex env vars above.
+
+## Dev
+
+```bash
+# Terminal 1
+cd apps/web && npx convex dev
+
+# Terminal 2
+pnpm --filter web dev
+```
+
+Sign in via **Sign in** in the header or the gate on `/missions`, `/duel`, `/leaderboard`.
+
+## Architecture
+
+- [`convex/auth.ts`](./convex/auth.ts) — Better Auth instance + `getCurrentUser` query
+- [`convex/lib/customFunctions.ts`](./convex/lib/customFunctions.ts) — `authedQuery` / `authedMutation` (derive `playerId` from session, never from client args)
+- [`app/api/auth/[...all]/route.ts`](./app/api/auth/[...all]/route.ts) — Next.js proxy to Convex HTTP routes
+- Protected mutations: `missions.myMissions`, `solo.recordMatch`, `boss.*`, `tournament.joinQueue`, `ratings.myRating`, etc.
+
+Public without login: `/` (solo), `/h/[code]` (highlights). Mission credit on solo requires sign-in.

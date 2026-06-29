@@ -5,6 +5,7 @@ import { ConvexClientProvider } from "./_components/ConvexClientProvider";
 import { LocaleProvider } from "./_i18n/LocaleProvider";
 import { getServerLocale } from "./_i18n/server";
 import { getStrings } from "./_i18n/getStrings";
+import { getToken } from "./_lib/auth-server";
 
 const display = Archivo({
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const locale = await getServerLocale();
+  const initialToken = process.env.NEXT_PUBLIC_CONVEX_URL ? await getToken() : null;
 
   return (
     <html
@@ -47,7 +49,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
-        <ConvexClientProvider>
+        <ConvexClientProvider initialToken={initialToken}>
           <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
         </ConvexClientProvider>
       </body>

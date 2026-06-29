@@ -18,7 +18,7 @@ import {
   type ResolvedTournament,
 } from "7a0-engine";
 import { api } from "../convex/_generated/api";
-import { usePlayerId } from "./_hooks/usePlayerId";
+import { useAuth } from "./_hooks/useAuth";
 import { BuildPanel } from "./_components/BuildPanel";
 import { FormationPicker } from "./_components/FormationPicker";
 import { Footer } from "./_components/Footer";
@@ -42,7 +42,6 @@ function newSeed(): string {
 }
 
 type RecordMatchFn = (args: {
-  playerId: string;
   seed: string;
   formationId: string;
   tactic: "offensive" | "balanced" | "defensive";
@@ -67,7 +66,7 @@ function RecordMatchBridge({
 export default function Page() {
   const S = useStrings();
   const { catalog, source, ready } = useGameCatalog();
-  const { playerId, name } = usePlayerId();
+  const { playerId, name, isAuthenticated } = useAuth();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
   const recordRef = useRef<RecordMatchFn | null>(null);
   const actionsRef = useRef<BuildAction[]>([]);
@@ -177,9 +176,8 @@ export default function Page() {
     const resolved = resolveWorldCup(catalog, [humanEntry, ...bots], tournamentSeed);
     setTournament(resolved);
 
-    if (playerId && recordRef.current) {
+    if (isAuthenticated && recordRef.current) {
       recordRef.current({
-        playerId,
         seed,
         formationId: filled.formationId,
         tactic: "balanced",
@@ -239,7 +237,9 @@ export default function Page() {
             </div>
           </section>
 
-          {convexReady && playerId && <MissionsStrip playerId={playerId} />}
+          {convexReady && isAuthenticated && playerId && (
+            <MissionsStrip />
+          )}
         </>
       )}
 

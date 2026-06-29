@@ -208,6 +208,16 @@ export const en = {
     duel: "Online",
     leaderboard: "Ranking",
   },
+  auth: {
+    kicker: "Account",
+    loading: "Checking session…",
+    signIn: "Sign in",
+    signOut: "Sign out",
+    signInTitle: "Sign in to continue",
+    signInBody:
+      "Missions, online tournaments, and rankings require a signed-in account so progress cannot be spoofed.",
+    signInGoogle: "Continue with Google",
+  },
   missions: {
     kicker: "Objectives",
     heading: "Missions",
