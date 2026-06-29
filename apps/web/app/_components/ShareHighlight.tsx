@@ -12,7 +12,7 @@
 
 import { useState } from "react";
 import { encodeHighlight, toHighlight, type MatchTimeline } from "7a0-engine";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 const SHORTEN_URL = process.env.NEXT_PUBLIC_SHORTEN_URL;
 
@@ -49,6 +49,7 @@ export function ShareHighlight({
   awayLabel: string;
   awayTag?: string;
 }) {
+  const S = useStrings();
   const [link, setLink] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "building" | "copied" | "failed">("idle");
 

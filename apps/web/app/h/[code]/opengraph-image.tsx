@@ -1,10 +1,10 @@
 import { ImageResponse } from "next/og";
 import { decodeHighlight, highlightBadges } from "7a0-engine";
 import { formatScenarioLabel } from "../../_data/teamDisplay";
+import { getServerStrings } from "../../_i18n/server";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "Match highlights";
 
 // Floodlit palette (CSS vars aren't available in the OG renderer).
 const TURF = "#06120c";
@@ -15,6 +15,7 @@ const HOME = "#c6f24e";
 const AWAY = "#ff5436";
 
 export default async function Image({ params }: { params: Promise<{ code: string }> }) {
+  const { strings: S } = await getServerStrings();
   const { code } = await params;
 
   let payload: ReturnType<typeof decodeHighlight> | null = null;
@@ -124,7 +125,7 @@ export default async function Image({ params }: { params: Promise<{ code: string
             })
           ) : (
             <span style={{ fontSize: 32, color: CHALK_DIM, display: "flex" }}>
-              Replay the goals — no login needed
+              {S.highlight.ogReplayNoBadges}
             </span>
           )}
         </div>

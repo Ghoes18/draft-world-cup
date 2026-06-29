@@ -1,20 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const onChange = () => setReduced(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  return reduced;
-}
+import { usePrefersReducedMotion } from "./useMotionPreference";
 
 export type CasinoRouletteOptions<T> = {
   pool: readonly T[];
@@ -45,6 +32,7 @@ export function useCasinoRoulette<T>({
   const [display, setDisplay] = useState(target);
   const [trail, setTrail] = useState<T[]>([target]);
   const [spinning, setSpinning] = useState(false);
+  const [frame, setFrame] = useState(0);
 
   useEffect(() => {
     const currentPool = poolRef.current;
@@ -55,13 +43,16 @@ export function useCasinoRoulette<T>({
       setDisplay(currentTarget);
       setTrail([currentTarget]);
       setSpinning(false);
+      setFrame(0);
       return;
     }
 
     let cancelled = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let lastId = readId(currentTarget);
+    let frameCount = 0;
     setSpinning(true);
+    setFrame(0);
 
     const pickRandom = (): T => {
       if (currentPool.length === 1) return currentPool[0]!;
@@ -75,7 +66,7 @@ export function useCasinoRoulette<T>({
 
     const start = performance.now();
 
-    const tick = (now: number) => {
+    const step = (now: number) => {
       if (cancelled) return;
 
       const elapsed = now - start;
@@ -86,6 +77,7 @@ export function useCasinoRoulette<T>({
         setDisplay(currentTarget);
         setTrail([currentTarget]);
         setSpinning(false);
+        setFrame(0);
         return;
       }
 
@@ -95,6 +87,8 @@ export function useCasinoRoulette<T>({
           : pickRandom();
 
       lastId = readId(next);
+      frameCount += 1;
+      setFrame(frameCount);
       setDisplay(next);
       setTrail((prev) => {
         const merged = [
@@ -105,10 +99,10 @@ export function useCasinoRoulette<T>({
       });
 
       const interval = 42 + (260 - 42) * easeOut;
-      timeoutId = setTimeout(() => tick(performance.now()), interval);
+      timeoutId = setTimeout(() => step(performance.now()), interval);
     };
 
-    timeoutId = setTimeout(() => tick(performance.now()), 0);
+    timeoutId = setTimeout(() => step(performance.now()), 0);
 
     return () => {
       cancelled = true;
@@ -116,5 +110,5 @@ export function useCasinoRoulette<T>({
     };
   }, [spinKey, targetId, reducedMotion, durationMs]);
 
-  return { display, trail, spinning, reducedMotion };
+  return { display, trail, spinning, reducedMotion, frame };
 }

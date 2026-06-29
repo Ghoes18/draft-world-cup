@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import { highlightBadges, highlightToTimeline, type HighlightPayload } from "7a0-engine";
 import { MatchView } from "../../_components/MatchView";
-import { STRINGS as S } from "../../_data/strings";
+import { useStrings } from "../../_i18n/LocaleProvider";
 import { formatScenarioLabel } from "../../_data/teamDisplay";
 
 export function HighlightReplay({ payload }: { payload: HighlightPayload }) {
+  const S = useStrings();
   const timeline = useMemo(() => highlightToTimeline(payload), [payload]);
   const badges = useMemo(() => highlightBadges(payload), [payload]);
   const labels = { home: payload.lb[0], away: payload.lb[1] };

@@ -19,8 +19,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchEvent, MatchTimeline, ShootoutKick, Side } from "7a0-engine";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 import { Scorebug } from "./Scoreboard";
+import { useCountUp, ImpactBurst } from "./motion";
+import type { StringCatalog } from "../_i18n/types";
 
 type Mode = "fast" | "ultra";
 
@@ -87,7 +89,11 @@ function buildNameLookup(lineups: MatchTimeline["lineups"]): (id: string) => str
 }
 
 /** Turn the timeline into ordered, curated feed beats + a held-back shootout. */
-function parseTimeline(timeline: MatchTimeline, labels: Record<Side, string>): Parsed {
+function parseTimeline(
+  timeline: MatchTimeline,
+  labels: Record<Side, string>,
+  copy: StringCatalog,
+): Parsed {
   const who = buildNameLookup(timeline.lineups);
 
   const entries: Entry[] = [];
@@ -107,7 +113,7 @@ function parseTimeline(timeline: MatchTimeline, labels: Record<Side, string>): P
       continue;
     }
 
-    const built = describe(e, labels, who, running);
+    const built = describe(e, labels, who, running, copy);
     if (!built) continue; // filler is dropped — keep the reel punchy
     entries.push({
       t: e.t,
@@ -137,7 +143,9 @@ function describe(
   labels: Record<Side, string>,
   who: (id: string) => string,
   running: [number, number],
+  copy: StringCatalog,
 ): Built | null {
+  const S = copy;
   switch (e.type) {
     case "kickoff":
       return { emoji: "🟢", kind: "kickoff", text: S.events.kickoff, isGoal: false };
@@ -232,36 +240,6 @@ function describe(
   }
 }
 
-/** Smoothly counts a displayed number up toward `target` (the match clock roll). */
-function useCountUp(target: number, active: boolean): number {
-  const [n, setN] = useState(target);
-  const fromRef = useRef(target);
-
-  useEffect(() => {
-    if (!active || typeof requestAnimationFrame === "undefined") {
-      fromRef.current = target;
-      setN(target);
-      return;
-    }
-    const from = fromRef.current;
-    if (from === target) return;
-    const dur = Math.min(750, 140 + Math.abs(target - from) * 16);
-    const start = performance.now();
-    let raf = 0;
-    const step = (now: number) => {
-      const p = Math.min(1, (now - start) / dur);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setN(Math.round(from + (target - from) * eased));
-      if (p < 1) raf = requestAnimationFrame(step);
-      else fromRef.current = target;
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, active]);
-
-  return n;
-}
-
 type Phase = "playing" | "shootout" | "done";
 
 export function MatchView({
@@ -285,16 +263,21 @@ export function MatchView({
    */
   onDone?: () => void;
 }) {
+  const S = useStrings();
   const lab = labels ?? { home: "Home", away: "Away" };
-  const parsed = useMemo(() => parseTimeline(timeline, lab), [timeline, lab.home, lab.away]);
+  const parsed = useMemo(() => parseTimeline(timeline, lab, S), [timeline, lab.home, lab.away, S]);
 
   const [mode, setMode] = useState<Mode>("fast");
+  /** Playback speed for the Fast reel — never changes the outcome. */
+  const [speed, setSpeed] = useState<1 | 2>(1);
   /** Number of beats revealed so far (0…entries.length). */
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>("playing");
   const [kicksShown, setKicksShown] = useState(0);
   const [running, setRunning] = useState(false);
-  const [splash, setSplash] = useState<{ key: number; team: Side; score: [number, number] } | null>(null);
+  const [splash, setSplash] = useState<
+    { key: number; team: Side; score: [number, number]; scorer: string; detail?: string } | null
+  >(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
 
   // Sync persisted mode on mount (client-only, avoids hydration mismatch).
@@ -339,10 +322,10 @@ export function MatchView({
       return;
     }
     const justShown = idx > 0 ? parsed.entries[idx - 1] : null;
-    const wait = justShown ? DWELL[justShown.kind] : FIRST_DELAY;
+    const wait = (justShown ? DWELL[justShown.kind] : FIRST_DELAY) / speed;
     const id = setTimeout(() => setIdx((i) => i + 1), wait);
     return () => clearTimeout(id);
-  }, [mode, phase, running, idx, parsed]);
+  }, [mode, phase, running, idx, parsed, speed]);
 
   // The shootout, one kick at a time.
   useEffect(() => {
@@ -356,19 +339,25 @@ export function MatchView({
         }
         return k + 1;
       });
-    }, MS_PER_KICK);
+    }, MS_PER_KICK / speed);
     return () => clearInterval(id);
-  }, [mode, phase, running, parsed]);
+  }, [mode, phase, running, parsed, speed]);
 
   // Fire a celebration splash the moment a goal beat is revealed.
   useEffect(() => {
     if (mode !== "fast") return;
     const last = idx > 0 ? parsed.entries[idx - 1] : null;
     if (!last?.isGoal || !last.team) return;
-    setSplash({ key: idx, team: last.team, score: [last.home, last.away] });
-    const id = setTimeout(() => setSplash(null), 1700);
+    setSplash({
+      key: idx,
+      team: last.team,
+      score: [last.home, last.away],
+      scorer: last.text,
+      detail: last.detail,
+    });
+    const id = setTimeout(() => setSplash(null), 1700 / speed);
     return () => clearTimeout(id);
-  }, [idx, mode, parsed]);
+  }, [idx, mode, parsed, speed]);
 
   // Auto-scroll the feed as new beats land.
   useEffect(() => {
@@ -397,7 +386,7 @@ export function MatchView({
   const targetMinute = last?.t ?? 0;
   const inET = parsed.hasExtraTime && targetMinute > 90;
   const clockActive = mode === "fast" && phase === "playing";
-  const minute = useCountUp(targetMinute, clockActive);
+  const minute = useCountUp(targetMinute, { active: clockActive });
 
   const periodLabel =
     phase === "shootout"
@@ -523,6 +512,12 @@ export function MatchView({
         )}
       </div>
 
+      <ImpactBurst
+        trigger={splash ? splash.key : null}
+        tone={splash?.team === "away" ? "away" : "home"}
+        sparks={10}
+      />
+
       {splash && (
         <div className="goal-splash" key={splash.key} data-team={splash.team} aria-hidden>
           <span className="goal-splash__ball">⚽</span>
@@ -533,6 +528,14 @@ export function MatchView({
         </div>
       )}
 
+      {splash && (
+        <div className="lower-third" key={`lt-${splash.key}`} data-team={splash.team} aria-hidden>
+          <span className="lower-third__tag">{S.events.goal}</span>
+          <span className="lower-third__name">{splash.scorer}</span>
+          {splash.detail && <span className="lower-third__detail">{splash.detail}</span>}
+        </div>
+      )}
+
       <div className="feed__controls">
         {mode === "fast" && (
           <>
@@ -540,6 +543,14 @@ export function MatchView({
               {running ? `⏸ ${S.pause}` : phase === "done" ? `↺ ${S.restart}` : `▶ ${S.play}`}
             </button>
             <button onClick={() => reset(true)}>↺ {S.restart}</button>
+            <button
+              onClick={() => setSpeed((s) => (s === 1 ? 2 : 1))}
+              aria-pressed={speed === 2}
+              aria-label={S.speed}
+              title={S.speed}
+            >
+              {speed}×
+            </button>
             <button onClick={finishInstantly} disabled={phase === "done"}>
               ⏭ {S.skip}
             </button>

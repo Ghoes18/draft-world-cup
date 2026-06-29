@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Archivo, Hanken_Grotesk, Martian_Mono } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "./_components/ConvexClientProvider";
+import { LocaleProvider } from "./_i18n/LocaleProvider";
+import { getServerLocale } from "./_i18n/server";
+import { getStrings } from "./_i18n/getStrings";
 
 const display = Archivo({
   subsets: ["latin"],
@@ -21,25 +24,32 @@ const mono = Martian_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "NINETY — World Cup Draft",
-  description:
-    "Roll a scenario, draft your XI from real World Cup squads, and settle it under the lights.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const S = getStrings(locale);
+  return {
+    title: S.meta.title,
+    description: S.meta.description,
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getServerLocale();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${display.variable} ${body.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <body suppressHydrationWarning>
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ConvexClientProvider>
+          <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

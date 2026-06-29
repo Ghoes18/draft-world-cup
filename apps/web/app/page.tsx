@@ -25,8 +25,9 @@ import { Header } from "./_components/Header";
 import { LegendTicker } from "./_components/LegendTicker";
 import { Scorebug } from "./_components/Scoreboard";
 import { PitchMarkings } from "./_components/PitchMarkings";
+import { HeroStadiumBackdrop } from "./_components/three";
 import { TournamentReveal } from "./_components/TournamentReveal";
-import { STRINGS as S } from "./_data/strings";
+import { useStrings } from "./_i18n/LocaleProvider";
 import { useGameCatalog } from "./_hooks/useGameCatalog";
 import { MissionsStrip } from "./_components/MissionsStrip";
 
@@ -63,6 +64,7 @@ function RecordMatchBridge({
 }
 
 export default function Page() {
+  const S = useStrings();
   const { catalog, source, ready } = useGameCatalog();
   const { playerId } = usePlayerId();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
@@ -199,6 +201,7 @@ export default function Page() {
 
           <section className="hero">
             <PitchMarkings />
+            <HeroStadiumBackdrop />
             <div className="hero__inner">
               <div className="hero__kicker">
                 <span>{S.kickerLeft}</span>

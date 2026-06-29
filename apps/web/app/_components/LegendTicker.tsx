@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { LEGEND_DISPLAY_NAMES } from "7a0-engine";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 const INTERVAL_MS = 2800;
 
 /** Hero ticker — cycles through the canonical legend roster. */
 export function LegendTicker() {
+  const S = useStrings();
   const [index, setIndex] = useState(0);
   const names = LEGEND_DISPLAY_NAMES;
 

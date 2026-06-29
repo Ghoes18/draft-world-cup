@@ -5,9 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
 import { usePlayerId } from "../_hooks/usePlayerId";
-import { STRINGS as S } from "../_data/strings";
-
-const L = S.leaderboard;
+import { useStrings } from "../_i18n/LocaleProvider";
 
 type Placement = "champion" | "finalist" | "semifinalist" | "group";
 
@@ -48,11 +46,13 @@ type HistoryItem = {
   slot: number;
 };
 
-function unnamed(playerId: string): string {
-  return `${L.coach} ${playerId.slice(0, 4).toUpperCase()}`;
+function unnamed(playerId: string, coachLabel: string): string {
+  return `${coachLabel} ${playerId.slice(0, 4).toUpperCase()}`;
 }
 
 export default function LeaderboardPage() {
+  const S = useStrings();
+  const L = S.leaderboard;
   const { playerId } = usePlayerId();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
 
@@ -76,6 +76,8 @@ export default function LeaderboardPage() {
 }
 
 function LeaderboardContent({ playerId }: { playerId: string }) {
+  const S = useStrings();
+  const L = S.leaderboard;
   const rows = useQuery(api.ratings.leaderboard, { limit: 50 }) as
     | LeaderRow[]
     | undefined;
@@ -148,6 +150,8 @@ function YourRating({
   mine: RatingView;
   showAfar: boolean;
 }) {
+  const S = useStrings();
+  const L = S.leaderboard;
   if (!mine.rated) {
     return (
       <div className="lb-you">
@@ -171,7 +175,7 @@ function YourRating({
       <div className="lb-you__head">
         <div>
           <p className="lb-you__tag">{L.you}</p>
-          <p className="lb-you__name">{mine.name || unnamed(mine.playerId)}</p>
+          <p className="lb-you__name">{mine.name || unnamed(mine.playerId, L.coach)}</p>
         </div>
         <div className="lb-you__elo-row">
           <span className="lb-you__elo">{mine.elo}</span>
@@ -224,6 +228,8 @@ function Podium({
   rows: LeaderRow[];
   playerId: string;
 }) {
+  const S = useStrings();
+  const L = S.leaderboard;
   // Display order: runner-up · champion · third (champion on the tall center riser).
   const order: { r: LeaderRow; place: 1 | 2 | 3 }[] = [];
   if (rows[1]) order.push({ r: rows[1], place: 2 });
@@ -232,7 +238,7 @@ function Podium({
 
   return (
     <div className="lb-podium" role="list" aria-label="Top three coaches">
-      {order.map(({ r, place }) => {
+      {order.map(({ r, place }, i) => {
         const isYou = r.playerId === playerId;
         const tag =
           place === 1
@@ -243,13 +249,14 @@ function Podium({
         return (
           <div
             key={r.playerId}
-            className={`lb-podium__col lb-podium__col--${place}${isYou ? " lb-podium__col--you" : ""}`}
+            className={`lb-podium__col lb-podium__col--${place}${isYou ? " lb-podium__col--you" : ""} stagger-in__item`}
+            style={{ animationDelay: `${i * 110}ms` }}
             role="listitem"
           >
             <div className="lb-podium__card">
               <span className="lb-podium__tag">{tag}</span>
               <span className="lb-podium__name">
-                {r.name || unnamed(r.playerId)}
+                {r.name || unnamed(r.playerId, L.coach)}
               </span>
               <span className="lb-podium__elo">{r.elo}</span>
               <span className="lb-podium__titles">
@@ -275,6 +282,8 @@ function Standings({
   playerId: string;
   afarRow: LeaderRow | null;
 }) {
+  const S = useStrings();
+  const L = S.leaderboard;
   return (
     <div className="lb-board">
       <p className="lb-board__head">{L.standings}</p>
@@ -289,8 +298,8 @@ function Standings({
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <Row key={r.playerId} r={r} playerId={playerId} />
+          {rows.map((r, i) => (
+            <Row key={r.playerId} r={r} playerId={playerId} index={i} />
           ))}
           {afarRow && (
             <Row r={afarRow} playerId={playerId} afar />
@@ -305,24 +314,32 @@ function Row({
   r,
   playerId,
   afar,
+  index,
 }: {
   r: LeaderRow;
   playerId: string;
   afar?: boolean;
+  index?: number;
 }) {
+  const S = useStrings();
+  const L = S.leaderboard;
   const isYou = r.playerId === playerId;
   const cls = [
+    "stagger-in__item",
     isYou ? "lb-row--you" : "",
     afar ? "lb-row--afar" : "",
   ]
     .filter(Boolean)
     .join(" ");
   return (
-    <tr className={cls || undefined}>
+    <tr
+      className={cls}
+      style={index !== undefined ? { animationDelay: `${Math.min(index, 12) * 35}ms` } : undefined}
+    >
       <td>
         <span className="lb-rank">{r.rank === 0 ? "—" : r.rank}</span>
       </td>
-      <td>{r.name || unnamed(r.playerId)}</td>
+      <td>{r.name || unnamed(r.playerId, L.coach)}</td>
       <td>{r.elo}</td>
       <td>
         {r.wins}/{r.draws}/{r.losses}
@@ -335,6 +352,8 @@ function Row({
 }
 
 function History({ history }: { history: HistoryItem[] }) {
+  const S = useStrings();
+  const L = S.leaderboard;
   return (
     <div className="lb-history">
       <h3 className="lb-history__title">{L.history}</h3>

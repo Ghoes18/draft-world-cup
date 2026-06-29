@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { MatchTimeline } from "7a0-engine";
 import { Scorebug } from "./Scoreboard";
 import { ShareHighlight } from "./ShareHighlight";
-import { STRINGS as S } from "../_data/strings";
+import { StampReveal, ImpactBurst } from "./motion";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 export function ResultCard({
   timeline,
@@ -20,6 +22,7 @@ export function ResultCard({
   seed: string;
   onAgain: () => void;
 }) {
+  const S = useStrings();
   const [home, away] = timeline.result.score;
   const pens = timeline.result.penalties;
   const winner =
@@ -42,11 +45,22 @@ export function ResultCard({
         ? S.result.loss
         : S.result.draw;
 
+  // A celebratory burst on win — gold for a rout (margin >= 3) or a penalty win.
+  const margin = Math.abs(home - away);
+  const special = winner === "home" && (margin >= 3 || Boolean(pens));
+  const [burst, setBurst] = useState<number | null>(null);
+  useEffect(() => {
+    if (!special) return;
+    const id = requestAnimationFrame(() => setBurst(Date.now()));
+    return () => cancelAnimationFrame(id);
+  }, [special]);
+
   return (
     <article className="result-card">
-      <div className="result-card__stamp" aria-hidden>
-        FT
-      </div>
+      <ImpactBurst trigger={burst} tone={margin >= 5 ? "gold" : "home"} sparks={12} />
+      <StampReveal className="result-card__stamp" tone={winner === "away" ? "away" : "home"}>
+        <span aria-hidden>FT</span>
+      </StampReveal>
       <p className="eyebrow">{S.result.kicker}</p>
       <h2 className="result-card__headline">{headline}</h2>
 

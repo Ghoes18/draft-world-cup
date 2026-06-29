@@ -9,8 +9,21 @@
  * of ticker progress.
  */
 
+import { useEffect, useState } from "react";
 import { computeMatchStats, type MatchTimeline } from "7a0-engine";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
+import { CountUp, StaggerIn } from "./motion";
+
+interface StatRow {
+  label: string;
+  home: number;
+  away: number;
+  decimals?: number;
+  suffix?: string;
+  /** Composite values (e.g. cards "y/r") rendered verbatim, no count-up. */
+  homeText?: string;
+  awayText?: string;
+}
 
 export function StatsPanel({
   timeline,
@@ -19,35 +32,42 @@ export function StatsPanel({
   timeline: MatchTimeline;
   labels: { home: string; away: string };
 }) {
+  const S = useStrings();
   const stats = computeMatchStats(timeline);
 
-  const rows: { label: string; home: string; away: string }[] = [
+  // Hold bars at zero for one frame so they sweep to their share on appear.
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const rows: StatRow[] = [
     {
       label: S.stats.possession,
-      home: `${stats.home.possession}%`,
-      away: `${stats.away.possession}%`,
+      home: stats.home.possession,
+      away: stats.away.possession,
+      suffix: "%",
     },
-    { label: S.stats.shots, home: `${stats.home.shots}`, away: `${stats.away.shots}` },
+    { label: S.stats.shots, home: stats.home.shots, away: stats.away.shots },
     {
       label: S.stats.shotsOnTarget,
-      home: `${stats.home.shotsOnTarget}`,
-      away: `${stats.away.shotsOnTarget}`,
+      home: stats.home.shotsOnTarget,
+      away: stats.away.shotsOnTarget,
     },
-    { label: S.stats.corners, home: `${stats.home.corners}`, away: `${stats.away.corners}` },
-    {
-      label: S.stats.penalties,
-      home: `${stats.home.penalties}`,
-      away: `${stats.away.penalties}`,
-    },
-    { label: S.stats.passes, home: `${stats.home.passes}`, away: `${stats.away.passes}` },
-    { label: S.stats.fouls, home: `${stats.home.fouls}`, away: `${stats.away.fouls}` },
+    { label: S.stats.corners, home: stats.home.corners, away: stats.away.corners },
+    { label: S.stats.penalties, home: stats.home.penalties, away: stats.away.penalties },
+    { label: S.stats.passes, home: stats.home.passes, away: stats.away.passes },
+    { label: S.stats.fouls, home: stats.home.fouls, away: stats.away.fouls },
     {
       label: S.stats.cards,
-      home: `${stats.home.yellowCards}/${stats.home.redCards}`,
-      away: `${stats.away.yellowCards}/${stats.away.redCards}`,
+      home: 0,
+      away: 0,
+      homeText: `${stats.home.yellowCards}/${stats.home.redCards}`,
+      awayText: `${stats.away.yellowCards}/${stats.away.redCards}`,
     },
-    { label: S.stats.offsides, home: `${stats.home.offsides}`, away: `${stats.away.offsides}` },
-    { label: S.stats.xg, home: stats.home.xg.toFixed(1), away: stats.away.xg.toFixed(1) },
+    { label: S.stats.offsides, home: stats.home.offsides, away: stats.away.offsides },
+    { label: S.stats.xg, home: stats.home.xg, away: stats.away.xg, decimals: 1 },
   ];
 
   return (
@@ -67,21 +87,39 @@ export function StatsPanel({
         </strong>
       </div>
 
-      {/* Possession bar: home share vs away share. */}
-      <div className="versus" aria-hidden style={{ marginBottom: "1rem" }}>
-        <div className="versus__home" style={{ width: `${stats.home.possession}%` }} />
-        <div className="versus__away" style={{ width: `${stats.away.possession}%` }} />
+      {/* Possession bar: home share vs away share, sweeping in on reveal. */}
+      <div className="versus versus--animated" aria-hidden style={{ marginBottom: "1rem" }}>
+        <div
+          className="versus__home"
+          style={{ width: `${revealed ? stats.home.possession : 50}%` }}
+        />
+        <div
+          className="versus__away"
+          style={{ width: `${revealed ? stats.away.possession : 50}%` }}
+        />
       </div>
 
-      <div>
+      <StaggerIn step={45}>
         {rows.map((r) => (
           <div key={r.label} className="statrow">
-            <span className="statrow__val statrow__val--home">{r.home}</span>
+            <span className="statrow__val statrow__val--home">
+              {r.homeText !== undefined ? (
+                r.homeText
+              ) : (
+                <CountUp value={r.home} decimals={r.decimals} suffix={r.suffix} />
+              )}
+            </span>
             <span className="statrow__label">{r.label}</span>
-            <span className="statrow__val statrow__val--away">{r.away}</span>
+            <span className="statrow__val statrow__val--away">
+              {r.awayText !== undefined ? (
+                r.awayText
+              ) : (
+                <CountUp value={r.away} decimals={r.decimals} suffix={r.suffix} />
+              )}
+            </span>
           </div>
         ))}
-      </div>
+      </StaggerIn>
     </section>
   );
 }

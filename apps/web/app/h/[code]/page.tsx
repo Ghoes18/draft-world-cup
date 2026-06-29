@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { decodeHighlight } from "7a0-engine";
-import { STRINGS as S } from "../../_data/strings";
 import { formatScenarioLabel } from "../../_data/teamDisplay";
+import { getServerStrings } from "../../_i18n/server";
 import { HighlightReplay } from "./HighlightReplay";
 
 type Params = { code: string };
@@ -19,6 +19,7 @@ export async function generateMetadata({
 }: {
   params: Promise<Params>;
 }): Promise<Metadata> {
+  const { strings: S } = await getServerStrings();
   const { code } = await params;
   const payload = tryDecode(code);
   if (!payload) {
@@ -26,7 +27,7 @@ export async function generateMetadata({
   }
   const scenario = formatScenarioLabel(payload.scn[0], payload.scn[1]);
   const title = `${payload.lb[0]} ${payload.sc[0]}–${payload.sc[1]} ${payload.lb[1]} · ${scenario}`;
-  const description = `Goal highlights — ${scenario}. Replay the goals, no login needed.`;
+  const description = S.highlight.ogDescription(scenario);
   return {
     title: `${title} — NINETY`,
     description,
@@ -36,6 +37,7 @@ export async function generateMetadata({
 }
 
 export default async function HighlightPage({ params }: { params: Promise<Params> }) {
+  const { strings: S } = await getServerStrings();
   const { code } = await params;
   const payload = tryDecode(code);
 
