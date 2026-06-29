@@ -122,6 +122,30 @@ export default defineSchema({
     .index("by_player", ["playerId"])
     .index("by_player_mission_period", ["playerId", "missionId", "periodKey"]),
 
+  // --- Post-MVP: ELO / ranking (PRD §9.9) ---
+
+  // One row per player: persistent online rating derived from World Cup
+  // tournament fixtures (per-fixture Elo). Keyed on the same anonymous
+  // `playerId` as missions. `lastDelta`/`lastTournamentId` let the reveal screen
+  // show the rating change for the just-resolved tournament only.
+  ratings: defineTable({
+    playerId: v.string(),
+    name: v.string(), // last-seen display name, for the leaderboard
+    elo: v.number(),
+    peakElo: v.number(),
+    wins: v.number(),
+    draws: v.number(),
+    losses: v.number(),
+    played: v.number(), // cumulative fixtures
+    tournaments: v.number(),
+    titles: v.number(), // championships won
+    lastDelta: v.optional(v.number()),
+    lastTournamentId: v.optional(v.id("tournaments")),
+    updatedAt: v.number(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_elo", ["elo"]),
+
   // One row per player: the running cumulative facts that feed career missions.
   playerStats: defineTable({
     playerId: v.string(),

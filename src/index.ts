@@ -38,6 +38,7 @@ export * from "./roll.js";
 export * from "./synergy.js";
 export * from "./online.js";
 export * from "./tournament.js";
+export * from "./elo.js";
 export * from "./period.js";
 export * from "./missions.js";
 export * from "./playerPhoto.js";

@@ -12,6 +12,7 @@ import type * as boss from "../boss.js";
 import type * as duelCatalog from "../duelCatalog.js";
 import type * as gameCatalog from "../gameCatalog.js";
 import type * as missions from "../missions.js";
+import type * as ratings from "../ratings.js";
 import type * as solo from "../solo.js";
 import type * as tournament from "../tournament.js";
 
@@ -26,6 +27,7 @@ declare const fullApi: ApiFromModules<{
   duelCatalog: typeof duelCatalog;
   gameCatalog: typeof gameCatalog;
   missions: typeof missions;
+  ratings: typeof ratings;
   solo: typeof solo;
   tournament: typeof tournament;
 }>;

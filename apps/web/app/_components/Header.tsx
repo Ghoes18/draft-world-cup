@@ -10,6 +10,7 @@ export function Header({ meta }: { meta?: string }) {
         <a href="/">{S.nav.play}</a>
         <a href="/missions">{S.nav.missions}</a>
         <a href="/duel">{S.nav.duel}</a>
+        <a href="/leaderboard">{S.nav.leaderboard}</a>
       </nav>
       <p className="topbar__meta">
         World Cup Draft
