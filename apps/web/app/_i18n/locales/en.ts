@@ -325,6 +325,11 @@ export const en = {
     pts: "Pts",
     yourFixtures: "Your group fixtures",
     knockout: "Knockout bracket",
+    trajectories: "Tournament paths",
+    bracketAria: "Knockout bracket with group-stage paths into the semifinals and final",
+    bracketHint: "Tap a knockout match to replay the broadcast.",
+    advances: "Through",
+    out: "Out",
     semifinalN: (n: number) => `Semifinal ${n}`,
     final: "Final",
     slotName: (slot: number) => `Slot ${slot}`,
@@ -349,5 +354,10 @@ export const en = {
     en: "EN",
     pt: "PT",
     es: "ES",
+  },
+  sound: {
+    label: "Sound",
+    mute: "Mute sound",
+    unmute: "Unmute sound",
   },
 } as const;

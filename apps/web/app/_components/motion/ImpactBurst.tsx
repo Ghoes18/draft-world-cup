@@ -18,7 +18,7 @@ export function ImpactBurst({
 }: {
   /** Any value that changes when a burst should fire (e.g. a goal index). */
   trigger: number | string | null;
-  tone?: "home" | "away" | "gold";
+  tone?: "home" | "away" | "gold" | "elite" | "icon" | "legend" | "tsubasa";
   sparks?: number;
 }) {
   const reduced = usePrefersReducedMotion();

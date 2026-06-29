@@ -211,6 +211,10 @@ export function flagEmojiForTeam(team: string): string {
 }
 
 export function formatScenarioLabel(team: string, cup: number): string {
+  // Captain Tsubasa easter egg — a fictional side with no real flag.
+  if (normalizeTeamName(team) === "captain tsubasa") {
+    return `⚽ ${team} · ${cup}`;
+  }
   const flag = flagEmojiForTeam(team);
   const prefix = flag ? `${flag} ` : "";
   return `${prefix}${team} · ${cup}`;

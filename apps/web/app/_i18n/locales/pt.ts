@@ -324,6 +324,11 @@ export const pt = {
     pts: "Pts",
     yourFixtures: "Os teus jogos de grupo",
     knockout: "Quadro eliminatório",
+    trajectories: "Trajetórias",
+    bracketAria: "Quadro eliminatório com caminhos da fase de grupos até à final",
+    bracketHint: "Toca num jogo eliminatório para rever a transmissão.",
+    advances: "Passa",
+    out: "Fora",
     semifinalN: (n: number) => `Meia-final ${n}`,
     final: "Final",
     slotName: (slot: number) => `Vaga ${slot}`,
@@ -348,5 +353,10 @@ export const pt = {
     en: "EN",
     pt: "PT",
     es: "ES",
+  },
+  sound: {
+    label: "Som",
+    mute: "Desligar som",
+    unmute: "Ligar som",
   },
 } satisfies StringCatalog;

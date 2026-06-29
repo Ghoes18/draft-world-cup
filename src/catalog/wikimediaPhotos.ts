@@ -3,6 +3,7 @@
  */
 
 import type { PlayerCard, SquadCatalog } from "../catalog.js";
+import { playerOverall } from "../playerRating.js";
 import {
   commonsThumbUrl,
   photoIsProtected,
@@ -45,6 +46,25 @@ function normalizePlayerName(name: string): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function wikidataFetch(
+  fetchFn: typeof fetch,
+  url: string,
+  label: string,
+): Promise<Response> {
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await fetchFn(url);
+    if (res.ok) return res;
+    lastStatus = res.status;
+    if (res.status === 429 && attempt < 4) {
+      await sleep(1500 * (attempt + 1));
+      continue;
+    }
+    throw new Error(`${label} failed: ${res.status}`);
+  }
+  throw new Error(`${label} failed: ${lastStatus}`);
 }
 
 function claimEntityIds(claim: unknown): string[] {
@@ -102,8 +122,7 @@ async function wikidataSearch(
   url.searchParams.set("origin", "*");
   url.searchParams.set("limit", "8");
 
-  const res = await fetchFn(url.toString());
-  if (!res.ok) throw new Error(`Wikidata search failed: ${res.status}`);
+  const res = await wikidataFetch(fetchFn, url.toString(), "Wikidata search");
   const json = (await res.json()) as {
     search?: Array<{ id: string; label: string; description?: string }>;
   };
@@ -127,8 +146,7 @@ async function wikidataGetEntities(
   url.searchParams.set("format", "json");
   url.searchParams.set("origin", "*");
 
-  const res = await fetchFn(url.toString());
-  if (!res.ok) throw new Error(`Wikidata getentities failed: ${res.status}`);
+  const res = await wikidataFetch(fetchFn, url.toString(), "Wikidata getentities");
   const json = (await res.json()) as { entities?: Record<string, WikidataEntity> };
   return json.entities ?? {};
 }
@@ -216,6 +234,10 @@ export interface MergePhotosOptions {
   dryRun?: boolean;
   fetch?: typeof fetch;
   delayMs?: number;
+  /** Only process players at or above this overall (uses `playerOverall`). */
+  minOverall?: number;
+  /** Apply cache hits only — never call Wikidata (for offline catalog builds). */
+  cacheOnly?: boolean;
   onProgress?: (done: number, total: number, player: PlayerCard) => void;
 }
 
@@ -230,6 +252,12 @@ export async function mergePhotosIntoCatalog(
   const cache = { ...options.cache, byPlayerId: { ...options.cache.byPlayerId } };
 
   const candidates = Object.values(catalog.players).filter((p) => {
+    if (
+      options.minOverall !== undefined &&
+      playerOverall(p) < options.minOverall
+    ) {
+      return false;
+    }
     if (photoIsProtected(p.photoSource) && p.photoUrl) return false;
     if (p.photoUrl && p.photoSource === "wikimedia" && !options.force) {
       return false;
@@ -266,6 +294,11 @@ export async function mergePhotosIntoCatalog(
         };
       }
       matched++;
+      continue;
+    }
+
+    if (options.cacheOnly) {
+      skipped++;
       continue;
     }
 

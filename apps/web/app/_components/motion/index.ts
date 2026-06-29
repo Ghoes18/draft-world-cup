@@ -3,3 +3,4 @@ export { PressableCard } from "./PressableCard";
 export { StaggerIn } from "./StaggerIn";
 export { ImpactBurst } from "./ImpactBurst";
 export { StampReveal } from "./StampReveal";
+export { PitchPlacementFX } from "./PitchPlacementFX";

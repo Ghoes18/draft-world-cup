@@ -32,9 +32,12 @@ export * from "./catalog/liveImport.js";
 export * from "./positions.js";
 export * from "./positionsDetail.js";
 export * from "./playerRating.js";
+export { playerTier, ELITE_MIN_OVERALL } from "./playerTier.js";
+export type { PlayerTier } from "./playerTier.js";
 export * from "./playerPositions.js";
 export * from "./lineupStrength.js";
 export * from "./roll.js";
+export * from "./captainTsubasa.js";
 export * from "./synergy.js";
 export * from "./online.js";
 export * from "./tournament.js";
@@ -50,6 +53,7 @@ export {
   LEGEND_DISPLAY_NAMES,
   applyLegendPhotosToCatalog,
   isLegendPlayer,
+  legendDisplayTier,
   legendEntryForName,
   normalizeLegendName,
 } from "./legends.js";

@@ -17,6 +17,7 @@
     "import:zafronix": "tsx src/cli/import-zafronix.ts",
     "import:transfermarkt-positions": "tsx src/cli/import-transfermarkt-positions.ts",
     "import:photos": "tsx src/cli/import-photos.ts",
+    "import:tsubasa": "tsx src/cli/import-tsubasa-photos.ts",
     "fetch:squads": "tsx src/cli/fetch-squads.ts",
     "migrate:catalog-positions": "tsx src/cli/migrate-catalog-positions.ts",
     "build:catalog": "tsx src/cli/build-catalog.ts",

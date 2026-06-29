@@ -11,22 +11,26 @@ import {
   currentSquadPlayers,
   effectiveStrength,
   expectedGoals,
+  isCaptainTsubasaScenario,
+  isCaptainTsubasaTeam,
   formatPlacementOptions,
   formatEligibleFormationSlots,
   getFormation,
+  getPlayer,
   getScenario,
-  isLegendPlayer,
   isLineupComplete,
   isPlayerPickable,
   openSlotsForPlayer,
   partialBuildToTeamStrength,
   pickablePlayersForSlot,
   playerOverall,
+  playerTier,
   rerollScenario,
   selectPlayer,
   type BuildAction,
   type BuildState,
   type PlayerCard,
+  type PlayerTier,
   type SquadCatalog,
   type SquadScenario,
   type TeamStrength,
@@ -36,6 +40,20 @@ import { Pitch } from "./Pitch";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { useStrings } from "../_i18n/LocaleProvider";
 import { formatScenarioLabel } from "../_data/teamDisplay";
+import { tierNameClass } from "../_lib/tierClasses";
+import { useSound } from "../_hooks/useSound";
+import { vibrateForTier } from "../_lib/haptics";
+import type { SoundCue } from "../_lib/soundscape";
+
+/** Which placement cue plays per rarity tier. */
+const PLACE_CUE: Record<PlayerTier, SoundCue> = {
+  bronze: "placeStandard",
+  silver: "placeStandard",
+  gold: "placeStandard",
+  elite: "placeElite",
+  legend: "placeLegend",
+  icon: "placeIcon",
+};
 
 function scenarioId(s: SquadScenario): string {
   return s.id;
@@ -58,6 +76,7 @@ export function BuildPanel({
   onAction?: (action: BuildAction) => void;
 }) {
   const S = useStrings();
+  const { play } = useSound();
   const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
@@ -145,10 +164,23 @@ export function BuildPanel({
     try {
       onBuildState(selectPlayer(catalog, buildState, slotId, playerId));
       onAction?.({ type: "pick", slotId, playerId });
+      const player = getPlayer(catalog, playerId);
+      if (player) {
+        const tier = playerTier(player);
+        // Easter egg: a manga hero landing plays the anime power sting.
+        if (isCaptainTsubasaTeam(player.team)) {
+          play("placeTsubasa");
+          vibrateForTier("icon");
+        } else {
+          play(PLACE_CUE[tier]);
+          vibrateForTier(tier);
+        }
+      }
       setPendingPlayerId(null);
       setActiveSlotId(null);
     } catch {
       // Invalid selection — ignore in demo UI.
+      play("error");
     }
   }
 
@@ -164,7 +196,11 @@ export function BuildPanel({
   }
 
   function onPickPlayer(playerId: string) {
-    if (!isPlayerPickable(catalog, buildState, playerId)) return;
+    if (!isPlayerPickable(catalog, buildState, playerId)) {
+      play("error");
+      return;
+    }
+    play("pick");
     setPendingPlayerId((cur) => (cur === playerId ? null : playerId));
     setActiveSlotId(null);
   }
@@ -176,6 +212,7 @@ export function BuildPanel({
         onSelect(slotId, pendingPlayerId);
         return;
       }
+      play("error");
       return;
     }
     const slot = buildState.slots.find((s) => s.slotId === slotId);
@@ -209,7 +246,18 @@ export function BuildPanel({
             <>
               <DraftProgress turnIndex={turnIndex} filledSlots={filledSlots} />
 
-              <div className={`draft-roll${scenarioSpinning ? " draft-roll--spinning" : ""}`}>
+              <div
+                className={[
+                  "draft-roll",
+                  scenarioSpinning ? "draft-roll--spinning" : "",
+                  !scenarioSpinning &&
+                  isCaptainTsubasaScenario(displayScenario.id)
+                    ? "draft-roll--tsubasa"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <div className="draft-roll__meta">
                   <span className="label">{S.build.currentRoll}</span>
                   <span className="draft-roll__turn mono">
@@ -543,6 +591,7 @@ function PlayerPickRow({
       ? formatPlacementOptions(slots)
       : formatEligibleFormationSlots(player, formationSlots);
   const ovr = playerOverall(player);
+  const tier = playerTier(player);
 
   return (
     <li
@@ -563,9 +612,9 @@ function PlayerPickRow({
         title={!pickable ? S.build.noOpenSlot : undefined}
         onClick={pickable ? onSelect : undefined}
       >
-        <PlayerAvatar player={player} size="md" selected={selected} />
+        <PlayerAvatar player={player} size="md" selected={selected} tier={tier} />
         <span
-          className="player-card__ovr"
+          className={`player-card__ovr player-card__ovr--${tier}`}
           aria-label={`${S.build.playerOvr} ${ovr} — ${S.build.ovrTooltip(player.cup)}`}
           title={S.build.ovrTooltip(player.cup)}
         >
@@ -573,10 +622,7 @@ function PlayerPickRow({
         </span>
         <span className="player-card__body">
           <strong
-            className={[
-              "player-card__name",
-              isLegendPlayer(player.name) ? "player-name--legend" : "",
-            ]
+            className={["player-card__name", tierNameClass(tier)]
               .filter(Boolean)
               .join(" ")}
           >
