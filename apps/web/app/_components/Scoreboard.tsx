@@ -1,10 +1,10 @@
+"use client";
+
 /**
  * Scorebug — the broadcast fixture readout (the signature motif).
- *
- * Home (you) on the left in lime, away (opponent) on the right in coral, with a
- * mono LED-style score and a blinking colon between. Used full-size in the hero
- * and inline elsewhere so one fixture motif recurs across the app.
  */
+
+import { useStrings } from "../_i18n/LocaleProvider";
 
 export function Scorebug({
   homeLabel,
@@ -23,6 +23,7 @@ export function Scorebug({
   awayScore?: number;
   pens?: [number, number];
 }) {
+  const S = useStrings();
   const live = homeScore != null && awayScore != null;
   const h = live ? homeScore : "–";
   const a = live ? awayScore : "–";
@@ -33,8 +34,8 @@ export function Scorebug({
       role="img"
       aria-label={
         live
-          ? `${homeLabel} ${h}, ${awayLabel} ${a}`
-          : `${homeLabel} versus ${awayLabel}, not yet played`
+          ? S.scoreboard.liveAria(homeLabel, h as number, awayLabel, a as number)
+          : S.scoreboard.notPlayedAria(homeLabel, awayLabel)
       }
     >
       <div className="scorebug__side scorebug__side--home">
@@ -53,7 +54,7 @@ export function Scorebug({
         </div>
         {pens && (
           <span className="scorebug__pens">
-            pens {pens[0]}–{pens[1]}
+            {S.scoreboard.pens(pens[0], pens[1])}
           </span>
         )}
       </div>

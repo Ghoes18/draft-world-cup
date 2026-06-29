@@ -1,10 +1,16 @@
-import { STRINGS as S } from "../_data/strings";
+"use client";
+
+import { useStrings } from "../_i18n/LocaleProvider";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function Header({ meta }: { meta?: string }) {
+  const S = useStrings();
+
   return (
     <header className="topbar">
       <a href="/" className="brand" aria-label={S.title}>
-        Ninety<span className="brand__prime">90′</span>
+        {S.brand.name}
+        <span className="brand__prime">90′</span>
       </a>
       <nav className="topbar__nav" aria-label="Primary">
         <a href="/">{S.nav.play}</a>
@@ -12,15 +18,18 @@ export function Header({ meta }: { meta?: string }) {
         <a href="/duel">{S.nav.duel}</a>
         <a href="/leaderboard">{S.nav.leaderboard}</a>
       </nav>
-      <p className="topbar__meta">
-        World Cup Draft
-        {meta ? (
-          <>
-            <br />
-            {meta}
-          </>
-        ) : null}
-      </p>
+      <div className="topbar__actions">
+        <LanguageSwitcher />
+        <p className="topbar__meta">
+          {S.brand.tagline}
+          {meta ? (
+            <>
+              <br />
+              {meta}
+            </>
+          ) : null}
+        </p>
+      </div>
     </header>
   );
 }

@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   getPlayer,
   isLegendPlayer,
   playerOverall,
   type BuildState,
   type PlayerCard,
+  type Side,
   type SquadCatalog,
   type Vec2,
 } from "7a0-engine";
 import { POSITION_DETAILS, type PosDetail } from "7a0-engine";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 import { PlayerAvatar } from "./PlayerAvatar";
 
 /** Get a short display label for a position code (detail-aware). */
@@ -32,9 +33,11 @@ const POSITION_BOUNDS = {
   max: 1 - PITCH_EDGE - 0.03,
 };
 
-function anchorToNorm(anchor: Vec2, position: string): Vec2 {
+function anchorToNorm(anchor: Vec2, position: string, side: Side): Vec2 {
   const span = 1 - PITCH_EDGE * 2;
-  let depth = 1 - anchor.x;
+  // Home: low anchor.x = own goal. Away mirrors x, so use anchor.x for depth.
+  // Always render GK at the bottom, attack toward the top.
+  let depth = side === "home" ? 1 - anchor.x : anchor.x;
   if (position === "GK") {
     depth = Math.min(1 - 0.012, depth + GK_DROP);
   }
@@ -58,10 +61,12 @@ function popoverPlacement(norm: Vec2): "above" | "below" {
 /** Nudge overlapping tokens apart for legibility — display only, not engine anchors. */
 function spreadTokenPositions(
   slots: BuildState["slots"],
+  side: Side,
+  minGap = MIN_TOKEN_GAP,
 ): Map<string, Vec2> {
   const positions = slots.map((slot) => ({
     slotId: slot.slotId,
-    ...anchorToNorm(slot.anchor, slot.position),
+    ...anchorToNorm(slot.anchor, slot.position, side),
   }));
 
   const clamp = (value: number) =>
@@ -75,9 +80,9 @@ function spreadTokenPositions(
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const dist = Math.hypot(dx, dy);
-        if (dist >= MIN_TOKEN_GAP || dist < 0.001) continue;
+        if (dist >= minGap || dist < 0.001) continue;
 
-        const push = (MIN_TOKEN_GAP - dist) / 2;
+        const push = (minGap - dist) / 2;
         const nx = dx / dist;
         const ny = dy / dist;
         a.x -= nx * push;
@@ -183,7 +188,7 @@ function PitchMarkings() {
         className="draw"
         style={{ "--len": "360px" } as CSSProperties}
         x="36.5"
-        y="115.333"
+        y="121.333"
         width="27"
         height="6"
         fill="none"
@@ -258,6 +263,7 @@ function SlotPlayerPicker({
   placement: "above" | "below";
   onPick: (playerId: string) => void;
 }) {
+  const S = useStrings();
   return (
     <div
       className={[
@@ -324,6 +330,7 @@ export function Pitch({
   onSlotPick,
   onPickFromSlot,
   onCloseSlotPopover,
+  compact = false,
 }: {
   catalog: SquadCatalog;
   buildState: BuildState;
@@ -335,15 +342,42 @@ export function Pitch({
   onSlotPick?: (slotId: string) => void;
   onPickFromSlot?: (slotId: string, playerId: string) => void;
   onCloseSlotPopover?: () => void;
+  /** Smaller tokens and tighter spacing for embedded previews (e.g. Boss card). */
+  compact?: boolean;
 }) {
+  const S = useStrings();
   const pitchRef = useRef<HTMLDivElement>(null);
   const compatible = new Set(compatibleSlotIds ?? []);
   const screenPositions = useMemo(
-    () => spreadTokenPositions(buildState.slots),
-    [buildState.slots],
+    () =>
+      spreadTokenPositions(
+        buildState.slots,
+        buildState.side,
+        compact ? 0.15 : MIN_TOKEN_GAP,
+      ),
+    [buildState.slots, buildState.side, compact],
   );
   const filledCount = buildState.slots.filter((s) => s.selectedPlayerId).length;
   const activePlayers = playersForActiveSlot ?? [];
+
+  // Pick-slam: the slot just filled gets a short impact entrance. We skip the
+  // very first pass so pre-filled previews (e.g. the Boss card) don't slam.
+  const prevFilledRef = useRef<Set<string> | null>(null);
+  const [justFilled, setJustFilled] = useState<string | null>(null);
+  useEffect(() => {
+    const current = new Set(
+      buildState.slots.filter((s) => s.selectedPlayerId).map((s) => s.slotId),
+    );
+    const prev = prevFilledRef.current;
+    prevFilledRef.current = current;
+    if (prev === null) return;
+    let added: string | null = null;
+    for (const id of current) if (!prev.has(id)) added = id;
+    if (!added) return;
+    setJustFilled(added);
+    const t = setTimeout(() => setJustFilled(null), 480);
+    return () => clearTimeout(t);
+  }, [buildState.slots]);
 
   useEffect(() => {
     if (!activeSlotId || !onCloseSlotPopover) return;
@@ -352,7 +386,7 @@ export function Pitch({
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (pitchRef.current?.contains(target)) return;
-      onCloseSlotPopover();
+      onCloseSlotPopover?.();
     }
 
     document.addEventListener("pointerdown", onPointerDown);
@@ -360,7 +394,11 @@ export function Pitch({
   }, [activeSlotId, onCloseSlotPopover]);
 
   return (
-    <div className="pitch" ref={pitchRef} aria-label={S.build.lineup}>
+    <div
+      className={["pitch", compact ? "pitch--compact" : ""].filter(Boolean).join(" ")}
+      ref={pitchRef}
+      aria-label={S.build.lineup}
+    >
       <div className="pitch__mark">
         <PitchMarkings />
       </div>
@@ -382,7 +420,9 @@ export function Pitch({
             (isCompatible || compatible.size === 0),
         );
         const Tag = clickable ? "button" : "div";
-        const pos = screenPositions.get(slot.slotId) ?? anchorToNorm(slot.anchor, slot.position);
+        const pos =
+          screenPositions.get(slot.slotId) ??
+          anchorToNorm(slot.anchor, slot.position, buildState.side);
         const placement = popoverPlacement(pos);
         const surname = player?.name.split(" ").pop();
         const meta =
@@ -425,6 +465,7 @@ export function Pitch({
                 highlight ? "pitch__slot--highlight" : "",
                 isCompatible ? "pitch__slot--compatible" : "",
                 isActive ? "pitch__slot--active" : "",
+                justFilled === slot.slotId ? "pitch__slot--slam" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}

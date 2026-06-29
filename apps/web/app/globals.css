@@ -31,6 +31,24 @@
   --maxw: 1080px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
+  /* motion language — snappy/tactile for UI, broadcast for match drama */
+  --ease-snap: cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  --ease-broadcast: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-med: 320ms;
+  --dur-slow: 620ms;
+
+  /* collectible foil for legend / boss / special cards */
+  --holo-gold: #d7b55b;
+  --holo-foil: linear-gradient(
+    115deg,
+    rgba(215, 181, 91, 0) 20%,
+    rgba(215, 181, 91, 0.55) 42%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(215, 181, 91, 0.55) 58%,
+    rgba(215, 181, 91, 0) 80%
+  );
+
   --font-display: var(--font-display), system-ui, sans-serif;
 }
 
@@ -134,6 +152,40 @@ a {
   text-transform: uppercase;
   color: var(--chalk-dim);
   text-align: right;
+}
+
+.topbar__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.lang-switch {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lang-switch__btn {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--chalk-dim);
+  cursor: pointer;
+}
+
+.lang-switch__btn:hover {
+  color: var(--chalk);
+  border-color: var(--chalk-dim);
+}
+
+.lang-switch__btn--active {
+  color: var(--home);
+  border-color: var(--home);
 }
 
 /* ---- hero scorebug ------------------------------------------------------ */
@@ -536,6 +588,17 @@ a.btn-kick {
 
 .versus__away {
   background: var(--away);
+}
+
+.versus--animated .versus__home,
+.versus--animated .versus__away {
+  transition: width var(--dur-slow) var(--ease-broadcast);
+}
+@media (prefers-reduced-motion: reduce) {
+  .versus--animated .versus__home,
+  .versus--animated .versus__away {
+    transition: none;
+  }
 }
 
 /* big stat readouts (ATK/DEF/OVR) */
@@ -1547,7 +1610,6 @@ a.btn-kick {
   overflow: visible;
   border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(198, 242, 78, 0.08), transparent 24%),
     repeating-linear-gradient(
       90deg,
       rgba(255, 255, 255, 0.025) 0,
@@ -1662,6 +1724,32 @@ button.pitch__slot:hover:not(:disabled) {
   background: rgba(20, 53, 36, 0.94);
   box-shadow: 0 0 0 2px var(--home-glow), 0 0 18px rgba(198, 242, 78, 0.35);
   animation: pitch-slot-pulse 1.6s ease-in-out infinite;
+}
+
+/* a freshly drafted player slams into the slot */
+.pitch__slot--slam {
+  animation: pitch-slot-slam 0.46s var(--ease-snap);
+  z-index: 3;
+}
+@keyframes pitch-slot-slam {
+  0% {
+    transform: scale(1.85) translateY(-8px);
+    box-shadow: 0 0 0 4px var(--home-glow), 0 14px 30px rgba(0, 0, 0, 0.35);
+  }
+  55% {
+    transform: scale(0.9);
+  }
+  78% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pitch__slot--slam {
+    animation: none;
+  }
 }
 
 @keyframes pitch-slot-pulse {
@@ -2251,63 +2339,102 @@ button.pitch__slot:hover:not(:disabled) {
   filter: saturate(1.08);
 }
 
-/* ---- casino roulette (formation + scenario rolls) ----------------------- */
+/* the chosen face lands with a satisfying snap when the spin settles */
+.formation-card--settled {
+  animation: formation-settle var(--dur-med) var(--ease-snap);
+}
+@keyframes formation-settle {
+  0% {
+    transform: scale(1.05);
+    box-shadow: 0 0 24px rgba(198, 242, 78, 0.22);
+  }
+  70% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .formation-card--settled {
+    animation: none;
+  }
+}
+
+/* ---- casino roulette (scenario roll in BuildPanel) ---------------------- */
 
 .casino-roulette {
   position: relative;
   overflow: hidden;
-  min-height: 1.4em;
+}
+
+/* fixed-height viewport — one line visible, no stacked trail items */
+.draft-roll__team.casino-roulette {
+  min-height: 1.75rem;
+}
+
+.draft-roll__team.casino-roulette--spinning {
+  min-height: 1.75rem;
+}
+
+.casino-roulette__window {
+  display: flex;
+  align-items: center;
+  min-height: inherit;
+  overflow: hidden;
 }
 
 .casino-roulette__item {
   display: block;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition:
-    opacity 0.08s linear,
-    transform 0.08s linear;
-}
-
-.casino-roulette--spinning {
-  min-height: 3.2em;
 }
 
 .casino-roulette--spinning .casino-roulette__item {
-  position: absolute;
-  left: 0;
-  right: 0;
-  opacity: 0;
-  transform: translateY(70%) scale(0.94);
-  filter: blur(0.4px);
-}
-
-.casino-roulette--spinning .casino-roulette__item--lead {
-  position: relative;
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  filter: none;
-}
-
-.casino-roulette--spinning .casino-roulette__item:nth-child(2) {
-  opacity: 0.42;
-  transform: translateY(-58%) scale(0.9);
-}
-
-.casino-roulette--spinning .casino-roulette__item:nth-child(3) {
-  opacity: 0.18;
-  transform: translateY(-118%) scale(0.84);
+  animation: draft-roll-tick 0.2s var(--ease-snap) both;
 }
 
 .casino-roulette--settled .casino-roulette__item {
-  position: relative;
-  opacity: 1;
-  transform: none;
-  filter: none;
+  animation: draft-roll-settle 0.42s var(--ease-snap) both;
 }
 
-.casino-roulette--settled .casino-roulette__item:not(.casino-roulette__item--lead) {
-  display: none;
+@keyframes draft-roll-tick {
+  from {
+    opacity: 0;
+    transform: translateY(72%);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes draft-roll-settle {
+  0% {
+    transform: scale(1.05);
+    text-shadow: 0 0 18px rgba(198, 242, 78, 0.28);
+  }
+  65% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+    text-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casino-roulette--spinning .casino-roulette__item,
+  .casino-roulette--settled .casino-roulette__item {
+    animation: none;
+    transform: none;
+    filter: none;
+  }
 }
 
 .draft-roll--spinning {
@@ -2820,6 +2947,76 @@ button.pitch__slot:hover:not(:disabled) {
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* broadcast lower-third: scorer chyron that slides in under the splash */
+.lower-third {
+  position: absolute;
+  left: 0;
+  bottom: 18%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 88%;
+  padding: 0.5rem 0.9rem 0.5rem 0.7rem;
+  background: linear-gradient(90deg, rgba(6, 18, 12, 0.92), rgba(6, 18, 12, 0.55));
+  border-left: 4px solid var(--home);
+  border-radius: 0 8px 8px 0;
+  z-index: 6;
+  animation: lower-third-in 1.6s var(--ease-broadcast) forwards;
+}
+.lower-third[data-team="away"] {
+  border-left-color: var(--away);
+}
+.lower-third__tag {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  color: var(--home);
+}
+.lower-third[data-team="away"] .lower-third__tag {
+  color: var(--away);
+}
+.lower-third__name {
+  font-weight: 700;
+  color: var(--chalk);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lower-third__detail {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.66rem;
+  color: var(--chalk-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@keyframes lower-third-in {
+  0% {
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+  10% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  82% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lower-third {
+    animation: none;
+    opacity: 0;
   }
 }
 
@@ -3356,11 +3553,193 @@ button.pitch__slot:hover:not(:disabled) {
   background: var(--away);
 }
 
+/* "event of the week" treatment: a slow coral aura around the card */
+.boss-card--event {
+  box-shadow:
+    0 0 0 1px rgba(255, 84, 54, 0.25),
+    0 0 34px rgba(255, 84, 54, 0.08);
+  animation: boss-aura 5s var(--ease-broadcast) infinite;
+}
+@keyframes boss-aura {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(255, 84, 54, 0.22),
+      0 0 26px rgba(255, 84, 54, 0.07);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(255, 84, 54, 0.42),
+      0 0 40px rgba(255, 84, 54, 0.16);
+  }
+}
+
+.boss-card__featured-names {
+  display: inline-block;
+  border-radius: 4px;
+  color: var(--chalk);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boss-card--event {
+    animation: none;
+  }
+}
+
 .boss-card__name {
   font-family: var(--font-display);
   font-size: clamp(1.5rem, 5vw, 2.2rem);
   text-transform: uppercase;
   margin: 0.3rem 0 0.5rem;
+}
+
+.boss-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.boss-card__difficulty {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--line);
+}
+
+.boss-card__difficulty--hard {
+  color: var(--chalk);
+}
+
+.boss-card__difficulty--veryHard {
+  color: var(--away);
+  border-color: color-mix(in srgb, var(--away) 55%, var(--line));
+}
+
+.boss-card__subtitle {
+  font-size: 0.92rem;
+  margin: 0 0 0.55rem;
+  max-width: 52ch;
+}
+
+.boss-card__featured {
+  font-size: 0.78rem;
+  margin: 0 0 1rem;
+  max-width: 52ch;
+  line-height: 1.45;
+}
+
+.boss-card__squad {
+  display: grid;
+  grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin: 0 0 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .boss-card__squad {
+    grid-template-columns: 1fr;
+  }
+}
+
+.boss-card__pitch .pitch {
+  min-height: 0;
+  max-width: 17rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.boss-card__pitch .pitch__count {
+  display: none;
+}
+
+/* Compact pitch — tokens scale with the field (Boss card, previews). */
+.pitch--compact {
+  container-type: inline-size;
+}
+
+.pitch--compact .pitch__token {
+  width: clamp(1.35rem, 13cqw, 1.85rem);
+  height: clamp(1.35rem, 13cqw, 1.85rem);
+}
+
+.pitch--compact .pitch__slot {
+  border-width: 1.5px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.pitch--compact .pitch__slot .player-avatar__initials {
+  font-size: 0.42rem;
+}
+
+.pitch--compact .pitch__token-meta {
+  top: calc(100% + 0.1rem);
+  max-width: 4.25rem;
+  gap: 0.04rem;
+}
+
+.pitch--compact .pitch__token-name {
+  max-width: 4.25rem;
+  font-size: 0.5rem;
+  letter-spacing: 0.03em;
+}
+
+.pitch--compact .pitch__token-pos {
+  font-size: 0.46rem;
+}
+
+.pitch--compact .pitch__pos {
+  font-size: 0.48rem;
+}
+
+.boss-card__lineup {
+  margin: 0;
+  max-width: none;
+}
+
+.boss-card__lineup-kicker {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin: 0 0 0.45rem;
+}
+
+.boss-card__lineup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.15rem;
+}
+
+.boss-card__lineup-row {
+  display: grid;
+  grid-template-columns: 2.1rem 1fr auto;
+  align-items: baseline;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.boss-card__lineup-pos {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.boss-card__lineup-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.boss-card__lineup-ovr {
+  font-size: 0.78rem;
+  color: var(--chalk);
+  font-weight: 700;
 }
 
 .boss-card__blurb {
@@ -3405,52 +3784,138 @@ button.pitch__slot:hover:not(:disabled) {
 }
 
 /* ---- objectives strip (home page) --------------------------------------- */
+/* Broadcast lower-third: today's missions + weekly boss in one fixture row. */
 
 .objectives {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--line);
+  position: relative;
+  margin-top: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 0.5rem;
+  padding: 1.1rem 1.15rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(165deg, rgba(198, 242, 78, 0.05) 0%, transparent 42%),
+    linear-gradient(180deg, var(--turf-1) 0%, rgba(6, 18, 12, 0.92) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(234, 242, 236, 0.06),
+    0 12px 40px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.objectives::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--home) 0%,
+    rgba(198, 242, 78, 0.35) 35%,
+    rgba(255, 84, 54, 0.5) 72%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.objectives::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 3px,
+    rgba(255, 255, 255, 0.012) 3px,
+    rgba(255, 255, 255, 0.012) 4px
+  );
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.objectives__head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
 }
 
 .objectives__kicker {
   font-size: 0.62rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  color: var(--chalk-2);
+  margin: 0;
+}
+
+.objectives__link {
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--chalk-dim);
-  margin: 0 0 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s var(--ease);
+}
+
+.objectives__link:hover {
+  color: var(--home);
+}
+
+.objectives__link:focus-visible {
+  outline: 2px solid var(--home);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 .objectives__row {
-  display: flex;
-  gap: 0.65rem;
-  overflow-x: auto;
-  padding-bottom: 0.25rem;
-  scrollbar-width: none;
-}
-
-.objectives__row::-webkit-scrollbar {
-  display: none;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
 }
 
 .obj-tile {
-  min-width: 180px;
-  flex: 1;
-  background: var(--turf-1);
+  --obj-accent: var(--chalk-dim);
+  position: relative;
+  min-height: 7.25rem;
+  min-width: 0;
+  background: rgba(6, 18, 12, 0.55);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 0.7rem 0.8rem;
+  padding: 0.8rem 0.85rem 0.7rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.35rem;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  transition:
+    border-color 0.15s var(--ease),
+    background 0.15s var(--ease),
+    transform 0.15s var(--ease);
+}
+
+.obj-tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 6px 0 0 6px;
+  background: var(--obj-accent);
+  opacity: 0.95;
 }
 
 .obj-tile:hover {
   border-color: var(--line-2);
-  background: var(--turf-2);
+  background: rgba(15, 42, 28, 0.72);
+  transform: translateY(-1px);
 }
 
 .obj-tile:focus-visible {
@@ -3458,87 +3923,149 @@ button.pitch__slot:hover:not(:disabled) {
   outline-offset: 2px;
 }
 
+.obj-tile--composition {
+  --obj-accent: var(--home);
+}
+
+.obj-tile--result {
+  --obj-accent: var(--away);
+}
+
+.obj-tile--career {
+  --obj-accent: var(--chalk-2);
+}
+
 .obj-tile--done {
-  border-color: var(--home-ink);
-  box-shadow: 0 0 0 1px var(--home-glow);
+  border-color: rgba(198, 242, 78, 0.35);
+  background: rgba(198, 242, 78, 0.04);
+  box-shadow: inset 0 0 0 1px var(--home-glow);
+}
+
+.obj-tile--done::before {
+  box-shadow: 0 0 12px var(--home-glow);
 }
 
 .obj-tile--boss {
-  border-color: rgba(255, 84, 54, 0.22);
-  background: rgba(255, 84, 54, 0.04);
+  --obj-accent: var(--away);
+  border-color: rgba(255, 84, 54, 0.28);
+  background:
+    linear-gradient(135deg, rgba(255, 84, 54, 0.1) 0%, transparent 55%),
+    rgba(6, 18, 12, 0.55);
 }
 
 .obj-tile--boss:hover {
-  border-color: rgba(255, 84, 54, 0.42);
-  background: rgba(255, 84, 54, 0.08);
+  border-color: rgba(255, 84, 54, 0.48);
+  background:
+    linear-gradient(135deg, rgba(255, 84, 54, 0.14) 0%, transparent 55%),
+    rgba(15, 42, 28, 0.72);
+}
+
+.obj-tile--boss::before {
+  box-shadow: 0 0 14px var(--away-glow);
 }
 
 .obj-tile__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  min-height: 1.25rem;
 }
 
 .obj-tile__chip {
-  font-size: 0.54rem;
+  font-size: 0.52rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--chalk-dim);
   border: 1px solid var(--line-2);
   border-radius: 999px;
-  padding: 0.12rem 0.45rem;
+  padding: 0.14rem 0.42rem;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .obj-tile__chip--boss {
   color: var(--away);
-  border-color: rgba(255, 84, 54, 0.35);
+  border-color: rgba(255, 84, 54, 0.4);
+  background: rgba(255, 84, 54, 0.08);
 }
 
-.obj-tile__badge {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.6rem;
-  letter-spacing: 0.06em;
+.obj-tile__status {
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  color: var(--chalk-dim);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.obj-tile__status--done {
   color: var(--home);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.obj-tile__badge--boss {
+.obj-tile__status--boss {
   color: var(--away);
+  font-size: 0.72rem;
 }
 
 .obj-tile__name {
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
   margin: 0;
-  white-space: nowrap;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
   color: var(--chalk);
-  line-height: 1.2;
+  flex: 1;
 }
 
-/* Boss tile: scoreline shown in scorebug style */
+.obj-tile__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0;
+  min-height: 1.1rem;
+}
+
+.obj-tile__hint {
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
 .obj-tile__score {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-variant-numeric: tabular-nums;
   color: var(--chalk);
-  margin: 0;
   letter-spacing: 0.04em;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .obj-tile__cta {
-  font-size: 0.62rem;
+  font-size: 0.54rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--away);
   margin: 0;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .obj-tile__bar {
-  height: 3px;
+  height: 4px;
   border-radius: 999px;
-  background: var(--turf-2);
+  background: rgba(234, 242, 236, 0.08);
   overflow: hidden;
   margin-top: auto;
 }
@@ -3548,10 +4075,49 @@ button.pitch__slot:hover:not(:disabled) {
   background: var(--home);
   border-radius: 999px;
   transition: width 0.5s var(--ease);
+  box-shadow: 0 0 8px var(--home-glow);
 }
 
 .obj-tile__fill--boss {
-  background: var(--away);
+  background: linear-gradient(90deg, var(--away), #ff8a6b);
+  box-shadow: 0 0 8px var(--away-glow);
+}
+
+@media (max-width: 900px) {
+  .objectives {
+    padding-inline: 0.95rem;
+  }
+
+  .objectives__row {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(11.5rem, 72vw);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.15rem;
+    padding-bottom: 0.35rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .objectives__row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .obj-tile {
+    scroll-snap-align: start;
+    min-height: 6.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obj-tile:hover {
+    transform: none;
+  }
+
+  .obj-tile__fill {
+    transition: none;
+  }
 }
 
 /* ===== Leaderboard — broadcast standings board ========================= */
@@ -3787,6 +4353,8 @@ button.pitch__slot:hover:not(:disabled) {
   border-bottom: none;
   display: grid;
   place-items: center;
+  transform-origin: bottom;
+  animation: riser-grow var(--dur-slow) var(--ease-broadcast) both;
   font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(1.4rem, 4vw, 2rem);
@@ -4073,8 +4641,248 @@ button.pitch__slot:hover:not(:disabled) {
   }
 }
 
+@keyframes riser-grow {
+  from {
+    transform: scaleY(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lb-table tbody tr {
+    transition: none;
+  }
+  .lb-podium__riser {
+    animation: none;
+  }
+}
+
+/* ======================================================================== */
+/* MOTION PRIMITIVES — shared juice (see app/_components/motion/*)           */
+/* ======================================================================== */
+
+/* ---- PressableCard: tactile hard-shadow press --------------------------- */
+.pressable {
+  position: relative;
+  cursor: pointer;
+  transition:
+    transform var(--dur-fast) var(--ease-snap),
+    box-shadow var(--dur-fast) var(--ease-snap),
+    filter var(--dur-fast) var(--ease-snap);
+  will-change: transform;
+}
+.pressable:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.pressable:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+.pressable:disabled {
+  cursor: default;
+}
+.pressable--glow:not(:disabled) {
+  box-shadow:
+    0 0 0 1px var(--home),
+    0 0 22px var(--home-glow);
+}
+
+/* ---- StaggerIn: cascade upward fade -------------------------------------- */
+.stagger-in__item {
+  animation: stagger-rise var(--dur-med) var(--ease-broadcast) both;
+}
+@keyframes stagger-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- ImpactBurst: radial ring + sparks ---------------------------------- */
+.impact-burst {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 5;
+}
+.impact-burst__ring {
+  position: absolute;
+  width: 22%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid var(--home);
+  opacity: 0.9;
+  animation: burst-ring 0.7s var(--ease-broadcast) forwards;
+}
+.impact-burst--away .impact-burst__ring {
+  border-color: var(--away);
+}
+.impact-burst--gold .impact-burst__ring {
+  border-color: var(--holo-gold);
+}
+.impact-burst__spark {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--home);
+  transform: rotate(var(--spark-angle)) translateY(0);
+  animation: burst-spark 0.75s var(--ease-broadcast) forwards;
+}
+.impact-burst--away .impact-burst__spark {
+  background: var(--away);
+}
+.impact-burst--gold .impact-burst__spark {
+  background: var(--holo-gold);
+}
+@keyframes burst-ring {
+  from {
+    transform: scale(0.3);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+@keyframes burst-spark {
+  0% {
+    transform: rotate(var(--spark-angle)) translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--spark-angle)) translateY(-90px) scale(0.2);
+    opacity: 0;
+  }
+}
+
+/* ---- StampReveal: full-time slam ---------------------------------------- */
+.stamp-reveal {
+  animation: stamp-in 0.5s var(--ease-snap) both;
+  transform-origin: center;
+}
+.stamp-reveal--gold {
+  color: var(--holo-gold);
+}
+.stamp-reveal--home {
+  color: var(--home);
+}
+.stamp-reveal--away {
+  color: var(--away);
+}
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.6) rotate(-4deg);
+    filter: blur(3px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-1deg);
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ---- holo foil sweep (legend / boss / special cards) -------------------- */
+.holo-foil {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.holo-foil::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: var(--holo-foil);
+  background-size: 220% 100%;
+  background-position: 200% 0;
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  pointer-events: none;
+  animation: holo-sweep 4.5s var(--ease-broadcast) infinite;
+}
+@keyframes holo-sweep {
+  0%,
+  18% {
+    background-position: 200% 0;
+  }
+  55%,
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .pressable:hover:not(:disabled),
+  .pressable:active:not(:disabled) {
+    transform: none;
+    transition: none;
+  }
+  .stagger-in__item,
+  .stamp-reveal {
+    animation: none;
+  }
+  .impact-burst {
+    display: none;
+  }
+  .holo-foil::after {
+    animation: none;
+    opacity: 0.25;
+    background-position: 50% 0;
+  }
+}
+
+/* ---- Three.js ambient backdrops (decorative, gated) --------------------- */
+.three-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.three-backdrop canvas {
+  display: block;
+}
+.three-backdrop--hero {
+  opacity: 0.85;
+}
+.three-backdrop--pitch {
+  border-radius: inherit;
+  opacity: 0.9;
+}
+
+/* ---- HoloCard3D: tilt-parallax collectible ------------------------------ */
+.holo-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform var(--dur-med) var(--ease-broadcast);
+  will-change: transform;
+}
+.holo-card--gold {
+  --holo-edge: var(--holo-gold);
+}
+.holo-card--home {
+  --holo-edge: var(--home);
+}
+.holo-card--away {
+  --holo-edge: var(--away);
+}
+@media (prefers-reduced-motion: reduce) {
+  .holo-card {
+    transform: none !important;
     transition: none;
   }
 }

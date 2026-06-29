@@ -3,17 +3,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
-  autoFillLineup,
-  bossSeed,
+  bossForWeek,
   buildStateSynergy,
   buildStateToTeamStrength,
   drawFormationOptions,
   effectiveStrength,
-  drawScenario,
   initBuildState,
   isLineupComplete,
-  isoWeekKey,
   replayAndValidate,
+  resolveBossBuildState,
   type BuildAction,
   type BuildState,
   type FormationDefinition,
@@ -30,10 +28,13 @@ import { MatchView } from "../_components/MatchView";
 import { StatsPanel } from "../_components/StatsPanel";
 import { ResultCard } from "../_components/ResultCard";
 import { MissionCard, type MissionView } from "../_components/MissionCard";
-import { BossCard } from "../_components/BossCard";
+import { BossCard, type BossView } from "../_components/BossCard";
+import { StaggerIn } from "../_components/motion";
+import { normalizeBossView } from "../_data/bossView";
 import { usePlayerId } from "../_hooks/usePlayerId";
 import { useGameCatalog } from "../_hooks/useGameCatalog";
-import { STRINGS as S } from "../_data/strings";
+import { mapBossError } from "../_i18n/mapBossError";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 const NEUTRAL_AWAY: TeamStrength = { attack: 80, midfield: 80, defense: 80, overall: 80 };
 
@@ -55,6 +56,7 @@ interface BossOutcome {
 }
 
 export default function MissionsPage() {
+  const S = useStrings();
   const { catalog, ready } = useGameCatalog();
   const { playerId, name } = usePlayerId();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
@@ -91,6 +93,7 @@ function MissionsContent({
   playerId: string;
   name: string;
 }) {
+  const S = useStrings();
   const [phase, setPhase] = useState<Phase>("overview");
   const [outcome, setOutcome] = useState<BossOutcome | null>(null);
   const [matchDone, setMatchDone] = useState(false);
@@ -98,8 +101,9 @@ function MissionsContent({
   const missions = useQuery(api.missions.myMissions, { playerId }) as
     | MissionView[]
     | undefined;
-  const boss = useQuery(api.boss.currentBoss, {});
+  const bossRaw = useQuery(api.boss.currentBoss, {});
   const bossStatus = useQuery(api.boss.myBossStatus, { playerId });
+  const boss = useMemo(() => normalizeBossView(bossRaw, catalog), [bossRaw, catalog]);
 
   const daily = useMemo(() => missions?.filter((m) => m.type === "daily") ?? [], [missions]);
   const career = useMemo(
@@ -111,6 +115,7 @@ function MissionsContent({
     <>
       {phase === "overview" && (
         <Overview
+          catalog={catalog}
           missionsLoading={missions === undefined}
           daily={daily}
           career={career}
@@ -143,7 +148,7 @@ function MissionsContent({
           <MatchView
             key={outcome.timeline.seed}
             timeline={outcome.timeline}
-            labels={{ home: name || S.heroHome, away: boss.scenario.team }}
+            labels={{ home: name || S.heroHome, away: boss.name }}
             onDone={() => setMatchDone(true)}
           />
           {matchDone && (
@@ -151,8 +156,8 @@ function MissionsContent({
               <ResultCard
                 timeline={outcome.timeline}
                 homeLabel={name || S.heroHome}
-                awayLabel={boss.scenario.team}
-                awayTag={`’${String(boss.scenario.cup).slice(-2)}`}
+                awayLabel={boss.name}
+                awayTag={S.boss.difficulty[boss.difficulty] ?? S.boss.difficulty.hard}
                 seed={outcome.timeline.seed}
                 onAgain={() => setPhase("overview")}
               />
@@ -163,7 +168,7 @@ function MissionsContent({
               )}
               <StatsPanel
                 timeline={outcome.timeline}
-                labels={{ home: name || S.heroHome, away: boss.scenario.team }}
+                labels={{ home: name || S.heroHome, away: boss.name }}
               />
             </>
           )}
@@ -174,6 +179,7 @@ function MissionsContent({
 }
 
 function Overview({
+  catalog,
   missionsLoading,
   daily,
   career,
@@ -181,13 +187,15 @@ function Overview({
   bossStatus,
   onChallenge,
 }: {
+  catalog: SquadCatalog;
   missionsLoading: boolean;
   daily: MissionView[];
   career: MissionView[];
-  boss: { weekKey: string; scenario: { team: string; cup: number } } | null;
+  boss: BossView | null;
   bossStatus: { triedToday: boolean; today: BossResult; bestThisWeek: BossResult } | null;
   onChallenge: () => void;
 }) {
+  const S = useStrings();
   return (
     <>
       <section className="missions-page">
@@ -200,27 +208,27 @@ function Overview({
           <>
             <h2 className="missions-page__group">{S.missions.daily}</h2>
             <p className="dim missions-page__hint">{S.missions.dailyHint}</p>
-            <div className="missions-grid">
+            <StaggerIn className="missions-grid" step={55}>
               {daily.map((m) => (
                 <MissionCard key={m.id} mission={m} />
               ))}
-            </div>
+            </StaggerIn>
 
             <h2 className="missions-page__group">{S.missions.persistent}</h2>
             <p className="dim missions-page__hint">{S.missions.persistentHint}</p>
-            <div className="missions-grid">
+            <StaggerIn className="missions-grid" step={45}>
               {career.map((m) => (
                 <MissionCard key={m.id} mission={m} />
               ))}
-            </div>
+            </StaggerIn>
           </>
         )}
       </section>
 
       {boss && (
         <BossCard
-          team={boss.scenario.team}
-          cup={boss.scenario.cup}
+          boss={boss}
+          catalog={catalog}
           triedToday={bossStatus?.triedToday ?? false}
           today={bossStatus?.today ?? null}
           bestThisWeek={bossStatus?.bestThisWeek ?? null}
@@ -250,6 +258,7 @@ function BossBuild({
   onCancel: () => void;
   onResolved: (o: BossOutcome) => void;
 }) {
+  const S = useStrings();
   const challengeBoss = useMutation(api.boss.challengeBoss);
   const [seed] = useState(() => newSeed());
   const [formationOptions] = useState<FormationDefinition[]>(() =>
@@ -265,15 +274,13 @@ function BossBuild({
   // The exact weekly Boss XI strength, for the Build comparison meter.
   const bossStrength = useMemo<TeamStrength>(() => {
     try {
-      const scenario = drawScenario(catalog, bossSeed(weekKey));
-      const xi = autoFillLineup(
-        catalog,
-        initBuildState(catalog, bossSeed(weekKey), "away", scenario.id),
-      );
+      const definition = bossForWeek(weekKey);
+      const xi = resolveBossBuildState(catalog, definition, weekKey, "away");
       const synergy = buildStateSynergy(catalog, xi);
       return effectiveStrength(buildStateToTeamStrength(catalog, xi), {
         chemistryBonus: synergy.chemistryBonus,
         legendBonus: synergy.legendBonus,
+        tactic: definition.tactic,
       });
     } catch {
       return NEUTRAL_AWAY;
@@ -301,7 +308,9 @@ function BossBuild({
         tactic: "balanced",
       });
       if (!replay.ok) {
-        throw new Error("Invalid build: " + replay.errors.map((e) => e.message).join(", "));
+        throw new Error(
+          `BOSS_INVALID_BUILD:${replay.errors.map((e) => e.message).join(", ")}`,
+        );
       }
       const res = await challengeBoss({
         playerId,
@@ -318,10 +327,11 @@ function BossBuild({
         missionsCompleted: res.missionsCompleted,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not challenge the Boss");
+      const msg = e instanceof Error ? e.message : "";
+      setError(msg ? mapBossError(msg, S) : S.errors.bossChallengeFailed);
       setSubmitting(false);
     }
-  }, [buildState, formationId, submitting, catalog, seed, challengeBoss, playerId, onResolved]);
+  }, [buildState, formationId, submitting, catalog, seed, challengeBoss, playerId, onResolved, S]);
 
   if (!formationId || !buildState) {
     return (

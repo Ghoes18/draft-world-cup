@@ -26,6 +26,7 @@ export function PlayerAvatar({
         `player-avatar--${size}`,
         selected ? "player-avatar--selected" : "",
         legend ? "player-avatar--legend" : "",
+        legend ? "holo-foil" : "",
         showPhoto ? "player-avatar--photo" : "player-avatar--fallback",
         className,
       ]

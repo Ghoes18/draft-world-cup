@@ -24,7 +24,7 @@ import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
 import { TournamentReveal } from "../_components/TournamentReveal";
 import { usePlayerId } from "../_hooks/usePlayerId";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 const NEUTRAL_AWAY: TeamStrength = { attack: 78, midfield: 78, defense: 78, overall: 78 };
 
@@ -108,6 +108,7 @@ function useDraftState(catalog: SquadCatalog | null) {
 }
 
 export default function DuelPage() {
+  const S = useStrings();
   const { playerId, name, setName } = usePlayerId();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
 
@@ -118,15 +119,15 @@ export default function DuelPage() {
 
   return (
     <main className="shell">
-      <Header meta="Online · World Cup" />
+      <Header meta={S.brand.metaOnline} />
       {!convexReady ? (
         <SetupHint />
       ) : !playerId ? (
-        <p className="dim">Loading…</p>
+        <p className="dim">{S.duel.loading}</p>
       ) : catalogError ? (
         <CatalogError />
       ) : !catalog ? (
-        <p className="dim">Loading squads…</p>
+        <p className="dim">{S.duel.loadingSquads}</p>
       ) : phase === "build" ? (
         <BuildStep
           catalog={catalog}
@@ -166,27 +167,21 @@ export default function DuelPage() {
 }
 
 function SetupHint() {
+  const S = useStrings();
   return (
     <section className="panel" style={{ padding: "1.5rem" }}>
-      <h2 className="panel__title">Online World Cup needs Convex</h2>
-      <p className="dim">
-        Run <code>pnpm build</code> (engine) then <code>npx convex dev</code> in{" "}
-        <code>apps/web</code>. That writes <code>NEXT_PUBLIC_CONVEX_URL</code> to{" "}
-        <code>.env.local</code>. Restart <code>next dev</code> and reload.
-      </p>
+      <h2 className="panel__title">{S.duel.needConvexTitle}</h2>
+      <p className="dim">{S.duel.needConvexBody}</p>
     </section>
   );
 }
 
 function CatalogError() {
+  const S = useStrings();
   return (
     <section className="panel" style={{ padding: "1.5rem" }}>
-      <h2 className="panel__title">Couldn’t load the squad catalog</h2>
-      <p className="dim">
-        The online World Cup needs <code>/catalog.json</code>. Run{" "}
-        <code>pnpm build:catalog</code> (root), then reload. Joining is blocked
-        until it loads — the server validates drafts against the same file.
-      </p>
+      <h2 className="panel__title">{S.duel.catalogErrorTitle}</h2>
+      <p className="dim">{S.duel.catalogErrorBody}</p>
     </section>
   );
 }
@@ -213,6 +208,7 @@ function BuildStep({
   onQueued: () => void;
   onMatched: (tournamentId: TournamentState["tournamentId"]) => void;
 }) {
+  const S = useStrings();
   const joinQueue = useMutation(api.tournament.joinQueue);
   const { seed, formationOptions, pendingFormationId, setPendingFormationId, formationId, buildState, setBuildState, actionsRef, reset, confirmFormation } = draft;
 
@@ -239,7 +235,7 @@ function BuildStep({
       });
       if (!replay.ok) {
         throw new Error(
-          "Invalid build: " + replay.errors.map((e) => e.message).join(", "),
+          `BOSS_INVALID_BUILD:${replay.errors.map((e) => e.message).join(", ")}`,
         );
       }
       const res = await joinQueue({
@@ -253,10 +249,11 @@ function BuildStep({
       if (res.status === "matched") onMatched(res.tournamentId);
       else onQueued();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not join the World Cup");
+      const msg = e instanceof Error ? e.message : "";
+      setError(msg.startsWith("BOSS_INVALID_BUILD:") ? S.errors.invalidBuild(msg.slice("BOSS_INVALID_BUILD:".length)) : msg || S.duel.joinFailed);
       setSubmitting(false);
     }
-  }, [buildState, formationId, submitting, joinQueue, playerId, name, seed, actionsRef, onMatched, onQueued, catalog]);
+  }, [buildState, formationId, submitting, joinQueue, playerId, name, seed, actionsRef, onMatched, onQueued, catalog, S]);
 
   function onRerollSquad() {
     reset();
@@ -299,10 +296,10 @@ function BuildStep({
           {error && <p className="draft-roll__rerolls--low">{error}</p>}
           <section className="hero__cta" style={{ padding: "1rem", display: "flex", gap: "1rem" }}>
             <button className="btn-kick" disabled={!canJoin || submitting} onClick={onJoinWorldCup}>
-              {submitting ? "Joining…" : "Join World Cup"}
+              {submitting ? S.duel.joining : S.duel.joinWorldCup}
             </button>
             <button onClick={onRerollSquad} disabled={submitting}>
-              Reroll squad
+              {S.duel.rerollSquad}
             </button>
           </section>
         </>
@@ -320,6 +317,7 @@ function SearchingStep({
   onMatched: (tournamentId: TournamentState["tournamentId"]) => void;
   onCancel: () => void;
 }) {
+  const S = useStrings();
   const leaveQueue = useMutation(api.tournament.leaveQueue);
   const heartbeat = useMutation(api.tournament.heartbeat);
   const status = useQuery(api.tournament.myQueueStatus, { playerId });
@@ -340,21 +338,18 @@ function SearchingStep({
 
   return (
     <section className="panel" style={{ padding: "1.5rem", textAlign: "center" }}>
-      <h2 className="panel__title">Filling the World Cup…</h2>
+      <h2 className="panel__title">{S.duel.fillingTitle}</h2>
       <p className="dim mono">
-        {waitingCount} / {poolSize} players
+        {S.duel.waitingCount(waitingCount, poolSize)}
       </p>
-      <p className="dim">
-        We'll auto-fill with real historical squads if the pool doesn't fill in time —
-        either way, kickoff is coming.
-      </p>
+      <p className="dim">{S.duel.fillingHint}</p>
       <button
         onClick={async () => {
           await leaveQueue({ playerId });
           onCancel();
         }}
       >
-        Cancel
+        {S.duel.cancel}
       </button>
     </section>
   );
@@ -369,6 +364,7 @@ function RevealStep({
   playerId: string;
   onSearchAgain: () => void;
 }) {
+  const S = useStrings();
   const state = useQuery(api.tournament.tournamentState, { tournamentId });
   const rating = useQuery(api.ratings.myRating, { playerId });
   const leaveQueue = useMutation(api.tournament.leaveQueue);
@@ -377,8 +373,8 @@ function RevealStep({
     leaveQueue({ playerId }).catch(() => {});
   }, [playerId, leaveQueue]);
 
-  if (state === undefined) return <p className="dim">Loading tournament…</p>;
-  if (state === null) return <p className="dim">Tournament not found.</p>;
+  if (state === undefined) return <p className="dim">{S.duel.loadingTournament}</p>;
+  if (state === null) return <p className="dim">{S.duel.tournamentNotFound}</p>;
 
   const mySlot = state.participants.find((p) => p.playerId === playerId)?.slot;
   // Only surface a delta when the rating row reflects *this* tournament.
@@ -406,6 +402,7 @@ function RevealStep({
       }}
       mySlot={mySlot}
       onPlayAgain={onSearchAgain}
+      playAgainLabel={S.duel.playAgain}
       {...(ratedThis
         ? { myElo: rating!.elo, ...(rating!.lastDelta !== undefined ? { myEloDelta: rating!.lastDelta } : {}) }
         : {})}

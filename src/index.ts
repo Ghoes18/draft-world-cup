@@ -41,6 +41,8 @@ export * from "./tournament.js";
 export * from "./elo.js";
 export * from "./period.js";
 export * from "./missions.js";
+export * from "./bosses.js";
+export * from "./i18n/index.js";
 export * from "./playerPhoto.js";
 export * from "./playerNames.js";
 export {

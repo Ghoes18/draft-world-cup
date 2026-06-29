@@ -1,13 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
-  autoFillLineup,
+  bossForWeek,
   bossSeed,
   buildMatchOutcome,
-  drawScenario,
-  initBuildState,
   isoWeekKey,
   replayAndValidate,
+  resolveBossBuildState,
   resolveDuel,
   utcDateKey,
   type BuildAction,
@@ -21,35 +20,48 @@ const tacticValidator = v.union(
   v.literal("defensive"),
 );
 
+const difficultyValidator = v.union(v.literal("hard"), v.literal("veryHard"));
+
+const bossViewValidator = v.object({
+  weekKey: v.string(),
+  id: v.string(),
+  name: v.string(),
+  subtitle: v.string(),
+  difficulty: difficultyValidator,
+  featuredPlayers: v.array(v.string()),
+  tactic: tacticValidator,
+});
+
 const WEEK_ATTEMPTS_SCAN = 16; // ≤7 attempts per player per week
 
-/** The weekly Boss squad (same for everyone all week), drawn from the week seed. */
-function bossScenarioFor(weekKey: string) {
-  return drawScenario(gameCatalog, bossSeed(weekKey));
-}
-
-/** The Boss's fixed weekly XI — identical for every challenger. */
-function bossAwaySide(weekKey: string, scenarioId: string) {
+function bossViewForWeek(weekKey: string) {
+  const definition = bossForWeek(weekKey);
   return {
-    buildState: autoFillLineup(
-      gameCatalog,
-      initBuildState(gameCatalog, bossSeed(weekKey), "away", scenarioId),
-    ),
-    tactic: "balanced" as const,
+    weekKey,
+    id: definition.id,
+    name: definition.name,
+    subtitle: definition.subtitle,
+    difficulty: definition.difficulty,
+    featuredPlayers: [...definition.featuredPlayers],
+    tactic: definition.tactic,
   };
 }
 
-/** Reactive: this week's Boss scenario (team + Cup). */
+/** Fixed Boss away XI for the week — identical for every challenger. */
+function bossAwaySide(weekKey: string) {
+  const definition = bossForWeek(weekKey);
+  return {
+    buildState: resolveBossBuildState(gameCatalog, definition, weekKey, "away"),
+    tactic: definition.tactic,
+  };
+}
+
+/** Reactive: this week's thematic Boss squad. */
 export const currentBoss = query({
   args: {},
-  returns: v.object({
-    weekKey: v.string(),
-    scenario: v.object({ team: v.string(), cup: v.number() }),
-  }),
+  returns: bossViewValidator,
   handler: async () => {
-    const weekKey = isoWeekKey();
-    const scenario = bossScenarioFor(weekKey);
-    return { weekKey, scenario: { team: scenario.team, cup: scenario.cup } };
+    return bossViewForWeek(isoWeekKey());
   },
 });
 
@@ -86,7 +98,6 @@ export const myBossStatus = query({
       )
       .take(WEEK_ATTEMPTS_SCAN);
 
-    // Best = highest goal difference, then most goals scored.
     const best = weekRows.reduce<(typeof weekRows)[number] | null>((acc, r) => {
       if (!acc) return r;
       const dr = r.gf - r.ga;
@@ -135,13 +146,13 @@ export const challengeBoss = mutation({
         q.eq("playerId", args.playerId).eq("dateKey", dateKey),
       )
       .unique();
-    if (already) throw new Error("You've already challenged the Boss today.");
+    if (already) throw new Error("BOSS_ALREADY_TRIED_TODAY");
 
     let actions: BuildAction[];
     try {
       actions = JSON.parse(args.actionsJson) as BuildAction[];
     } catch {
-      throw new Error("Malformed build: actions could not be parsed");
+      throw new Error("BOSS_MALFORMED_BUILD");
     }
     const replay = replayAndValidate(gameCatalog, {
       seed: args.seed,
@@ -152,17 +163,16 @@ export const challengeBoss = mutation({
     });
     if (!replay.ok) {
       throw new Error(
-        "Invalid build: " + replay.errors.map((e) => e.message).join(", "),
+        `BOSS_INVALID_BUILD:${replay.errors.map((e) => e.message).join(", ")}`,
       );
     }
 
-    const scenario = bossScenarioFor(weekKey);
-    // Per-attempt match seed (boss XI stays fixed via `bossAwaySide`).
+    // Per-attempt match seed (Boss XI stays fixed via `bossAwaySide`).
     const matchSeed = `${bossSeed(weekKey)}:${args.playerId}:${dateKey}`;
     const { result, timeline, finalStates } = resolveDuel(gameCatalog, {
       seed: matchSeed,
       home: { buildState: replay.state, tactic: args.tactic },
-      away: bossAwaySide(weekKey, scenario.id),
+      away: bossAwaySide(weekKey),
       knockout: true,
     });
 

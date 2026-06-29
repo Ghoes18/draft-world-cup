@@ -84,8 +84,9 @@ export default defineSchema({
 
   // --- M6: Missions & Weekly Boss (server-authoritative, per playerId) ---
 
-  // One row per player's daily Boss attempt (1/day). The Boss squad is fixed
-  // for the ISO week (`weekKey`); `dateKey` enforces the one-try-per-day rule.
+  // One row per player's daily Boss attempt (1/day). The Boss squad is a fixed
+  // thematic all-star XI for the ISO week (`weekKey`); `dateKey` enforces the
+  // one-try-per-day rule.
   bossAttempts: defineTable({
     playerId: v.string(),
     weekKey: v.string(), // ISO week, e.g. "2026-W26"

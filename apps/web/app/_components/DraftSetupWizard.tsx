@@ -1,17 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 export type DraftSetupStep = 1 | 2 | 3;
 
-const STEPS: readonly { step: DraftSetupStep; label: string }[] = [
-  { step: 1, label: S.wizard.name },
-  { step: 2, label: S.wizard.formation },
-  { step: 3, label: S.wizard.build },
-];
-
-const STEP_COUNT = STEPS.length;
+const STEP_COUNT = 3;
 
 function stepState(n: DraftSetupStep, current: DraftSetupStep): "done" | "active" | "pending" {
   if (n < current) return "done";
@@ -26,6 +20,12 @@ export function DraftSetupWizard({
   step: DraftSetupStep;
   children: ReactNode;
 }) {
+  const S = useStrings();
+  const steps: readonly { step: DraftSetupStep; label: string }[] = [
+    { step: 1, label: S.wizard.name },
+    { step: 2, label: S.wizard.formation },
+    { step: 3, label: S.wizard.build },
+  ];
   const progressPct =
     STEP_COUNT <= 1 ? 100 : ((step - 1) / (STEP_COUNT - 1)) * 100;
 
@@ -43,7 +43,7 @@ export function DraftSetupWizard({
             />
           </div>
           <ol className="setup-wizard__steps">
-            {STEPS.map(({ step: n, label }) => {
+            {steps.map(({ step: n, label }) => {
               const state = stepState(n, step);
               return (
                 <li
@@ -78,6 +78,7 @@ export function NameSetupStep({
   onNameChange: (name: string) => void;
   onContinue: () => void;
 }) {
+  const S = useStrings();
   const trimmed = name.trim();
   const canContinue = trimmed.length > 0;
   const preview = trimmed || "—";

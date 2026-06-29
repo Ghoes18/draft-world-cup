@@ -11,12 +11,13 @@
 - Online duel (`/duel`) draft setup is a 3-step wizard: name → formation → build XI.
 - Reject placement-based squad chemistry (natural-vs-slot fit meter and strength bonus); only inter-player links like FIFA would be acceptable as a future chemistry feature.
 - Solo/offline play: hide the lobby hero, header, and objectives strip once draft begins; keep New draft / Kick off in a compact action bar during the XI build.
+- Weekly Boss: curated thematic fantasy XIs (e.g. "Best of the 90s", "Best of Brazil") — hard but beatable with a good draft — not a random historical national team roll.
 
 ## Learned Workspace Facts
 
 - **Source of truth for docs:** README.md, CLAUDE.md, MVP.md, PRD.md, GAME-GUIDE-AND-RULES.md (see README documentation map). When MVP.md and PRD.md disagree, **MVP.md wins**.
 - M1 complete (engine + timeline + Fast text). Presentation is text-only — no 2D render library. Verify with `pnpm typecheck`, `pnpm test`, `pnpm sim`.
-- **MVP build order M1–M6** (no 2D renderer milestone); M1–M3 are complete, **M4 is in progress as a server-authoritative World Cup tournament** with Convex queue/batch resolution, shared `src/tournament.ts` for online and instant offline solo, and M5/M6 are not started.
+- **MVP build order M1–M6** (no 2D renderer milestone); M1–M3 are complete, **M4 is in progress as a server-authoritative World Cup tournament** with Convex queue/batch resolution, shared `src/tournament.ts` for online and instant offline solo; M5 not started; **M6 weekly Boss/missions in progress** (`src/bosses.ts` thematic squads via `bossForWeek`, Convex `boss.ts`, `/missions`).
 - No standalone Vite/browser demo harness in this repo; text match viewer lives in `apps/web/`.
 - `.cursor/` is gitignored; do not commit local Cursor hook/editor state.
 - Catalog overlay pipeline (OVR, positions, optional photos; precedence: curated > external CSV > Zafronix > Wikimedia/Fjelstul heuristic): `pnpm build:catalog` → optional `pnpm import:zafronix --from 1930 --to 1969` → optional `pnpm import:photos --overlay` → optional `pnpm import:external --csv … --overlay` → optional `pnpm import:squads --dir ./squads/curated --overlay`.

@@ -5,36 +5,42 @@ import type { MatchTimeline, ResolvedTournament } from "7a0-engine";
 import { MatchView } from "./MatchView";
 import { StatsPanel } from "./StatsPanel";
 import { ShareHighlight } from "./ShareHighlight";
-import { STRINGS as S } from "../_data/strings";
+import { StampReveal } from "./motion";
+import { useStrings } from "../_i18n/LocaleProvider";
+import type { StringCatalog } from "../_i18n/types";
 
 export type TournamentViewState = ResolvedTournament & {
   /** Optional Convex id — offline runs omit this. */
   tournamentId?: string;
 };
 
-function slotName(participants: TournamentViewState["participants"], slot: number): string {
-  return participants.find((p) => p.slot === slot)?.name ?? `Slot ${slot}`;
+function slotName(
+  participants: TournamentViewState["participants"],
+  slot: number,
+  S: StringCatalog,
+): string {
+  return participants.find((p) => p.slot === slot)?.name ?? S.tournament.slotName(slot);
 }
 
-function myJourney(state: TournamentViewState, mySlot: number): string {
+function myJourney(state: TournamentViewState, mySlot: number, S: StringCatalog): string {
   const myGroup = state.participants.find((p) => p.slot === mySlot)?.groupIndex;
   const final = state.matches.find((m) => m.stage === "final");
   const semis = state.matches.filter((m) => m.stage === "semi");
-  if (state.championSlot === mySlot) return "🏆 Champion!";
-  if (final && (final.homeSlot === mySlot || final.awaySlot === mySlot)) return "Runner-up";
+  if (state.championSlot === mySlot) return S.tournament.champion;
+  if (final && (final.homeSlot === mySlot || final.awaySlot === mySlot)) return S.tournament.runnerUp;
   const mySemi = semis.find((m) => m.homeSlot === mySlot || m.awaySlot === mySlot);
-  if (mySemi) return "Eliminated in the semifinal";
+  if (mySemi) return S.tournament.eliminatedSemifinal;
   const standing = state.standings.find((s) => s.groupIndex === myGroup);
   const rank = standing?.table.findIndex((t) => t.slot === mySlot) ?? -1;
-  if (rank >= 0 && rank < 2) return "Advanced from the group — eliminated before the semifinal";
-  return "Eliminated in the group stage";
+  if (rank >= 0 && rank < 2) return S.tournament.advancedGroup;
+  return S.tournament.eliminatedGroup;
 }
 
 export function TournamentReveal({
   state,
   mySlot,
   onPlayAgain,
-  playAgainLabel = "Search again with a new squad",
+  playAgainLabel,
   myElo,
   myEloDelta,
 }: {
@@ -48,6 +54,8 @@ export function TournamentReveal({
   /** Rating change earned in this tournament (online only). */
   myEloDelta?: number;
 }) {
+  const S = useStrings();
+  const againLabel = playAgainLabel ?? S.duel.playAgain;
   const [expanded, setExpanded] = useState<number | null>(null);
   const [campaignDone, setCampaignDone] = useState(false);
   const handleCampaignDone = useCallback(() => setCampaignDone(true), []);
@@ -73,8 +81,8 @@ export function TournamentReveal({
           : S.campaign.final;
     return {
       timeline: m.timeline,
-      home: slotName(state.participants, m.homeSlot),
-      away: slotName(state.participants, m.awaySlot),
+      home: slotName(state.participants, m.homeSlot, S),
+      away: slotName(state.participants, m.awaySlot, S),
       header,
     };
   });
@@ -90,11 +98,15 @@ export function TournamentReveal({
       {showResults && (
         <>
           <section className="panel" style={{ padding: "1rem", textAlign: "center" }}>
-            <h2 className="panel__title">
-              {mySlot !== undefined ? myJourney(state, mySlot) : "Tournament complete"}
-            </h2>
+            <StampReveal
+              as="h2"
+              className="panel__title"
+              tone={mySlot !== undefined && state.championSlot === mySlot ? "gold" : "neutral"}
+            >
+              {mySlot !== undefined ? myJourney(state, mySlot, S) : S.tournament.complete}
+            </StampReveal>
             <p className="mono dim">
-              Champion: {slotName(state.participants, state.championSlot)}
+              {S.tournament.championLabel}: {slotName(state.participants, state.championSlot, S)}
             </p>
             {myElo !== undefined && (
               <p className="mono" style={{ marginTop: "0.5rem" }}>
@@ -117,16 +129,22 @@ export function TournamentReveal({
             className="panel"
             style={{ padding: "1rem", display: "flex", gap: "2rem", flexWrap: "wrap" }}
           >
-            {state.standings.map((group) => (
-              <div key={group.groupIndex} style={{ flex: "1 1 280px" }}>
-                <h3 className="panel__title">Group {group.groupIndex === 0 ? "A" : "B"}</h3>
+            {state.standings.map((group, gi) => (
+              <div
+                key={group.groupIndex}
+                className="stagger-in__item"
+                style={{ flex: "1 1 280px", animationDelay: `${gi * 120}ms` }}
+              >
+                <h3 className="panel__title">
+                  {group.groupIndex === 0 ? S.tournament.groupA : S.tournament.groupB}
+                </h3>
                 <table className="mono" style={{ width: "100%", fontSize: "0.85rem" }}>
                   <thead>
                     <tr>
-                      <th align="left">Team</th>
-                      <th>P</th>
-                      <th>GD</th>
-                      <th>Pts</th>
+                      <th align="left">{S.tournament.team}</th>
+                      <th>{S.tournament.played}</th>
+                      <th>{S.tournament.gd}</th>
+                      <th>{S.tournament.pts}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -135,7 +153,7 @@ export function TournamentReveal({
                         key={row.slot}
                         style={row.slot === mySlot ? { fontWeight: "bold" } : undefined}
                       >
-                        <td>{slotName(state.participants, row.slot)}</td>
+                        <td>{slotName(state.participants, row.slot, S)}</td>
                         <td align="center">{row.played}</td>
                         <td align="center">{row.gd}</td>
                         <td align="center">{row.points}</td>
@@ -149,12 +167,12 @@ export function TournamentReveal({
 
           {mySlot !== undefined && (
             <section className="panel" style={{ padding: "1rem" }}>
-              <h3 className="panel__title">Your group fixtures</h3>
+              <h3 className="panel__title">{S.tournament.yourFixtures}</h3>
               {myMatches
                 .filter((m) => m.stage === "group")
                 .map((m, i) => {
-                  const home = slotName(state.participants, m.homeSlot);
-                  const away = slotName(state.participants, m.awaySlot);
+                  const home = slotName(state.participants, m.homeSlot, S);
+                  const away = slotName(state.participants, m.awaySlot, S);
                   const key = state.matches.indexOf(m);
                   return (
                     <div key={i} style={{ marginBottom: "0.5rem" }}>
@@ -176,10 +194,10 @@ export function TournamentReveal({
           )}
 
           <section className="panel" style={{ padding: "1rem" }}>
-            <h3 className="panel__title">Knockout bracket</h3>
+            <h3 className="panel__title">{S.tournament.knockout}</h3>
             {semis.map((m, i) => {
-              const home = slotName(state.participants, m.homeSlot);
-              const away = slotName(state.participants, m.awaySlot);
+              const home = slotName(state.participants, m.homeSlot, S);
+              const away = slotName(state.participants, m.awaySlot, S);
               const key = state.matches.indexOf(m);
               return (
                 <div key={`sf-${i}`} style={{ marginBottom: "0.5rem" }}>
@@ -189,7 +207,7 @@ export function TournamentReveal({
                     onClick={() => setExpanded(expanded === key ? null : key)}
                     style={{ width: "100%", textAlign: "left" }}
                   >
-                    Semifinal {i + 1}: {home} {m.gf}–{m.ga} {away}
+                    {S.tournament.semifinalN(i + 1)}: {home} {m.gf}–{m.ga} {away}
                   </button>
                   {expanded === key && (
                     <FixtureDetail timeline={m.timeline} home={home} away={away} />
@@ -211,14 +229,14 @@ export function TournamentReveal({
                   }
                   style={{ width: "100%", textAlign: "left" }}
                 >
-                  Final: {slotName(state.participants, final.homeSlot)} {final.gf}–{final.ga}{" "}
-                  {slotName(state.participants, final.awaySlot)}
+                  {S.tournament.final}: {slotName(state.participants, final.homeSlot, S)} {final.gf}–{final.ga}{" "}
+                  {slotName(state.participants, final.awaySlot, S)}
                 </button>
                 {expanded === state.matches.indexOf(final) && (
                   <FixtureDetail
                     timeline={final.timeline}
-                    home={slotName(state.participants, final.homeSlot)}
-                    away={slotName(state.participants, final.awaySlot)}
+                    home={slotName(state.participants, final.homeSlot, S)}
+                    away={slotName(state.participants, final.awaySlot, S)}
                   />
                 )}
               </div>
@@ -229,7 +247,7 @@ export function TournamentReveal({
 
       <section className="hero__cta" style={{ padding: "1rem", textAlign: "center" }}>
         <button type="button" className="btn-kick" onClick={onPlayAgain}>
-          {playAgainLabel}
+          {againLabel}
         </button>
       </section>
     </>
@@ -274,6 +292,7 @@ function CampaignPlayer({
   sequence: CampaignFixture[];
   onAllDone: () => void;
 }) {
+  const S = useStrings();
   const [index, setIndex] = useState(0);
   const [matchDone, setMatchDone] = useState(false);
 

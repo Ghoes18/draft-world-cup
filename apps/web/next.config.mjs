@@ -8,7 +8,12 @@ const nextConfig = {
   // Pin the monorepo root so Next doesn't pick up a stray lockfile elsewhere.
   outputFileTracingRoot: repoRoot,
   // The engine ships raw TypeScript source (no build step); let Next compile it.
-  transpilePackages: ["7a0-engine"],
+  transpilePackages: [
+    "7a0-engine",
+    "three",
+    "@react-three/fiber",
+    "@react-three/drei",
+  ],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "upload.wikimedia.org" },

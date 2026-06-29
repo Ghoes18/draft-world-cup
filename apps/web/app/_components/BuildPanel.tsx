@@ -34,7 +34,7 @@ import {
 import { useCasinoRoulette } from "../_hooks/useCasinoRoulette";
 import { Pitch } from "./Pitch";
 import { PlayerAvatar } from "./PlayerAvatar";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 import { formatScenarioLabel } from "../_data/teamDisplay";
 
 function scenarioId(s: SquadScenario): string {
@@ -57,6 +57,7 @@ export function BuildPanel({
   /** Optional: records each draft action (online duel server-replay log). */
   onAction?: (action: BuildAction) => void;
 }) {
+  const S = useStrings();
   const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
 
@@ -100,7 +101,11 @@ export function BuildPanel({
   const scenarioSpinKey = `${buildState.turnIndex}:${buildState.rerollCounter}:${buildState.currentScenarioId}`;
   const scenarioPool = useMemo(() => catalog.scenarios, [catalog.scenarios]);
 
-  const { display: displayScenario, spinning: scenarioSpinning } = useCasinoRoulette({
+  const {
+    display: displayScenario,
+    spinning: scenarioSpinning,
+    frame: scenarioSpinFrame,
+  } = useCasinoRoulette({
     pool: scenarioPool,
     target: currentScenario,
     spinKey: scenarioSpinKey,
@@ -211,10 +216,29 @@ export function BuildPanel({
                     {S.build.turn(`${turnIndex + 1} / 11`)}
                   </span>
                 </div>
-                <div className="draft-roll__team">
-                  <span className="draft-roll__team-line">
-                    {formatScenarioLabel(displayScenario.team, displayScenario.cup)}
-                  </span>
+                <div
+                  className={`draft-roll__team casino-roulette ${
+                    scenarioSpinning
+                      ? "casino-roulette--spinning"
+                      : "casino-roulette--settled"
+                  }`}
+                  aria-busy={scenarioSpinning || undefined}
+                >
+                  <div className="casino-roulette__window">
+                    <span
+                      key={
+                        scenarioSpinning
+                          ? `spin-${scenarioSpinFrame}`
+                          : displayScenario.id
+                      }
+                      className="casino-roulette__item draft-roll__team-line"
+                    >
+                      {formatScenarioLabel(
+                        displayScenario.team,
+                        displayScenario.cup,
+                      )}
+                    </span>
+                  </div>
                 </div>
                 <div className="draft-roll__facts mono dim">
                   <span>{S.build.squadSize(squadSize)}</span>
@@ -430,6 +454,7 @@ function DraftProgress({
   turnIndex: number;
   filledSlots: number;
 }) {
+  const S = useStrings();
   return (
     <div className="draft-progress" aria-label={S.build.draftInProgress(turnIndex + 1)}>
       <div className="draft-progress__track">
@@ -512,6 +537,7 @@ function PlayerPickRow({
   slots: { slotId: string; position: string }[];
   formationSlots: readonly { position: string }[];
 }) {
+  const S = useStrings();
   const positions =
     slots.length > 0
       ? formatPlacementOptions(slots)

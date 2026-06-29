@@ -5,7 +5,7 @@
  * week. Both keys are pure functions of a millisecond timestamp computed in
  * **UTC**, so the server (Convex `Date.now()`) and any client agree on which
  * mission set / Boss is active. The keys also seed the deterministic draws
- * (`bossSeed` → `drawScenario`, `dailyMissionSeed` → `dailyMissions`), keeping
+ * (`bossSeed` → `bossForWeek`, `dailyMissionSeed` → `dailyMissions`), keeping
  * the whole feature reproducible from the calendar alone.
  */
 

@@ -5,7 +5,7 @@ import type { FormationDefinition, FormationMentality } from "7a0-engine";
 import { listFormations } from "7a0-engine";
 import { FormationPreview } from "./FormationPreview";
 import { useCasinoRoulette } from "../_hooks/useCasinoRoulette";
-import { STRINGS as S } from "../_data/strings";
+import { useStrings } from "../_i18n/LocaleProvider";
 
 const FORMATION_POOL = listFormations();
 const SPIN_MS = 2200;
@@ -14,7 +14,7 @@ function getFormationId(f: FormationDefinition): string {
   return f.id;
 }
 
-function mentalityLabel(m: FormationMentality): string {
+function mentalityLabel(m: FormationMentality, S: ReturnType<typeof useStrings>): string {
   return S.formation.mentality[m];
 }
 
@@ -33,6 +33,7 @@ function FormationSpinCard({
   onSelect: () => void;
   onCardSpin: (formationId: string, spinning: boolean) => void;
 }) {
+  const S = useStrings();
   const onCardSpinRef = useRef(onCardSpin);
   onCardSpinRef.current = onCardSpin;
 
@@ -58,8 +59,9 @@ function FormationSpinCard({
       disabled={spinning}
       className={[
         "formation-card",
+        "pressable",
         selected ? "formation-card--selected" : "",
-        spinning ? "formation-card--spinning" : "",
+        spinning ? "formation-card--spinning" : "formation-card--settled",
         `formation-card--${formation.mentality}`,
       ]
         .filter(Boolean)
@@ -68,7 +70,7 @@ function FormationSpinCard({
     >
       <FormationPreview formation={formation} />
       <span className={`formation-card__tag formation-card__tag--${formation.mentality}`}>
-        {mentalityLabel(formation.mentality)}
+        {mentalityLabel(formation.mentality, S)}
       </span>
       <strong className="formation-card__label">{formation.label}</strong>
       <span className="formation-card__shape mono dim">{formation.baseShape}</span>
@@ -88,6 +90,7 @@ export function FormationPicker({
   onSelect: (formationId: string) => void;
   onConfirm: () => void;
 }) {
+  const S = useStrings();
   const spinKey = useMemo(() => options.map((f) => f.id).join("|"), [options]);
   const [spinningCount, setSpinningCount] = useState(0);
   const spinningIds = useRef(new Set<string>());
