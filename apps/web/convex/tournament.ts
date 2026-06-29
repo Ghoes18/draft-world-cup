@@ -7,8 +7,11 @@ import {
   replayAndValidate,
   resolveWorldCup,
   computeStandings,
+  computeTournamentEloChanges,
+  DEFAULT_ELO,
   type BuildAction,
   type ResolvedSide,
+  type ResolvedTournament,
   type Side,
   type Tactic,
   type TournamentEntry,
@@ -165,7 +168,84 @@ async function startTournament(ctx: MutationCtx, entries: readonly Entry[]): Pro
     }
   }
 
+  await updateRatings(ctx, tournamentId, resolved);
+
   return tournamentId;
+}
+
+/**
+ * Fold a resolved tournament's per-fixture Elo into each human's persistent
+ * rating (PRD §9.9). Bots are seeded at `DEFAULT_ELO` and never persisted.
+ */
+async function updateRatings(
+  ctx: MutationCtx,
+  tournamentId: Id<"tournaments">,
+  resolved: ResolvedTournament,
+): Promise<void> {
+  const humans = resolved.participants.filter(
+    (p): p is typeof p & { playerId: string } =>
+      p.kind === "human" && p.playerId !== undefined,
+  );
+  if (humans.length === 0) return;
+
+  // Seed each human slot with its persisted rating; bots default in the engine.
+  const existing = new Map<number, Doc<"ratings"> | null>();
+  const startRatings: Record<number, number> = {};
+  for (const p of humans) {
+    const row = await ctx.db
+      .query("ratings")
+      .withIndex("by_player", (q) => q.eq("playerId", p.playerId))
+      .unique();
+    existing.set(p.slot, row);
+    startRatings[p.slot] = row?.elo ?? DEFAULT_ELO;
+  }
+
+  const changes = computeTournamentEloChanges({
+    participants: resolved.participants,
+    matches: resolved.matches,
+    startRatings,
+  });
+  const bySlot = new Map(changes.map((c) => [c.slot, c]));
+  const now = Date.now();
+
+  for (const p of humans) {
+    const c = bySlot.get(p.slot);
+    if (!c) continue;
+    const row = existing.get(p.slot) ?? null;
+    const title = resolved.championSlot === p.slot ? 1 : 0;
+    if (row) {
+      await ctx.db.patch(row._id, {
+        name: p.name,
+        elo: c.finalRating,
+        peakElo: Math.max(row.peakElo, c.finalRating),
+        wins: row.wins + c.wins,
+        draws: row.draws + c.draws,
+        losses: row.losses + c.losses,
+        played: row.played + c.played,
+        tournaments: row.tournaments + 1,
+        titles: row.titles + title,
+        lastDelta: c.delta,
+        lastTournamentId: tournamentId,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("ratings", {
+        playerId: p.playerId,
+        name: p.name,
+        elo: c.finalRating,
+        peakElo: c.finalRating,
+        wins: c.wins,
+        draws: c.draws,
+        losses: c.losses,
+        played: c.played,
+        tournaments: 1,
+        titles: title,
+        lastDelta: c.delta,
+        lastTournamentId: tournamentId,
+        updatedAt: now,
+      });
+    }
+  }
 }
 
 /**

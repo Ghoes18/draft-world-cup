@@ -370,6 +370,7 @@ function RevealStep({
   onSearchAgain: () => void;
 }) {
   const state = useQuery(api.tournament.tournamentState, { tournamentId });
+  const rating = useQuery(api.ratings.myRating, { playerId });
   const leaveQueue = useMutation(api.tournament.leaveQueue);
 
   useEffect(() => {
@@ -380,6 +381,8 @@ function RevealStep({
   if (state === null) return <p className="dim">Tournament not found.</p>;
 
   const mySlot = state.participants.find((p) => p.playerId === playerId)?.slot;
+  // Only surface a delta when the rating row reflects *this* tournament.
+  const ratedThis = rating?.rated && rating.lastTournamentId === tournamentId;
 
   return (
     <TournamentReveal
@@ -403,6 +406,9 @@ function RevealStep({
       }}
       mySlot={mySlot}
       onPlayAgain={onSearchAgain}
+      {...(ratedThis
+        ? { myElo: rating!.elo, ...(rating!.lastDelta !== undefined ? { myEloDelta: rating!.lastDelta } : {}) }
+        : {})}
     />
   );
 }

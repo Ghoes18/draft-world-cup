@@ -35,12 +35,18 @@ export function TournamentReveal({
   mySlot,
   onPlayAgain,
   playAgainLabel = "Search again with a new squad",
+  myElo,
+  myEloDelta,
 }: {
   state: TournamentViewState;
   /** The human player's tournament slot (slot 0+ after shuffle). */
   mySlot: number | undefined;
   onPlayAgain: () => void;
   playAgainLabel?: string;
+  /** New persistent rating after this tournament (online only). */
+  myElo?: number;
+  /** Rating change earned in this tournament (online only). */
+  myEloDelta?: number;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [campaignDone, setCampaignDone] = useState(false);
@@ -90,6 +96,21 @@ export function TournamentReveal({
             <p className="mono dim">
               Champion: {slotName(state.participants, state.championSlot)}
             </p>
+            {myElo !== undefined && (
+              <p className="mono" style={{ marginTop: "0.5rem" }}>
+                {S.leaderboard.elo}: <strong>{myElo}</strong>
+                {myEloDelta !== undefined && (
+                  <span
+                    style={{
+                      marginLeft: "0.5rem",
+                      color: myEloDelta >= 0 ? "var(--lime, #9be15d)" : "var(--coral, #ff6b6b)",
+                    }}
+                  >
+                    {S.leaderboard.delta(myEloDelta)}
+                  </span>
+                )}
+              </p>
+            )}
           </section>
 
           <section
