@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { authedQuery } from "./lib/customFunctions";
 import { DEFAULT_ELO } from "7a0-engine/dist";
 
 const ratingRow = {
@@ -46,15 +47,16 @@ export const leaderboard = query({
  * the reveal screen can show a "+18" / "-12" delta scoped to that tournament.
  * Returns a synthetic default for a player who has not been rated yet.
  */
-export const myRating = query({
-  args: { playerId: v.string() },
+export const myRating = authedQuery({
+  args: {},
   returns: v.object({
     rated: v.boolean(),
     ...ratingRow,
     lastDelta: v.optional(v.number()),
     lastTournamentId: v.optional(v.id("tournaments")),
   }),
-  handler: async (ctx, { playerId }) => {
+  handler: async (ctx) => {
+    const { playerId } = ctx;
     const row = await ctx.db
       .query("ratings")
       .withIndex("by_player", (q) => q.eq("playerId", playerId))
@@ -100,8 +102,8 @@ const placement = v.union(
 );
 
 /** A player's recent online tournament results, newest first. */
-export const myHistory = query({
-  args: { playerId: v.string(), limit: v.optional(v.number()) },
+export const myHistory = authedQuery({
+  args: { limit: v.optional(v.number()) },
   returns: v.array(
     v.object({
       tournamentId: v.id("tournaments"),
@@ -110,7 +112,8 @@ export const myHistory = query({
       slot: v.number(),
     }),
   ),
-  handler: async (ctx, { playerId, limit }) => {
+  handler: async (ctx, { limit }) => {
+    const { playerId } = ctx;
     const seats = await ctx.db
       .query("participants")
       .withIndex("by_player", (q) => q.eq("playerId", playerId))

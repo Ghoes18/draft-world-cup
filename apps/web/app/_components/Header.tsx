@@ -3,6 +3,7 @@
 import { useStrings } from "../_i18n/LocaleProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { SoundToggle } from "./SoundToggle";
+import { AuthControls } from "./AuthControls";
 
 export function Header({ meta }: { meta?: string }) {
   const S = useStrings();
@@ -21,16 +22,16 @@ export function Header({ meta }: { meta?: string }) {
       </nav>
       <div className="topbar__actions">
         <div className="topbar__controls">
+          <AuthControls />
           <SoundToggle />
           <LanguageSwitcher />
         </div>
         <p className="topbar__meta">
-          {S.brand.tagline}
+          <span>{S.brand.tagline}</span>
           {meta ? (
-            <>
-              <br />
+            <span className="topbar__meta-detail">
               {meta}
-            </>
+            </span>
           ) : null}
         </p>
       </div>

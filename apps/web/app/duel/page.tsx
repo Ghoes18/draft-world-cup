@@ -19,12 +19,13 @@ import {
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../../convex/_generated/api";
 import { BuildPanel } from "../_components/BuildPanel";
-import { DraftSetupWizard, NameSetupStep } from "../_components/DraftSetupWizard";
+import { DraftSetupWizard } from "../_components/DraftSetupWizard";
 import { FormationPicker } from "../_components/FormationPicker";
 import { Header } from "../_components/Header";
 import { Footer } from "../_components/Footer";
 import { TournamentReveal } from "../_components/TournamentReveal";
-import { usePlayerId } from "../_hooks/usePlayerId";
+import { AuthGate } from "../_components/AuthGate";
+import { useAuth } from "../_hooks/useAuth";
 import { useStrings } from "../_i18n/LocaleProvider";
 
 const NEUTRAL_AWAY: TeamStrength = { attack: 78, midfield: 78, defense: 78, overall: 78 };
@@ -111,7 +112,7 @@ function useDraftState(catalog: SquadCatalog | null) {
 
 export default function DuelPage() {
   const S = useStrings();
-  const { playerId, name, setName } = usePlayerId();
+  const { playerId, isAuthenticated, isLoading } = useAuth();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
 
   const [phase, setPhase] = useState<Phase>("build");
@@ -124,8 +125,10 @@ export default function DuelPage() {
       <Header meta={S.brand.metaOnline} />
       {!convexReady ? (
         <SetupHint />
-      ) : !playerId ? (
-        <p className="dim">{S.duel.loading}</p>
+      ) : isLoading ? (
+        <p className="dim">{S.auth.loading}</p>
+      ) : !isAuthenticated || !playerId ? (
+        <AuthGate>{null}</AuthGate>
       ) : catalogError ? (
         <CatalogError />
       ) : !catalog ? (
@@ -134,9 +137,6 @@ export default function DuelPage() {
         <BuildStep
           catalog={catalog}
           draft={draft}
-          playerId={playerId}
-          name={name}
-          setName={setName}
           onQueued={() => setPhase("searching")}
           onMatched={(id) => {
             setTournamentId(id);
@@ -145,7 +145,6 @@ export default function DuelPage() {
         />
       ) : phase === "searching" ? (
         <SearchingStep
-          playerId={playerId}
           onMatched={(id) => {
             setTournamentId(id);
             setPhase("reveal");
@@ -196,17 +195,11 @@ function CatalogError() {
 function BuildStep({
   catalog,
   draft,
-  playerId,
-  name,
-  setName,
   onQueued,
   onMatched,
 }: {
   catalog: SquadCatalog;
   draft: ReturnType<typeof useDraftState>;
-  playerId: string;
-  name: string;
-  setName: (n: string) => void;
   onQueued: () => void;
   onMatched: (tournamentId: TournamentState["tournamentId"]) => void;
 }) {
@@ -216,10 +209,8 @@ function BuildStep({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [nameDone, setNameDone] = useState(false);
 
-  const wizardStep =
-    buildState && formationId ? 3 : nameDone ? 2 : 1;
+  const wizardStep = buildState && formationId ? 2 : 1;
 
   const canJoin = buildState !== null && isLineupComplete(buildState);
 
@@ -241,8 +232,6 @@ function BuildStep({
         );
       }
       const res = await joinQueue({
-        playerId,
-        name,
         seed,
         formationId,
         tactic: "balanced",
@@ -255,29 +244,19 @@ function BuildStep({
       setError(msg.startsWith("BOSS_INVALID_BUILD:") ? S.errors.invalidBuild(msg.slice("BOSS_INVALID_BUILD:".length)) : msg || S.duel.joinFailed);
       setSubmitting(false);
     }
-  }, [buildState, formationId, submitting, joinQueue, playerId, name, seed, actionsRef, onMatched, onQueued, catalog, S]);
+  }, [buildState, formationId, submitting, joinQueue, seed, actionsRef, onMatched, onQueued, catalog, S]);
 
   function onRerollSquad() {
     reset();
-    setNameDone(true);
   }
 
   function onConfirmFormation() {
     confirmFormation();
-    setNameDone(true);
   }
 
   return (
     <DraftSetupWizard step={wizardStep}>
       {wizardStep === 1 && (
-        <NameSetupStep
-          name={name}
-          onNameChange={setName}
-          onContinue={() => setNameDone(true)}
-        />
-      )}
-
-      {wizardStep === 2 && (
         <FormationPicker
           options={formationOptions}
           selectedId={pendingFormationId}
@@ -286,7 +265,7 @@ function BuildStep({
         />
       )}
 
-      {wizardStep === 3 && buildState && (
+      {wizardStep === 2 && buildState && (
         <>
           <BuildPanel
             catalog={catalog}
@@ -311,25 +290,23 @@ function BuildStep({
 }
 
 function SearchingStep({
-  playerId,
   onMatched,
   onCancel,
 }: {
-  playerId: string;
   onMatched: (tournamentId: TournamentState["tournamentId"]) => void;
   onCancel: () => void;
 }) {
   const S = useStrings();
   const leaveQueue = useMutation(api.tournament.leaveQueue);
   const heartbeat = useMutation(api.tournament.heartbeat);
-  const status = useQuery(api.tournament.myQueueStatus, { playerId });
+  const status = useQuery(api.tournament.myQueueStatus, {});
 
   useEffect(() => {
-    const tick = () => heartbeat({ playerId }).catch(() => {});
+    const tick = () => heartbeat({}).catch(() => {});
     tick();
     const id = setInterval(tick, 10_000);
     return () => clearInterval(id);
-  }, [playerId, heartbeat]);
+  }, [heartbeat]);
 
   useEffect(() => {
     if (status?.status === "matched") onMatched(status.tournamentId);
@@ -347,7 +324,7 @@ function SearchingStep({
       <p className="dim">{S.duel.fillingHint}</p>
       <button
         onClick={async () => {
-          await leaveQueue({ playerId });
+          await leaveQueue({});
           onCancel();
         }}
       >
@@ -368,12 +345,12 @@ function RevealStep({
 }) {
   const S = useStrings();
   const state = useQuery(api.tournament.tournamentState, { tournamentId });
-  const rating = useQuery(api.ratings.myRating, { playerId });
+  const rating = useQuery(api.ratings.myRating, {});
   const leaveQueue = useMutation(api.tournament.leaveQueue);
 
   useEffect(() => {
-    leaveQueue({ playerId }).catch(() => {});
-  }, [playerId, leaveQueue]);
+    leaveQueue({}).catch(() => {});
+  }, [leaveQueue]);
 
   if (state === undefined) return <p className="dim">{S.duel.loadingTournament}</p>;
   if (state === null) return <p className="dim">{S.duel.tournamentNotFound}</p>;

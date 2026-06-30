@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query, internalMutation, type MutationCtx } from "./_generated/server";
+import { query, internalMutation, type MutationCtx } from "./_generated/server";
+import { authedMutation, authedQuery } from "./lib/customFunctions";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import {
@@ -253,10 +254,8 @@ async function updateRatings(
  * the whole tournament is resolved immediately — every build is already
  * validated, so there is nothing left to wait for.
  */
-export const joinQueue = mutation({
+export const joinQueue = authedMutation({
   args: {
-    playerId: v.string(),
-    name: v.string(),
     seed: v.string(),
     formationId: v.string(),
     tactic: tacticValidator,
@@ -267,11 +266,12 @@ export const joinQueue = mutation({
     v.object({ status: v.literal("matched"), tournamentId: v.id("tournaments") }),
   ),
   handler: async (ctx, args) => {
+    const { playerId, user } = ctx;
     validateSubmission(args);
 
     const mine = await ctx.db
       .query("queue")
-      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .withIndex("by_player", (q) => q.eq("playerId", playerId))
       .unique();
     if (mine) await ctx.db.delete(mine._id);
 
@@ -295,8 +295,8 @@ export const joinQueue = mutation({
     const wasEmpty = live.length === 0;
 
     const myRowId = await ctx.db.insert("queue", {
-      playerId: args.playerId,
-      name: args.name,
+      playerId,
+      name: user.name,
       seed: args.seed,
       formationId: args.formationId,
       tactic: args.tactic,
@@ -317,7 +317,7 @@ export const joinQueue = mutation({
     }
 
     await ctx.scheduler.runAfter(STALE_MS * 2, internal.tournament.expireIfStale, {
-      playerId: args.playerId,
+      playerId,
     });
     return { status: "waiting" as const, waitingCount: live.length + 1, poolSize: POOL_SIZE };
   },
@@ -379,10 +379,11 @@ export const tryStartTournament = internalMutation({
 });
 
 /** Cancel an active search, or clear a consumed tournament pointer. */
-export const leaveQueue = mutation({
-  args: { playerId: v.string() },
+export const leaveQueue = authedMutation({
+  args: {},
   returns: v.null(),
-  handler: async (ctx, { playerId }) => {
+  handler: async (ctx) => {
+    const { playerId } = ctx;
     const row = await ctx.db
       .query("queue")
       .withIndex("by_player", (q) => q.eq("playerId", playerId))
@@ -393,10 +394,11 @@ export const leaveQueue = mutation({
 });
 
 /** Heartbeat while waiting, so abandoned entries can be detected. */
-export const heartbeat = mutation({
-  args: { playerId: v.string() },
+export const heartbeat = authedMutation({
+  args: {},
   returns: v.null(),
-  handler: async (ctx, { playerId }) => {
+  handler: async (ctx) => {
+    const { playerId } = ctx;
     const row = await ctx.db
       .query("queue")
       .withIndex("by_player", (q) => q.eq("playerId", playerId))
@@ -423,14 +425,15 @@ export const expireIfStale = internalMutation({
 });
 
 /** Reactive: am I still waiting, freshly matched, or out of the pool? */
-export const myQueueStatus = query({
-  args: { playerId: v.string() },
+export const myQueueStatus = authedQuery({
+  args: {},
   returns: v.union(
     v.object({ status: v.literal("idle") }),
     v.object({ status: v.literal("waiting"), waitingCount: v.number(), poolSize: v.number() }),
     v.object({ status: v.literal("matched"), tournamentId: v.id("tournaments") }),
   ),
-  handler: async (ctx, { playerId }) => {
+  handler: async (ctx) => {
+    const { playerId } = ctx;
     const row = await ctx.db
       .query("queue")
       .withIndex("by_player", (q) => q.eq("playerId", playerId))

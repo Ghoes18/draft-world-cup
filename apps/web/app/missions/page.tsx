@@ -31,7 +31,8 @@ import { MissionCard, type MissionView } from "../_components/MissionCard";
 import { BossCard, type BossView } from "../_components/BossCard";
 import { StaggerIn } from "../_components/motion";
 import { normalizeBossView } from "../_data/bossView";
-import { usePlayerId } from "../_hooks/usePlayerId";
+import { AuthGate } from "../_components/AuthGate";
+import { useAuth } from "../_hooks/useAuth";
 import { useGameCatalog } from "../_hooks/useGameCatalog";
 import { mapBossError } from "../_i18n/mapBossError";
 import { useStrings } from "../_i18n/LocaleProvider";
@@ -58,7 +59,7 @@ interface BossOutcome {
 export default function MissionsPage() {
   const S = useStrings();
   const { catalog, ready } = useGameCatalog();
-  const { playerId, name } = usePlayerId();
+  const { playerId, name, isAuthenticated, isLoading } = useAuth();
   const convexReady = process.env.NEXT_PUBLIC_CONVEX_URL != null;
 
   return (
@@ -72,11 +73,11 @@ export default function MissionsPage() {
           <h1 className="missions-page__title">{S.missions.heading}</h1>
           <p className="dim">{S.missions.needConvex}</p>
         </section>
-      ) : !playerId ? (
-        <p className="dim">{S.missions.loading}</p>
+      ) : isLoading ? (
+        <p className="dim">{S.auth.loading}</p>
+      ) : !isAuthenticated || !playerId ? (
+        <AuthGate>{null}</AuthGate>
       ) : (
-        // All Convex hooks live below this gate — the provider only wraps the
-        // app when NEXT_PUBLIC_CONVEX_URL is set (see ConvexClientProvider).
         <MissionsContent catalog={catalog} playerId={playerId} name={name} />
       )}
       <Footer />
@@ -98,11 +99,11 @@ function MissionsContent({
   const [outcome, setOutcome] = useState<BossOutcome | null>(null);
   const [matchDone, setMatchDone] = useState(false);
 
-  const missions = useQuery(api.missions.myMissions, { playerId }) as
+  const missions = useQuery(api.missions.myMissions, {}) as
     | MissionView[]
     | undefined;
   const bossRaw = useQuery(api.boss.currentBoss, {});
-  const bossStatus = useQuery(api.boss.myBossStatus, { playerId });
+  const bossStatus = useQuery(api.boss.myBossStatus, {});
   const boss = useMemo(() => normalizeBossView(bossRaw, catalog), [bossRaw, catalog]);
 
   const daily = useMemo(() => missions?.filter((m) => m.type === "daily") ?? [], [missions]);
@@ -132,7 +133,6 @@ function MissionsContent({
       {phase === "build" && boss && (
         <BossBuild
           catalog={catalog}
-          playerId={playerId}
           weekKey={boss.weekKey}
           onCancel={() => setPhase("overview")}
           onResolved={(o) => {
@@ -247,13 +247,11 @@ type BossResult = { gf: number; ga: number; beat: boolean } | null;
  *  mutation rather than a local simulation. */
 function BossBuild({
   catalog,
-  playerId,
   weekKey,
   onCancel,
   onResolved,
 }: {
   catalog: SquadCatalog;
-  playerId: string;
   weekKey: string;
   onCancel: () => void;
   onResolved: (o: BossOutcome) => void;
@@ -313,7 +311,6 @@ function BossBuild({
         );
       }
       const res = await challengeBoss({
-        playerId,
         seed,
         formationId,
         tactic: "balanced",
@@ -331,7 +328,7 @@ function BossBuild({
       setError(msg ? mapBossError(msg, S) : S.errors.bossChallengeFailed);
       setSubmitting(false);
     }
-  }, [buildState, formationId, submitting, catalog, seed, challengeBoss, playerId, onResolved, S]);
+  }, [buildState, formationId, submitting, catalog, seed, challengeBoss, onResolved, S]);
 
   if (!formationId || !buildState) {
     return (

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { authedMutation } from "./lib/customFunctions";
 import {
   autoFillLineup,
   buildMatchOutcome,
@@ -20,19 +20,12 @@ const tacticValidator = v.union(
 );
 
 /**
- * Record a finished *solo* match for mission progress. The client presents its
- * own (deterministic) local simulation for instant feedback; this mutation is
- * the server-authoritative source of truth — it re-validates the submitted
- * action log and re-resolves the match on the shared `gameCatalog`, so a
- * tampered score never earns mission credit. The seed-derived opponent is
- * reconstructed exactly as the solo client does (`app/page.tsx`).
- *
- * Invalid/illegal submissions are silently not credited (return `ok:false`) —
- * the player keeps their local result; only mission progress is withheld.
+ * Record a finished *solo* match for mission progress. Requires authentication.
+ * The client presents its own (deterministic) local simulation for instant feedback;
+ * this mutation re-validates the submitted action log server-side.
  */
-export const recordMatch = mutation({
+export const recordMatch = authedMutation({
   args: {
-    playerId: v.string(),
     seed: v.string(),
     formationId: v.string(),
     tactic: tacticValidator,
@@ -43,6 +36,7 @@ export const recordMatch = mutation({
     missionsCompleted: v.array(v.string()),
   }),
   handler: async (ctx, args) => {
+    const { playerId } = ctx;
     let actions: BuildAction[];
     try {
       actions = JSON.parse(args.actionsJson) as BuildAction[];
@@ -59,7 +53,6 @@ export const recordMatch = mutation({
     });
     if (!replay.ok) return { ok: false, missionsCompleted: [] };
 
-    // Reconstruct the seed-derived CPU opponent (mirrors the solo client).
     const initial = initBuildState(
       gameCatalog,
       args.seed,
@@ -89,7 +82,7 @@ export const recordMatch = mutation({
     });
     const { completed } = await applyMatchToMissions(
       ctx,
-      args.playerId,
+      playerId,
       outcome,
       utcDateKey(),
     );
