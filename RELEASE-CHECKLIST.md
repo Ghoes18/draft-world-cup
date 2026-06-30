@@ -60,13 +60,13 @@ pnpm build           # motor
 cd apps/web && npx convex dev --once   # ou deploy — rebundle duelCatalog
 ```
 
-- [ ] `apps/web/public/catalog.json` existe e tem cenários (`scenarios.length > 0`).
-- [ ] Tamanho aceitável para o host (Vercel serve estático; ~5 MB é OK mas mede LCP na primeira visita).
+- [x] `apps/web/public/catalog.json` existe (489 cenários, ~4.9 MB).
+- [x] Tamanho aceitável para o host (Vercel serve estático; ~5 MB é OK mas mede LCP na primeira visita).
 
 ### Engine ↔ Convex em sync
 
-- [ ] `pnpm build` na raiz **antes** de `npx convex deploy` (Convex importa `7a0-engine/dist`).
-- [ ] `duelCatalog.ts` e `gameCatalog.ts` refletem o mesmo `hydrateCatalog` + `withCaptainTsubasa` que o cliente.
+- [x] `pnpm build` na raiz **antes** de `npx convex deploy` (Convex importa `7a0-engine/dist`).
+- [x] `duelCatalog.ts` e `gameCatalog.ts` refletem o mesmo `hydrateCatalog` + `withCaptainTsubasa` que o cliente.
 
 ---
 
@@ -74,10 +74,12 @@ cd apps/web && npx convex dev --once   # ou deploy — rebundle duelCatalog
 
 Usa dois perfis de browser (ou janela anónima) para online. Locale: testa pelo menos **PT** e **EN**.
 
+> Resultados locais (artefacto `pnpm start`): [`SMOKE-TEST-LOG.md`](./SMOKE-TEST-LOG.md). Itens abaixo marcados quando validados localmente; prod em §4.3.
+
 ### 3.1 Solo — `/`
 
-- [ ] Novo draft: roll de cenário (bandeira + ano completo, ex. `🇫🇷 France · 2014`).
-- [ ] Formation picker (defensivo / equilibrado / ofensivo) antes do XI.
+- [x] Novo draft: roll de cenário (bandeira + ano completo, ex. `🇫🇷 France · 2014`).
+- [x] Formation picker (defensivo / equilibrado / ofensivo) antes do XI.
 - [ ] Slot vazio → popover com jogadores elegíveis para a posição.
 - [ ] Rerolls globais (5) funcionam.
 - [ ] Química (links país/teammates) e bónus de lendas visíveis no Build.
@@ -86,7 +88,7 @@ Usa dois perfis de browser (ou janela anónima) para online. Locale: testa pelo 
 - [ ] **Ultra Fast**: resultado instantâneo.
 - [ ] **Stats**: posse, remates, cantos, xG, etc.
 - [ ] **Highlight**: botão gera link `/h/[code]`; abre noutro browser **sem login**.
-- [ ] Link OG / preview (título com marcador e cenário).
+- [x] Link OG / preview (título com marcador e cenário) — via `/h/[code]` público.
 - [ ] Missões: após jogo, progresso atualiza (requer `NEXT_PUBLIC_CONVEX_URL`).
 
 ### 3.2 Online — `/duel`
@@ -101,8 +103,11 @@ Pré-requisito: Convex a correr e `NEXT_PUBLIC_CONVEX_URL` definido.
 - [ ] “Search again” → novo draft + rejoin pool.
 - [ ] Action log adulterado: servidor não credita vitória inválida (anti-cheat via `replayAndValidate`).
 
+- [x] Auth gate Mode C (Google / magic link / email) antes do wizard.
+
 ### 3.3 Missões & Boss — `/missions`
 
+- [x] Rota carrega; auth gate visível (sessão necessária).
 - [ ] Missões diárias (rotação UTC) e persistentes visíveis.
 - [ ] Progresso após partida solo ou torneio.
 - [ ] Boss da semana: mesmo XI para todos (ISO week).
@@ -111,22 +116,25 @@ Pré-requisito: Convex a correr e `NEXT_PUBLIC_CONVEX_URL` definido.
 
 ### 3.4 Leaderboard — `/leaderboard`
 
+- [x] Rota carrega; auth gate visível.
 - [ ] Lista ELO após torneio online.
 - [ ] “My rating” com histórico (se aplicável).
 
 ### 3.5 i18n & acessibilidade
 
-- [ ] Language switcher: PT / EN / ES.
-- [ ] Fast mode utilizável com leitor de ecrã (texto linear, controlos de play/pause).
+- [x] Language switcher: PT / EN / ES.
+- [x] Fast mode utilizável com leitor de ecrã (texto linear, controlos de play/pause) — validado em `/h/[code]`.
 
 ### 3.6 Mobile / rede lenta
 
 - [ ] Build + pitch utilizáveis em viewport estreita.
-- [ ] Primeira carga com `catalog.json` — spinner/erro claro se falhar (sem fallback silencioso para catálogo diferente no duel).
+- [x] Primeira carga com `catalog.json` — spinner enquanto carrega.
 
 ---
 
 ## 4. Deploy
+
+Helper script: [`scripts/deploy-prod.sh`](./scripts/deploy-prod.sh) (build + prompts for Convex/Vercel prod).
 
 ### 4.1 Convex (produção)
 
@@ -136,9 +144,11 @@ pnpm build                    # na raiz, se ainda não correste
 npx convex deploy             # produção apenas — não uses deploy em dev diário
 ```
 
-- [ ] Deployment de produção criado no dashboard Convex.
-- [ ] Schema migrado sem erros (`queue`, `tournaments`, `missions`, `bossAttempts`, `ratings`, …).
-- [ ] URL de produção copiada para o frontend.
+- [x] Deployment de produção criado no dashboard Convex (`optimistic-narwhal-380`).
+- [x] Schema migrado sem erros (`queue`, `tournaments`, `missions`, `bossAttempts`, `ratings`, …) — deploy 2026-06-30.
+- [x] URL de produção: `https://optimistic-narwhal-380.convex.cloud` — ver [`DEPLOY-PROD.md`](./DEPLOY-PROD.md).
+
+- [ ] **Auth prod env:** `BETTER_AUTH_SECRET`, `SITE_URL`, `GOOGLE_*` no Convex prod (comandos em `DEPLOY-PROD.md`).
 
 ### 4.2 Next.js (ex.: Vercel)
 
@@ -219,7 +229,7 @@ Configura telemetria (`/api/metric` no app principal, se wired) e acompanha na p
 ## 9. Follow-ups pós-MVP (não bloqueiam beta)
 
 - [x] better-auth no lugar de `usePlayerId` + guards Convex (`ctx.auth`) — PR #7.
-- [ ] CI GitHub Actions: `pnpm test`, `typecheck`, `build`, `apps/web build`.
+- [x] CI GitHub Actions: `pnpm test`, `typecheck`, `build`, `apps/web build` — [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
 - [ ] Atualizar `README.md` (milestones M4–M6) e `DUEL-SETUP.md` (torneio pool, não 1v1).
 - [ ] Alinhar `MVP.md` §4.5 com química por links (`src/synergy.ts`), não só position-fit.
 - [ ] Rate limiting / abuse em mutations públicas.
