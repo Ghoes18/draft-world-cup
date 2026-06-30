@@ -31,6 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: S.meta.title,
     description: S.meta.description,
+    icons: {
+      icon: "/logo.svg",
+    },
   };
 }
 

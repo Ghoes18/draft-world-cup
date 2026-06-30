@@ -156,29 +156,21 @@ a {
 
 .brand {
   display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
+  align-items: center;
   flex-shrink: 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: clamp(1.15rem, 2.8vw, 1.45rem);
-  letter-spacing: 0.04em;
-  color: var(--chalk);
   text-decoration: none;
-  line-height: 0.9;
-  transition: color var(--dur-fast) var(--ease);
+  line-height: 0;
+  transition: opacity var(--dur-fast) var(--ease);
 }
 
 .brand:hover {
-  color: var(--home);
+  opacity: 0.88;
 }
 
-.brand__prime {
-  color: var(--home);
-  font-family: var(--font-mono), monospace;
-  font-size: 0.72em;
-  letter-spacing: 0.02em;
+.brand__logo {
+  display: block;
+  height: clamp(1.55rem, 3.8vw, 1.95rem);
+  width: auto;
 }
 
 .topbar__utilities {
