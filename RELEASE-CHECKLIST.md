@@ -23,9 +23,9 @@ Escolhe **uma** opção antes de começar — define o que é obrigatório vs. o
 
 ## 1. Congelar scope
 
-- [ ] Lista o que entra neste release (ex.: polish de som/UI, Captain Tsubasa, 3D pitch) vs. o que fica para depois.
-- [ ] `git status` limpo ou numa branch `release/*` com apenas o que queres publicar.
-- [ ] `MVP.md` e docs de setup revistos se o comportamento mudou (ex.: torneio pool de 8, não duel 1v1 com room code).
+- [x] Lista o que entra neste release — ver [`RELEASE-SCOPE.md`](./RELEASE-SCOPE.md) (v0.1.0, Mode C).
+- [x] `git status` limpo numa branch `release/v0.1.0` (cut from `main` after PR #7 + #8).
+- [x] `MVP.md` e docs de setup revistos (torneio pool de 8; auth em `AUTH-SETUP.md`).
 
 ---
 
@@ -218,7 +218,7 @@ Configura telemetria (`/api/metric` no app principal, se wired) e acompanha na p
 
 ## 9. Follow-ups pós-MVP (não bloqueiam beta)
 
-- [ ] better-auth no lugar de `usePlayerId` + guards Convex (`ctx.auth`).
+- [x] better-auth no lugar de `usePlayerId` + guards Convex (`ctx.auth`) — PR #7.
 - [ ] CI GitHub Actions: `pnpm test`, `typecheck`, `build`, `apps/web build`.
 - [ ] Atualizar `README.md` (milestones M4–M6) e `DUEL-SETUP.md` (torneio pool, não 1v1).
 - [ ] Alinhar `MVP.md` §4.5 com química por links (`src/synergy.ts`), não só position-fit.

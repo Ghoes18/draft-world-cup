@@ -37,7 +37,30 @@ See [`.env.example`](./.env.example). Required:
 2. Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (and production URL).
 3. Copy client ID/secret to Convex env vars above.
 
-### Magic link (email)
+### Production (Mode C deploy)
+
+Set Convex **production** env (dashboard or `npx convex env set --prod`):
+
+```bash
+npx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)" --prod
+npx convex env set SITE_URL https://your-domain.com --prod
+npx convex env set GOOGLE_CLIENT_ID "…" --prod
+npx convex env set GOOGLE_CLIENT_SECRET "…" --prod
+# Optional: RESEND_API_KEY, AUTH_EMAIL_FROM for magic link in prod
+```
+
+Google Cloud Console — add authorized redirect URI:
+
+- `https://your-domain.com/api/auth/callback/google`
+
+Vercel (or host) env:
+
+- `NEXT_PUBLIC_CONVEX_URL` — production `.convex.cloud` URL
+- `NEXT_PUBLIC_CONVEX_SITE_URL` — production `.convex.site` URL
+- `NEXT_PUBLIC_SITE_URL` — `https://your-domain.com`
+
+After deploy, smoke-test sign-in on `/duel` and `/missions` before opening traffic.
+
 
 Magic link uses the Better Auth `magicLink` plugin. Emails are sent via [Resend](https://resend.com) when configured:
 
