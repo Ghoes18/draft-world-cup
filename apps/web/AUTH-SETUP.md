@@ -37,6 +37,21 @@ See [`.env.example`](./.env.example). Required:
 2. Authorized redirect URI: `http://localhost:3000/api/auth/callback/google` (and production URL).
 3. Copy client ID/secret to Convex env vars above.
 
+### Magic link (email)
+
+Magic link uses the Better Auth `magicLink` plugin. Emails are sent via [Resend](https://resend.com) when configured:
+
+```bash
+npx convex env set RESEND_API_KEY "re_…"
+npx convex env set AUTH_EMAIL_FROM "NINETY <auth@yourdomain.com>"
+```
+
+**Local dev without Resend:** omit `RESEND_API_KEY` — the sign-in URL is printed to the Convex function logs when someone requests a link. Open the Convex dashboard → Logs to copy it.
+
+### Email & password
+
+Enabled alongside magic link and Google. Users can create an account or sign in from the **Email & password** tab (min. 8 characters). No email verification required in MVP.
+
 ## Dev
 
 ```bash

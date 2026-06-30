@@ -27,12 +27,11 @@ export function Header({ meta }: { meta?: string }) {
           <LanguageSwitcher />
         </div>
         <p className="topbar__meta">
-          {S.brand.tagline}
+          <span>{S.brand.tagline}</span>
           {meta ? (
-            <>
-              <br />
+            <span className="topbar__meta-detail">
               {meta}
-            </>
+            </span>
           ) : null}
         </p>
       </div>

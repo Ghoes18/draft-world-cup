@@ -1,11 +1,14 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
+import { requireActionCtx } from "@convex-dev/better-auth/utils";
+import { magicLink } from "better-auth/plugins/magic-link";
 import { v } from "convex/values";
 import { betterAuth } from "better-auth/minimal";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
 import authConfig from "./auth.config";
+import { sendMagicLinkEmail } from "./email";
 
 const siteUrl = process.env.SITE_URL!;
 
@@ -27,7 +30,14 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         prompt: "select_account",
       },
     },
-    plugins: [convex({ authConfig })],
+    plugins: [
+      magicLink({
+        sendMagicLink: async ({ email, url }) => {
+          await sendMagicLinkEmail(requireActionCtx(ctx), { to: email, url });
+        },
+      }),
+      convex({ authConfig }),
+    ],
   });
 };
 
