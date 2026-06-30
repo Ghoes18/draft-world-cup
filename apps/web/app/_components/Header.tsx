@@ -5,6 +5,7 @@ import { useStrings } from "../_i18n/LocaleProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { SoundToggle } from "./SoundToggle";
 import { AuthControls } from "./AuthControls";
+import { BrandLogo } from "./BrandLogo";
 
 function navIsActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
@@ -26,8 +27,7 @@ export function Header({ meta }: { meta?: string }) {
     <header className="topbar">
       <div className="topbar__main">
         <a href="/" className="brand" aria-label={S.title}>
-          {S.brand.name}
-          <span className="brand__prime">90′</span>
+          <BrandLogo className="brand__logo" />
         </a>
 
         <nav className="topbar__nav" aria-label="Primary">
